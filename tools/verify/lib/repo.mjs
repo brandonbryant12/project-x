@@ -52,9 +52,20 @@ export const tables = () =>
 export const webRoutes = () =>
   walk('apps/web/src/routes').filter((f) => /\.tsx?$/.test(f) && !f.endsWith('.gen.ts'));
 
-/** Scenario tests of the server (one per journey or failure mode). */
-export const scenarioTests = () =>
-  walk('apps/server/src').filter((f) => f.endsWith('.scenario.test.ts'));
+/**
+ * Every Vitest file in the workspace (`*.test.ts(x)` under each app's and
+ * package's `src`): scenario, domain, integrity, unit and web tests alike.
+ * Playwright specs under `apps/web/e2e` are run by the browser kind, not here.
+ */
+export const testSources = () =>
+  ['apps', 'packages']
+    .flatMap((top) =>
+      existsSync(join(ROOT, top))
+        ? readdirSync(join(ROOT, top)).map((name) => join(top, name, 'src'))
+        : [],
+    )
+    .flatMap(walk)
+    .filter((f) => /\.test\.tsx?$/.test(f));
 
 /** Display names of seeded people (the story world and the practice cohort's named people). */
 export const seedPersonas = () => {

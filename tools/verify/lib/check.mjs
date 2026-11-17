@@ -1,7 +1,7 @@
 // `pnpm verify check`: the feature map's staleness check. It fails, naming the
 // entry and the problem, when the map cites something that does not exist,
-// when the product has a route, endpoint, scenario test, playbook or journey
-// check that no feature claims, when a command cited in the map or in an agent
+// when the product has a route, endpoint, test file, playbook or journey check
+// that no feature claims, when a command cited in the map or in an agent
 // skill does not exist, or when the generated README is out of date. Plain
 // Node and the repository's files only, so CI runs it without an install.
 import { existsSync } from 'node:fs';
@@ -25,10 +25,10 @@ import {
   exists,
   readText,
   rootScripts,
-  scenarioTests,
   screenshotSpec,
   seedPersonas,
   tables,
+  testSources,
   walk,
   webRoutes,
   workspacePackages,
@@ -203,8 +203,8 @@ const checkCoverage = (map, ctx, fail) => {
       if (!endpoints.has(`${group}.${name}`))
         fail('coverage', `API endpoint ${group}.${name} is claimed by no feature`);
   const tests = claimed(testFiles);
-  for (const test of scenarioTests())
-    if (!tests.has(test)) fail('coverage', `scenario test ${test} is claimed by no feature`);
+  for (const test of testSources())
+    if (!tests.has(test)) fail('coverage', `test ${test} is claimed by no feature`);
   const playbooks = claimed((f) => (f.qa ? [f.qa.split('#')[0]] : []));
   for (const path of walk(PLAYBOOK_DIR).filter((p) => p.endsWith('.md')))
     if (!playbooks.has(path)) fail('coverage', `playbook ${path} is cited by no feature`);
