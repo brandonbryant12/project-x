@@ -18,7 +18,7 @@ plainly what you did and did not check.
    - If data is stale, run `pnpm db:reset`. This wipes local data; say so in
      your report.
 2. Read the journey's source of truth:
-   - `docs/product/ux-brief.md` for the screen spec and copy;
+   - `apps/web/DESIGN.md` for the design contract and copy;
    - `docs/product/domain-model.md` for rules and lifecycles;
    - the relevant lifecycle in `packages/domain/src/lifecycles/`.
 3. List the personas involved. Personas are seeded; list them with
@@ -35,7 +35,6 @@ plainly what you did and did not check.
    | Grace   | Empty states                                     |
    | Rhea    | Tenant admin                                     |
    | Nina    | Compliance reviewer                              |
-   | Elena   | Catalog keeper                                   |
 
 ## 1. Walk the journey
 

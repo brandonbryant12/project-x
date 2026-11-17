@@ -1,13 +1,14 @@
 # DESIGN.md — the "Quiet Ledger" contract for agents
 
-This page is the short form. The binding spec is
-[docs/product/ux-brief.md](../../docs/product/ux-brief.md). If they disagree,
-the brief wins and this page needs fixing.
+This page is the design contract for the web app. Navigation (who sees what)
+is `src/components/shell/nav.ts`; Home is `src/features/home/home-screen.tsx`
+with three sections: "Waiting on you", "Your plan" and "Recently". If this page
+and the code disagree, fix one of them in the same change.
 
 ## Feel
 
 Warm paper, ink, and a single brass note. It should read like a well-kept
-record book, not a dashboard. Be dense where people scan (Inbox, Team) and
+record book, not a dashboard. Be dense where people scan (To sign, My team) and
 spacious where they read or write (narratives, receipts).
 
 ## Tokens: use only these (`packages/ui/src/styles/tokens.css`)
@@ -67,7 +68,14 @@ tables are sans.
 - **Lifecycle buttons come only from the view's `actions` array.** An action
   that isn't available is absent, not disabled.
 - **Signing is never optimistic.** It shows "Posting to the record…", then the
-  receipt. Everything else may be optimistic and offer an Undo toast.
+  receipt. On failure: "Not signed. Nothing was posted. Try again." Everything
+  else may be optimistic and offer an Undo toast.
+- **Expiry never creates anxiety.** Show a date, not a countdown ("Open until
+  Mon 30 Nov"); within three days a warning-toned dot; never red, never a
+  ticking timer. A closed request always offers a way back.
+- **Keyboard:** `⌘K` palette (people, skills, "I saw this: Daniel"); `G`
+  then `H`/`I`/`D`/`P` to go; `L` to log, `O` to observe; `J`/`K` and `Enter`
+  in To sign. Single keys are off while typing.
 - **The assistant** always uses a dashed info-tinted border and the label
   "Assistant pre-read. An automated check; you decide."
   - Never pre-tick or pre-fill anything.
@@ -83,8 +91,10 @@ tables are sans.
 
 Plain, adult, second person. Name people, not roles. No exclamation marks and
 no "Great job!". Prefer "record" to "points". The assistant says "appears to"
-and never "I". Use the brief's exact strings for empty states and key moments.
-The product name comes from `src/lib/brand.ts`.
+and never "I". Use plain words, not internal terms: "Log work I did", "I saw
+this", "My plan", "People I coach", "times observed", "How this was earned"
+(the [glossary](../../CONTEXT.md) maps them). The product name comes from
+`src/lib/brand.ts`.
 
 ## Accessibility
 
@@ -95,7 +105,14 @@ The product name comes from `src/lib/brand.ts`.
   sign failures.
 - Hit targets are at least 44px on touch.
 - State is never conveyed by color alone.
-- Respect reduced motion.
+- Respect reduced motion, the colour scheme and 200% zoom.
+
+## Layout
+
+- Page frame: 16/24/32px gutters, content capped at 1200px.
+- Under 768px: dialogs become bottom drawers, tables become stacked rows, and
+  the sign form becomes one scrolling accordion.
+- From 1024px: the full sidebar; To sign and the sign screen use two panes.
 
 ## Look before you ship
 

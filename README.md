@@ -6,10 +6,10 @@ work, such as client meetings, book reviews and team conversations. Credit
 comes **only** when a coach or leader who saw the work signs an observation.
 There is no self-report, no points, and the AI never grants credit.
 
-- **Product:** [vision](docs/product/vision.md) · [domain model](docs/product/domain-model.md) · [UX brief](docs/product/ux-brief.md) · [open questions](docs/product/open-questions.md) · [questions for domain experts](docs/product/domain-expert-questions.md)
-- **Engineering:** [agent guide](AGENTS.md) · [ADRs](docs/adr/README.md) · [data model](docs/architecture/data-model.md) · [identity & access](docs/architecture/identity-and-access.md) · [testing](docs/testing/strategy.md) · [decision framework](docs/engineering/decision-making.md)
-- **Governance:** [controls matrix (SOC 2, FINRA/SEC, AI)](docs/compliance/controls.md) · [AI system card](docs/compliance/ai-system-card.md)
-- **Operations:** [incident response](docs/runbooks/incident-response.md) · [deprovisioning](docs/runbooks/deprovisioning.md) · [backup and restore](docs/runbooks/backup-and-restore.md)
+Start at the [docs map](docs/README.md). The essentials:
+
+- **Product:** [overview](docs/product/overview.md) · [glossary](CONTEXT.md) · [domain model](docs/product/domain-model.md) · [open questions](docs/product/open-questions.md) · [backlog](docs/backlog.md)
+- **Engineering:** [agent guide](AGENTS.md) · [design contract](apps/web/DESIGN.md) · [ADRs](docs/adr/README.md) · [data model](docs/architecture/data-model.md) · [testing](docs/testing/strategy.md)
 
 ## Run it locally
 
@@ -53,7 +53,7 @@ Monorepo: `packages/{domain,api,db,ai,ui}` and `apps/{server,web}`.
 
 | Command                                    | Purpose                                          |
 | ------------------------------------------ | ------------------------------------------------ |
-| `pnpm check`                               | Format, lint, typecheck, tests, knip             |
+| `pnpm check`                               | Format, lint, typecheck, tests, knip, docs check |
 | `pnpm db:reset`                            | Wipe, migrate and seed the local database        |
 | `pnpm --filter @repo/web screenshots`      | Visual review, with the API and web app running  |
 | `docker compose --profile otel up -d`      | View traces and logs locally (Aspire on :18888)  |

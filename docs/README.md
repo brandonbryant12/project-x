@@ -1,49 +1,23 @@
 # Documentation
 
-Start with the overview for your role. Each page links to its details.
+## Read these first
 
-## Product: what and why
+1. [Product overview](product/overview.md): what the product is, who it
+   serves, the core loop, principles and status, on one page.
+2. [Glossary](../CONTEXT.md): the words to use in code and docs, and the plain
+   words the UI uses instead.
+3. [Agent guide](../AGENTS.md): where code lives and the rules nobody breaks.
+4. [Domain model](product/domain-model.md): entities, eligibility, badges,
+   lifecycles and visibility.
+5. [Backlog](backlog.md): what is deferred or not built yet, one line each.
 
-| Page                                                                             | Read it to…                                                                             |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| [Product overview](product/overview.md)                                          | Understand the product on one page, with diagrams                                       |
-| [Vision and principles](product/vision.md)                                       | Know what we optimize for and how we measure it                                         |
-| [Domain model](product/domain-model.md)                                          | Learn the rules: entities, invariants, eligibility, recognition, lifecycles, visibility |
-| [UX brief](product/ux-brief.md)                                                  | Follow the design contract: screens, copy, tokens                                       |
-| [Open questions](product/open-questions.md)                                      | See owner decisions, each with its working default                                      |
-| [Questions for domain experts](product/domain-expert-questions.md)               | Prepare interviews with coaches, leaders, compliance, HR and IT                         |
-| [Coaching landscape research](archive/research/2026-11-16-coaching-landscape.md) | Read the evidence behind the design                                                     |
+## Then, when you need them
 
-## Architecture: how
-
-| Page                                                       | Read it to…                                                                           |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| [Architecture overview](architecture/overview.md)          | See context, containers, request flow, AI flow, data model and deployment as diagrams |
-| [Data model](architecture/data-model.md)                   | Learn the table rules and the schema review checklist                                 |
-| [Lifecycles](architecture/lifecycles.md)                   | See every state machine (generated from code)                                         |
-| [Identity and access](architecture/identity-and-access.md) | Understand Entra sign-in, AD groups to app roles, sessions, authorization, tenancy    |
-| [ADRs](adr/README.md)                                      | Find decisions and their reasons                                                      |
-
-## Engineering
-
-| Page                                                                                   | Read it to…                                               |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| [Agent guide](../AGENTS.md)                                                            | Learn the rules for anyone, human or agent, changing code |
-| [Decision framework](engineering/decision-making.md)                                   | Know what needs an ADR, a human or a domain expert        |
-| [Testing strategy](testing/strategy.md) and [invariants](testing/invariants.md)        | Know what to test and why                                 |
-| [QA skill](../.claude/skills/qa/SKILL.md) and [report template](qa/report-template.md) | Run exploratory QA of a journey                           |
-
-## Governance
-
-| Page                                           | Read it to…                                                                    |
-| ---------------------------------------------- | ------------------------------------------------------------------------------ |
-| [Controls matrix](compliance/controls.md)      | Map SOC 2, FINRA/SEC and AI governance requirements to mechanisms and evidence |
-| [AI system card](compliance/ai-system-card.md) | Prepare for the AI board review                                                |
-
-## Operations
-
-| Page                                                  | Read it to…                                            |
-| ----------------------------------------------------- | ------------------------------------------------------ |
-| [Incident response](runbooks/incident-response.md)    | Contain and record an incident with today's levers     |
-| [Deprovisioning a leaver](runbooks/deprovisioning.md) | Remove someone's access now, and know what is kept     |
-| [Backup and restore](runbooks/backup-and-restore.md)  | Restore to a point in time without reviving old access |
+| Area         | Pages                                                                                                                                                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Product      | [Open questions](product/open-questions.md) · [questions for domain experts](product/domain-expert-questions.md) · [design contract](../apps/web/DESIGN.md)                                                                          |
+| Architecture | [Overview diagrams](architecture/overview.md) · [data model](architecture/data-model.md) · [lifecycles](architecture/lifecycles.md) (generated) · [identity and access](architecture/identity-and-access.md) · [ADRs](adr/README.md) |
+| Engineering  | [Decision framework](engineering/decision-making.md) · [testing strategy](testing/strategy.md) · [invariants](testing/invariants.md) · [QA skill](../.claude/skills/qa/SKILL.md) and [report template](qa/report-template.md)        |
+| Governance   | [Controls matrix](compliance/controls.md) (SOC 2, FINRA/SEC, AI) · [AI system card](compliance/ai-system-card.md)                                                                                                                    |
+| Operations   | [Deprovisioning a leaver](runbooks/deprovisioning.md) · [incident response](runbooks/incident-response.md) (draft) · [backup and restore](runbooks/backup-and-restore.md) (draft)                                                    |
+| History      | [Archive](archive/README.md): past reviews and research. Not current guidance.                                                                                                                                                       |
