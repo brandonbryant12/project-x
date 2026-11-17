@@ -2,11 +2,13 @@ import { setup } from 'xstate';
 import { defineLifecycle } from './lifecycle.ts';
 
 /**
- * Catalog items (skills and activity templates) are curated by catalog keepers.
+ * Catalog items (skills and activity templates) are curated by program owners.
  * Published definitions are immutable; retired items stay visible on history.
+ * PUBLISH on a published item publishes its draft as the next immutable
+ * version (a skill's new `skill_version`); it needs the same `complete` fact.
  */
 export interface CatalogItemFacts {
-  /** Required content is present (e.g. every level has at least one indicator). */
+  /** There is complete content to publish (e.g. every level has at least one indicator). */
   readonly complete: boolean;
 }
 
@@ -24,7 +26,9 @@ const catalogItemMachine = setup({
   context: { complete: false },
   states: {
     draft: { on: { PUBLISH: { target: 'published', guard: 'complete' }, DISCARD: 'discarded' } },
-    published: { on: { RETIRE: 'retired' } },
+    published: {
+      on: { PUBLISH: { target: 'published', guard: 'complete' }, RETIRE: 'retired' },
+    },
     retired: { type: 'final' },
     discarded: { type: 'final' },
   },

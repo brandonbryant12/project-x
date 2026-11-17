@@ -28,6 +28,7 @@ const PARAM_SOURCES: Readonly<Record<string, { table: PgTable; column: string }>
   interactions: { table: schema.interaction, column: 'id' },
   badges: { table: schema.badgeAward, column: 'id' },
   skills: { table: schema.skill, column: 'slug' },
+  'activity-templates': { table: schema.activityTemplate, column: 'id' },
 };
 const SAMPLES_PER_PARAM = 4;
 
@@ -84,6 +85,7 @@ const client = HttpApiTest.groups(Api, [
   'observations',
   'admin',
   'hub',
+  'program',
 ]);
 
 layer(ScenarioLayer, { timeout: 120_000 })('two-tenant leak sweep', (it) => {

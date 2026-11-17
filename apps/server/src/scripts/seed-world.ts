@@ -7,8 +7,6 @@ import {
   ReportingLineId,
   RoleGrantId,
   SkillId,
-  SkillIndicatorId,
-  SkillVersionId,
   TenantId,
   defaultSkillRole,
   initialCreditPolicy,
@@ -32,6 +30,7 @@ import {
 } from '../features/development/use-cases.ts';
 import { requestObservation, startObservation } from '../features/observations/use-cases/create.ts';
 import { signObservation } from '../features/observations/use-cases/sign.ts';
+import { insertSkillVersion } from '../features/shared/catalog.ts';
 import { transitionObservation } from '../features/observations/use-cases/transition.ts';
 import { addDaysIso, fixedClock, today } from '../platform/time.ts';
 import { SEED_SKILLS, SEED_TEMPLATES } from './seed-catalog.ts';
@@ -266,7 +265,6 @@ const seedDirectoryAndCatalog = Effect.gen(function* () {
   const skills = new Map<string, SkillId>();
   for (const s of SEED_SKILLS) {
     const skillId = SkillId.generate();
-    const versionId = SkillVersionId.generate();
     skills.set(s.slug, skillId);
     yield* db.insert(schema.skill).values({
       id: skillId,
@@ -279,36 +277,19 @@ const seedDirectoryAndCatalog = Effect.gen(function* () {
       tags: [...s.tags],
       status: 'published',
     });
-    yield* db.insert(schema.skillVersion).values({
-      id: versionId,
+    const versionId = yield* insertSkillVersion({
       tenantId,
       skillId,
       number: 1,
+      levels: s.levels.map((l, i) => ({
+        level: (i + 1) as Level,
+        summary: l.summary,
+        indicators: l.indicators.map(([lineageKey, text]) => ({ lineageKey, text })),
+      })),
       publishedById: id('elena'),
       publishedAt: new Date(),
       changeNote: 'Starter catalog',
     });
-    yield* db.insert(schema.skillLevel).values(
-      s.levels.map((l, i) => ({
-        tenantId,
-        skillVersionId: versionId,
-        level: i + 1,
-        summary: l.summary,
-      })),
-    );
-    yield* db.insert(schema.skillIndicator).values(
-      s.levels.flatMap((l, i) =>
-        l.indicators.map(([lineageKey, text], position) => ({
-          id: SkillIndicatorId.generate(),
-          tenantId,
-          skillVersionId: versionId,
-          level: i + 1,
-          lineageKey,
-          text,
-          position,
-        })),
-      ),
-    );
     yield* db
       .update(schema.skill)
       .set({ currentVersionId: versionId })

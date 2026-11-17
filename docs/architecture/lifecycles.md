@@ -142,6 +142,7 @@ stateDiagram-v2
   [*] --> published
   draft --> published : PUBLISH [complete] (human)
   draft --> discarded : DISCARD
+  published --> published : PUBLISH [complete] (human)
   published --> retired : RETIRE
   retired --> [*]
   discarded --> [*]

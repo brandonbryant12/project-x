@@ -7,7 +7,6 @@ import type {
   SkillVersionId,
   TenantId,
   ActivityId,
-  ActivityTemplateId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { and, asc, eq, inArray } from 'drizzle-orm';
@@ -135,27 +134,5 @@ export const loadActivitySkillRows = Effect.fn('activity.skillRows')(function* (
     )
     .orderBy(asc(schema.activitySkill.position), asc(schema.activitySkill.skillId));
   for (const row of rows) result.set(row.activityId, [...(result.get(row.activityId) ?? []), row]);
-  return result;
-});
-
-export const loadTemplateSkills = Effect.fn('template.skills')(function* (
-  tenantId: TenantId,
-  templateIds: ReadonlyArray<ActivityTemplateId>,
-) {
-  const result = new Map<ActivityTemplateId, Array<SkillId>>();
-  if (templateIds.length === 0) return result;
-  const db = yield* Db;
-  const rows = yield* db
-    .select()
-    .from(schema.activityTemplateSkill)
-    .where(
-      and(
-        eq(schema.activityTemplateSkill.tenantId, tenantId),
-        inArray(schema.activityTemplateSkill.templateId, [...templateIds]),
-      ),
-    )
-    .orderBy(asc(schema.activityTemplateSkill.position));
-  for (const row of rows)
-    result.set(row.templateId, [...(result.get(row.templateId) ?? []), row.skillId]);
   return result;
 });

@@ -81,7 +81,17 @@ const routesFor = async (
   if (has('tenant_admin') || has('compliance_reviewer')) {
     routes.push(['admin-ai-usage', '/admin/ai-usage'], ['admin-audit', '/admin/audit']);
   }
-  if (has('tenant_admin') || has('program_owner')) routes.push(['adoption', '/adoption']);
+  if (has('tenant_admin') || has('program_owner')) {
+    routes.push(
+      ['adoption', '/adoption'],
+      ['credit-rules', '/program/credit-rules'],
+      ['program-skills', '/program/skills'],
+      ['program-skill', '/program/skills/client-discovery'],
+      ['program-templates', '/program/templates'],
+    );
+    const templates = await get('/program/activity-templates');
+    if (templates[0]) routes.push(['program-template', `/program/templates/${templates[0].id}`]);
+  }
   return routeFilter ? routes.filter(([name]) => routeFilter.includes(name)) : routes;
 };
 
