@@ -24,17 +24,27 @@ pnpm verify run weighted-credit --kind browser
 
 ## Badges and receipts
 
-- **Personas:** Maya Chen (badge holder), Grace Liu (an unrelated colleague),
-  Sam Rivera (her coach).
+- **Personas:** Maya Chen (badge holder), Sam Rivera (her coach), Marcus Hill
+  or Grace Liu (unrelated colleagues: no development access to Maya), Rhea
+  Castillo (skip-level leader).
 - **Steps in the UI:** as Maya open her profile and a badge's "How this was
-  earned". As Grace open the same receipt; as Sam open it.
-- **Look at:** work grouped by piece of work with the counted credit marked;
-  the total set against the award's saved thresholds; legacy credit labelled
-  as observed before roles; an individual value labelled.
-- **Refusals:** Grace sees levels and work but not the observers' words.
+  earned". As Sam open it; as Marcus open it from Maya's profile; as Rhea open
+  it.
+- **Look at:** for Maya and Sam: work grouped by piece of work with the
+  counted credit marked; credit reversed since the award shown as reversed and
+  left out of the total; the total set against the award's saved thresholds;
+  legacy credit labelled as observed before roles; an individual value
+  labelled. For Marcus: the badge, its level and the plain facts line (no
+  points), then "How it was earned, observation by observation, is visible to
+  Maya, their coaches and their leaders."; no points sentence, no thresholds,
+  no list of work. For Rhea: the detail without the observers' words.
+- **Refusals:** a colleague without development access gets no points,
+  thresholds, work or words (`detailVisible: false`); a badge id under someone
+  who does not hold it is `NotFound`.
 - **Commands:**
 
 ```sh
 pnpm verify run badges-receipts --kind tests
+pnpm verify run badges-receipts --kind api
 pnpm verify run badges-receipts --kind browser
 ```

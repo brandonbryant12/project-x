@@ -4,7 +4,9 @@
 // directory: result.json (structured, for agents), summary.md (for people) and
 // the artifacts (Vitest and Playwright reports, logs, screenshots). Every check
 // ends as passed, failed, skipped (with the reason) or error. The process
-// exits 1 when any check failed or errored (and, with --strict, was skipped).
+// exits 1 when any check failed or errored (and, with --strict, was skipped),
+// 2 when it refused to start (a bad id or kind, or a shared port), and 3 when
+// every check was skipped, so nothing was verified.
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   copyFileSync,
@@ -17,7 +19,7 @@ import {
 } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { qaSettings, ready } from './env.mjs';
+import { portProblems, qaSettings, ready } from './env.mjs';
 import { RUN_KINDS, browserEnv, findFeature, journeyPath, loadMap, testFiles } from './map.mjs';
 import { ROOT, pnpm } from './paths.mjs';
 import { packageOf, workspacePackages } from './repo.mjs';
@@ -29,12 +31,21 @@ const REVIEW_NOTE =
 const slug = (s) => s.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-');
 const log = (text) => process.stderr.write(`${text}\n`);
 
+/**
+ * Variables a check must never inherit from the caller's shell: Vitest would
+ * run the Postgres lane against TEST_DATABASE_URL, and a server URL in
+ * DATABASE_URL has no place in a check.
+ */
+const NEVER_INHERITED = ['TEST_DATABASE_URL', 'DATABASE_URL'];
+
 /** Runs a command, writing its output to a log file; returns the exit status. */
 const runLogged = (command, commandArgs, { cwd, env, logFile }) => {
   const [bin, args] = command === 'pnpm' ? pnpm(commandArgs) : [command, commandArgs];
+  const inherited = { ...process.env };
+  for (const name of NEVER_INHERITED) delete inherited[name];
   const result = spawnSync(bin, args, {
     cwd,
-    env: { ...process.env, ...env },
+    env: { ...inherited, ...env },
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
   });
@@ -342,7 +353,7 @@ const summaryMarkdown = (result) => {
     `- Kinds: ${result.kinds.join(', ')}`,
     `- Commit: ${result.commit}${result.dirty ? ' (with uncommitted changes)' : ''}`,
     `- Server: ${result.baseUrl}`,
-    `- Outcome: ${result.ok ? 'no failures' : 'FAILED'}`,
+    `- Outcome: ${result.outcome}`,
     '',
   ];
   for (const [kind, t] of Object.entries(result.totals))
@@ -379,26 +390,45 @@ const git = (...args) => {
   }
 };
 
-export const runCommand = async (ids, flags) => {
+/** Whether a feature has a check of this kind. */
+const hasKind = (feature, kind) => {
+  if (kind === 'tests') return testFiles(feature).length > 0;
+  if (kind === 'api') return (feature.verify?.api ?? []).length > 0;
+  return Boolean(feature.verify?.browser);
+};
+
+export const runCommand = async (given, flags) => {
   const map = loadMap();
-  const unknown = ids.filter((id) => !findFeature(map, id));
-  if (ids.length === 0 || unknown.length > 0) {
-    process.stderr.write(
-      ids.length === 0
-        ? 'usage: pnpm verify run <feature-id...> [--kind tests|api|browser]\n'
-        : `no feature: ${unknown.join(', ')}\n`,
-    );
-    return 2;
-  }
   const kinds = flags.kind.length > 0 ? flags.kind : RUN_KINDS;
   const badKind = kinds.find((k) => !RUN_KINDS.includes(k));
   if (badKind) {
     process.stderr.write(`no kind "${badKind}"; one of ${RUN_KINDS.join(', ')}\n`);
     return 2;
   }
+  // --all: every feature that has a check of a requested kind, in map order.
+  const ids =
+    flags.all && given.length === 0
+      ? map.features.filter((f) => kinds.some((k) => hasKind(f, k))).map((f) => f.id)
+      : given;
+  const unknown = ids.filter((id) => !findFeature(map, id));
+  if (ids.length === 0 || unknown.length > 0) {
+    process.stderr.write(
+      ids.length === 0
+        ? 'usage: pnpm verify run <feature-id...> | --all [--kind tests|api|browser]\n'
+        : `no feature: ${unknown.join(', ')}\n`,
+    );
+    return 2;
+  }
+  // API and browser checks write through a running server: never one on a shared port.
+  const refused = kinds.some((k) => k !== 'tests') ? portProblems(qaSettings()) : [];
+  if (refused.length > 0) {
+    for (const p of refused) process.stderr.write(`verify run: ${p}\n`);
+    process.stderr.write('verify run: refused before running anything; nothing was written.\n');
+    return 2;
+  }
   const features = ids.map((id) => findFeature(map, id));
   const stamp = new Date().toISOString().replaceAll(/[-:]/g, '').replace('T', '-').slice(0, 15);
-  const id = `${stamp}-${slug(ids.join('-')).slice(0, 60)}-${kinds.join('-')}`;
+  const id = `${stamp}-${flags.all && given.length === 0 ? 'all' : slug(ids.join('-')).slice(0, 60)}-${kinds.join('-')}`;
   const dir = resolve(ROOT, flags.out ?? '.data/verify/runs', id);
   mkdirSync(dir, { recursive: true });
   const startedAt = new Date().toISOString();
@@ -416,6 +446,13 @@ export const runCommand = async (ids, flags) => {
     (c) =>
       c.status === 'failed' || c.status === 'error' || (flags.strict && c.status === 'skipped'),
   );
+  const ran = checks.filter((c) => c.status !== 'skipped');
+  const skipped = checks.length - ran.length;
+  let outcome = 'no failures';
+  if (ran.length === 0)
+    outcome = `NOTHING VERIFIED: all ${checks.length} check(s) skipped (${[...new Set(checks.map((c) => c.reason))].join('; ')})`;
+  else if (bad.length > 0) outcome = 'FAILED';
+  else if (skipped > 0) outcome = `no failures; ${skipped} skipped (not verified)`;
   const screenshots = checks
     .filter((c) => c.kind === 'browser')
     .flatMap((c) => (c.artifacts ?? []).filter((a) => a.endsWith('.png')));
@@ -430,7 +467,8 @@ export const runCommand = async (ids, flags) => {
     features: ids,
     kinds,
     strict: Boolean(flags.strict),
-    ok: bad.length === 0,
+    ok: bad.length === 0 && ran.length > 0,
+    outcome,
     totals: tally(checks),
     evidence: EVIDENCE,
     ...(screenshots.length > 0 && { note: REVIEW_NOTE }),
@@ -448,5 +486,7 @@ export const runCommand = async (ids, flags) => {
       `${summaryMarkdown(result)}\nresult: ${join(dir, 'result.json')}\nsummary: ${join(dir, 'summary.md')}\n`,
     );
   }
-  return bad.length === 0 ? 0 : 1;
+  if (bad.length > 0) return 1;
+  // Nothing ran: not a pass. A distinct code, so a script can tell it from a failure.
+  return ran.length === 0 ? 3 : 0;
 };

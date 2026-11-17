@@ -44,12 +44,18 @@ pnpm verify run skill-catalog --kind browser
 
 - **Personas:** Nadia Brooks; Maya Chen.
 - **Steps in the UI:** as Nadia draft a template with a primary and a secondary
-  skill and points for one, publish it, edit it, retire it. As Maya add work
-  from it to a plan.
-- **Look at:** roles and points per skill; the template's values copied onto
-  the work when added, unchanged by later template edits.
+  skill and points for one, publish it, edit it, retire it. Edit the published
+  template twice: once changing only its words (no reason field appears and
+  it saves), once changing a skill's points or role (the field "Why the
+  skills, roles or values change" appears and Save stays unavailable until it
+  has at least 10 characters). Open its history. As Maya add work from it to a
+  plan.
+- **Look at:** roles and points per skill; the "in use" notice on a published
+  template; the reason shown with the edit in its history; the template's
+  values copied onto the work when added, unchanged by later template edits.
 - **Refusals:** two primaries; a skill listed twice; an unpublished or retired
-  skill; a stale edit.
+  skill; a change to skills, roles or values without a reason of at least 10
+  characters (`Unprocessable`, field `reason`); a stale edit (`Conflict`).
 - **Commands:**
 
 ```sh

@@ -3,8 +3,9 @@
 - **Date:** YYYY-MM-DD
 - **Commit:** `<sha>`
 - **Tester:** <agent or person>
-- **Stack:** Postgres 18 (`pnpm db:up`), API `:4400`, web `:5400`
-- **Data reset:** yes / no
+- **Stack:** the isolated QA environment (`pnpm verify env start`): API and web on `:4410` (or `QA_PORT`), PGlite under `.data/qa`; never the shared `:4400`, `:5400` or Postgres `:5442`
+- **Data reset:** yes / no (`pnpm verify env seed` before the run)
+- **Verify runs:** run ids and totals by kind (tests, api, browser); skipped checks listed under Not verified
 - **Personas:** Maya (advisor), Leo (leader), …
 
 ## Summary

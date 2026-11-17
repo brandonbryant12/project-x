@@ -7,13 +7,20 @@ import {
   describeBrowser,
   findFeature,
   loadMap,
+  owns,
   testFiles,
 } from './map.mjs';
 import { ROOT } from './paths.mjs';
-import { apiGroups } from './repo.mjs';
+import { apiGroups, migrations } from './repo.mjs';
 
 const out = (text) => process.stdout.write(`${text}\n`);
 const json = (value) => out(JSON.stringify(value, null, 2));
+
+/** What `list --search` matches: id, name, summary, states and code paths. */
+const searchText = (f) =>
+  [f.id, f.name, f.summary, ...(f.states ?? []), ...Object.values(f.code ?? {}).flat()]
+    .join(' ')
+    .toLowerCase();
 
 export const listCommand = (flags) => {
   const map = loadMap();
@@ -21,10 +28,12 @@ export const listCommand = (flags) => {
     process.stderr.write(`unknown state ${flags.state}; one of ${STATES.join(', ')}\n`);
     return 2;
   }
+  const words = (flags.search ?? '').toLowerCase().split(/\s+/).filter(Boolean);
   const features = map.features.filter(
     (f) =>
       (!flags.state || f.state === flags.state) &&
-      (!flags.persona || (f.personas ?? []).includes(flags.persona)),
+      (!flags.persona || (f.personas ?? []).includes(flags.persona)) &&
+      words.every((w) => searchText(f).includes(w)),
   );
   const rows = features.map((f) => ({
     id: f.id,
@@ -55,7 +64,9 @@ export const showCommand = ([id], flags) => {
   const map = loadMap();
   const feature = id && findFeature(map, id);
   if (!feature) {
-    process.stderr.write(`no feature "${id ?? ''}"; \`pnpm verify list\` shows them all\n`);
+    process.stderr.write(
+      `no feature "${id ?? ''}"; \`pnpm verify list --search ${id ?? '<word>'}\` searches names, summaries, states and code\n`,
+    );
     return 2;
   }
   const groups = apiGroups();
@@ -113,9 +124,19 @@ const changedFiles = (base) => {
   ].toSorted();
 };
 
-/** A claimed path owns a file when it is the file or a directory above it. */
-const owns = (claimed, file) =>
-  file === claimed || file.startsWith(`${claimed.replace(/\/$/, '')}/`);
+/**
+ * Why a file belongs to no feature. Documentation, agent instructions and the
+ * feature map's own tooling are checked as a whole (`pnpm docs:check`,
+ * `pnpm verify check`); anything else is code that should be mapped.
+ */
+const unownedKind = (file) => {
+  if (file.startsWith('tools/verify/') || file.startsWith('docs/feature-map/'))
+    return { kind: 'tooling', why: 'the feature map and its tool; run pnpm verify check' };
+  if (file.startsWith('.claude/'))
+    return { kind: 'instructions', why: 'agent instructions; run pnpm verify check' };
+  if (file.endsWith('.md')) return { kind: 'docs', why: 'documentation; run pnpm docs:check' };
+  return { kind: 'code', why: 'unmapped code' };
+};
 
 export const whichCommand = (paths, flags) => {
   let files = paths;
@@ -136,22 +157,28 @@ export const whichCommand = (paths, flags) => {
     return 2;
   }
   const map = loadMap();
-  const groups = apiGroups();
+  const repo = { groups: apiGroups(), migrations: migrations() };
+  const claims = new Map(map.features.map((f) => [f.id, claimedPaths(f, repo)]));
   const byFile = files.map((file) => ({
     file,
     features: map.features
-      .filter((f) => claimedPaths(f, groups).some((p) => owns(p, file)))
+      .filter((f) => claims.get(f.id).some((p) => owns(p, file)))
       .map((f) => f.id),
   }));
   const ids = [...new Set(byFile.flatMap((x) => x.features))];
-  const unmapped = byFile.filter((x) => x.features.length === 0).map((x) => x.file);
+  const unowned = byFile
+    .filter((x) => x.features.length === 0)
+    .map((x) => ({ file: x.file, ...unownedKind(x.file) }));
+  const unmapped = unowned.filter((x) => x.kind === 'code').map((x) => x.file);
   const commands = ids.flatMap((id) => commandsFor(findFeature(map, id)).map((c) => c.command));
   if (flags.json) {
-    json({ files: byFile, features: ids, unmapped, commands });
+    json({ files: byFile, features: ids, unowned, unmapped, commands });
     return 0;
   }
-  for (const { file, features } of byFile)
-    out(`${file}  ${features.length ? features.join(', ') : '(no feature)'}`);
+  for (const { file, features } of byFile) {
+    const why = features.length ? features.join(', ') : `(no feature: ${unownedKind(file).why})`;
+    out(`${file}  ${why}`);
+  }
   out('');
   if (ids.length > 0) {
     out(`features: ${ids.join(', ')}`);
@@ -160,7 +187,7 @@ export const whichCommand = (paths, flags) => {
   }
   if (unmapped.length > 0)
     out(
-      `${unmapped.length} file(s) belong to no feature; if one adds or changes behavior, map it (.claude/skills/feature-map/SKILL.md).`,
+      `${unmapped.length} code file(s) belong to no feature; if one adds or changes behavior, map it (.claude/skills/feature-map/SKILL.md).`,
     );
   return 0;
 };

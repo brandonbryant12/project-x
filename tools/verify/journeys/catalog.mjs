@@ -1,7 +1,9 @@
 // Skill catalog and activity templates (design 2026-11-17 §7): a program owner
 // drafts and publishes a skill version and a template; an advisor is refused
 // the program screens but sees the published template; a template refuses two
-// primaries; a retired skill is refused for new work.
+// primaries; a change to a template's skills, roles or values needs a reason
+// (a change of words alone does not) and a stale edit is a conflict; a retired
+// skill is refused for new work.
 //
 // Re-runnable: yes. Names carry a run stamp, so each run creates its own skill
 // and template; both are retired at the end, so they are never offered for new
@@ -72,7 +74,72 @@ const publishTemplate = async (t, { nadia, maya, skillId, skill }) => {
     ],
     'the published template as an advisor sees it',
   );
-  return published;
+  return { published, input, explaining };
+};
+
+const REASON = 'Referred clients take a longer first meeting; the primary skill is worth more.';
+
+/** Edits of the published template: words alone without a reason, values only with one. */
+const reviseTemplate = async (t, { nadia, maya, skillId, template }) => {
+  const { published, input, explaining } = template;
+  const skills = (points) => [
+    { skillId, role: 'primary', points },
+    { skillId: explaining, role: 'secondary', points: null },
+  ];
+  const put = (version, points, reason, description) =>
+    nadia.put(`/program/activity-templates/${published.id}`, {
+      ...input(skills(points)),
+      ...(description && { description }),
+      version,
+      reason,
+    });
+  const worded = t.ok(
+    await put(
+      published.version,
+      12,
+      null,
+      'A first meeting with a client who came to us by referral.',
+    ),
+    'Nadia changes the words without a reason',
+  );
+  t.equal(worded.history[0]?.event, 'UPDATE', 'the edit is in the template’s history');
+  const unexplained = t.refused(
+    await put(worded.version, 15, null),
+    422,
+    'Unprocessable',
+    'changing a value without a reason',
+  );
+  t.equal(unexplained.field, 'reason', 'the refused field');
+  t.refused(
+    await put(worded.version, 15, 'Longer'),
+    422,
+    'Unprocessable',
+    'changing a value with a reason under 10 characters',
+  );
+  t.refused(
+    await put(published.version, 15, REASON),
+    409,
+    'Conflict',
+    'changing a value from a form loaded before the last edit',
+  );
+  const revalued = t.ok(
+    await put(worded.version, 15, REASON),
+    'Nadia changes the value with a reason',
+  );
+  t.equal(
+    [revalued.history[0]?.event, revalued.history[0]?.reason],
+    ['UPDATE', REASON],
+    'the reason is kept with the change',
+  );
+  const card = t
+    .ok(await maya.get('/catalog/activity-templates'), 'Maya browses templates')
+    .find((c) => c.id === published.id);
+  t.equal(
+    card?.skills.find((s) => s.role === 'primary')?.points,
+    15,
+    'the new value an advisor sees',
+  );
+  return revalued;
 };
 
 const retireSkill = async (t, { nadia, maya, skillId, skill, template }) => {
@@ -117,7 +184,8 @@ const retireSkill = async (t, { nadia, maya, skillId, skill, template }) => {
 
 export default {
   name: 'catalog',
-  title: 'Catalog: draft and publish a skill and a template; a retired skill is refused',
+  title:
+    'Catalog: draft and publish a skill and a template; a template value needs a reason; a retired skill is refused',
   rerunnable: true,
   personas: ['Nadia Brooks', 'Maya Chen'],
   run: async (t) => {
@@ -195,8 +263,13 @@ export default {
       return card.id;
     });
 
-    const template = await t.step('a template: two primaries refused; drafted and published', () =>
+    const drafted = await t.step('a template: two primaries refused; drafted and published', () =>
       publishTemplate(t, { nadia, maya, skillId, skill }),
+    );
+
+    const template = await t.step(
+      'template edits: words without a reason; a value only with one; a stale edit refused',
+      () => reviseTemplate(t, { nadia, maya, skillId, template: drafted }),
     );
 
     await t.step('a retired skill is refused for new work', () =>

@@ -42,23 +42,34 @@ pnpm verify env status   # url, pid, database, web build, log path
 pnpm verify env stop     # when you finish; confirms the port is free
 ```
 
-`QA_PORT` and `QA_DATA_DIR` move it. It refuses the shared ports, a
-`DATABASE_URL` that is not PGlite, and a data directory git does not ignore.
-List personas with `curl -s localhost:4410/api/auth/dev/personas`.
+`QA_PORT` and `QA_DATA_DIR` move it; the server is always
+`http://localhost:QA_PORT` (`QA_BASE_URL` is refused). Every `env` action and
+`pnpm verify run --kind api|browser` refuse the shared ports 4400, 5400 and
+5442 before doing anything (exit 2). `env` also refuses a `DATABASE_URL` that
+is not PGlite, a data directory inside the repository that git does not
+ignore, and one outside it that is not empty and was not created by
+`env seed` (it carries a marker file). `env stop` signals only a server this
+checkout started; a stale pidfile is removed without signalling anyone. List personas with
+`curl -s localhost:4410/api/auth/dev/personas`.
 
-| Persona       | Situation in the seed                                    |
-| ------------- | -------------------------------------------------------- |
-| Maya Chen     | Advisor with badges; coach Sam, leader Leo               |
-| Leo Okonkwo   | Leader with a pending request; Sam coaches him           |
-| Sam Rivera    | Coach with a plan to agree and a request to sign         |
-| Daniel Okafor | Plan waiting for Sam; a request waiting on Sam           |
-| Aisha Bello   | Returned observation and a held reflection; coach Jordan |
-| Tom Whitaker  | Badge holder; coach Jordan, leader Priya                 |
-| Marcus Hill   | No plan; a proposed engagement with Jordan; leader Priya |
-| Grace Liu     | Empty states                                             |
-| Rhea Castillo | Tenant admin; skip-level leader of everyone              |
-| Nina Patel    | Compliance reviewer                                      |
-| Nadia Brooks  | Program owner                                            |
+Every persona the feature map names:
+
+| Persona       | Situation in the seed                                                                               |
+| ------------- | --------------------------------------------------------------------------------------------------- |
+| Maya Chen     | Advisor with badges; coach Sam, leader Leo                                                          |
+| Leo Okonkwo   | Leader with a pending request; Sam coaches him                                                      |
+| Sam Rivera    | Coach with a plan to agree and a request to sign                                                    |
+| Jordan Blake  | Coach of Aisha and Tom                                                                              |
+| Daniel Okafor | Plan waiting for Sam; a request waiting on Sam                                                      |
+| Aisha Bello   | Returned observation and a held reflection; coach Jordan                                            |
+| Tom Whitaker  | Badge holder; coach Jordan, leader Priya                                                            |
+| Marcus Hill   | No plan, no coach; a proposed engagement with Jordan; leader Priya                                  |
+| Priya Raman   | Branch leader of Tom, Marcus and Grace; Marcus's plan agreer                                        |
+| Grace Liu     | Empty states                                                                                        |
+| Rhea Castillo | Tenant admin; skip-level leader of everyone                                                         |
+| Nina Patel    | Compliance reviewer                                                                                 |
+| Nadia Brooks  | Program owner                                                                                       |
+| Elena Brooks  | Head of practice development, no grant in the seed; a program owner in the work-roles scenario test |
 
 ## 2. Run the automated checks
 
@@ -69,8 +80,10 @@ pnpm verify run <id> --kind browser
 ```
 
 Each run writes `result.json` (structured), `summary.md` and its artifacts to
-`.data/verify/runs/<run>/` (or `--out <dir>`), and exits non-zero when a check
-failed or errored; add `--strict` to fail on skipped checks too. The API
+`.data/verify/runs/<run>/` (or `--out <dir>`). It exits 1 when a check failed
+or errored (add `--strict` to fail on skipped checks too), 2 when it refused
+to start, and 3 when every check was skipped: the summary's outcome then says
+"NOTHING VERIFIED" and why. The API
 journeys in `tools/verify/journeys/` say at their top whether they are
 re-runnable on the same database (all are today). Run journeys one at a time:
 the credit-rules journey changes the tenant's policy while it runs.
@@ -87,6 +100,10 @@ real:
   _absent_ from the UI, not disabled; the API must answer the right tag
   (`Forbidden` 403, `NotFound` 404, `InvalidTransition` or `Conflict` 409,
   `Unprocessable` 422).
+- **Stale writes.** Open the same form in two windows, save in one, then in
+  the other. Plans, work, values, templates, skills, credit rules and
+  observation drafts send the version they loaded: the second save must be
+  refused (`Conflict`) and the screen must reload, never overwrite.
 - **Lifecycle edges.** Every state's pill and actions must match the machine
   in `packages/domain/src/lifecycles`. Buttons come only from a view's
   `actions`.
