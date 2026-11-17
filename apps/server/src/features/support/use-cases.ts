@@ -11,12 +11,12 @@ import {
   type TenantId,
 } from '@repo/domain';
 import { Db, schema, transactionally } from '@repo/db';
-import { and, eq, inArray, or } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { addDays, now, today } from '../../platform/time.ts';
 import { recordAudit } from '../shared/audit.ts';
 import { notify } from '../shared/notify.ts';
-import { decide, requireUpdated } from '../shared/mutation.ts';
+import { decide, isUniqueViolation, requireUpdated } from '../shared/mutation.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { engagementPolicy } from './team.ts';
 
@@ -56,10 +56,29 @@ const liveBetween = Effect.fn('engagements.liveBetween')(function* (
 });
 
 /**
+ * Transaction-scoped advisory lock on an unordered pair of people (as
+ * `lockPersonLedger`): two proposals between the same two people, in either
+ * direction, run one after the other, so the second sees the first.
+ */
+const lockEngagementPair = Effect.fn('engagements.lockPair')(function* (
+  tenantId: TenantId,
+  a: PersonId,
+  b: PersonId,
+) {
+  const db = yield* Db;
+  const [first, second] = a < b ? [a, b] : [b, a];
+  yield* db.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`engagement-pair:${tenantId}:${first}:${second}`}, 0))`,
+  );
+});
+
+/**
  * Either party may propose, in either direction, when `checkEngagementProposal`
  * allows it: the coach holds the coach grant, is not the coachee's direct
  * leader, and the pair has no live engagement either way. The profile offers
- * exactly these directions (`proposableDirections`).
+ * exactly these directions (`proposableDirections`). Proposals for one pair are
+ * serialized by `lockEngagementPair`; should two still cross, the second breaks
+ * `engagement_live_pair_unique` and gets the same Conflict.
  */
 export const proposeEngagement = Effect.fn('useCase.proposeEngagement')(function* (input: {
   readonly coachId: PersonId;
@@ -91,6 +110,7 @@ export const proposeEngagement = Effect.fn('useCase.proposeEngagement')(function
   const at = yield* now;
   yield* transactionally(
     Effect.gen(function* () {
+      yield* lockEngagementPair(actor.tenantId, input.coachId, input.coacheeId);
       const check = checkEngagementProposal(facts, {
         coachId: input.coachId,
         coacheeId: input.coacheeId,
@@ -108,16 +128,23 @@ export const proposeEngagement = Effect.fn('useCase.proposeEngagement')(function
               }),
         );
       }
-      yield* db.insert(schema.engagement).values({
-        id,
-        tenantId: actor.tenantId,
-        coachId: input.coachId,
-        coacheeId: input.coacheeId,
-        proposedById: actor.personId,
-        status: 'proposed',
-        note: input.note,
-        expiresAt: addDays(at, ENGAGEMENT_PROPOSAL_DAYS),
-      });
+      yield* db
+        .insert(schema.engagement)
+        .values({
+          id,
+          tenantId: actor.tenantId,
+          coachId: input.coachId,
+          coacheeId: input.coacheeId,
+          proposedById: actor.personId,
+          status: 'proposed',
+          note: input.note,
+          expiresAt: addDays(at, ENGAGEMENT_PROPOSAL_DAYS),
+        })
+        .pipe(
+          Effect.catchIf(isUniqueViolation('engagement_live_pair_unique'), () =>
+            Effect.fail(new Conflict({ message: ENGAGEMENT_PROPOSAL_REASON_TEXT.already_engaged })),
+          ),
+        );
       yield* recordAudit(actor, {
         entityType: 'engagement',
         entityId: id,

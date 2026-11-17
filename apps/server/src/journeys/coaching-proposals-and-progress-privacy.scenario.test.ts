@@ -1,10 +1,13 @@
-import { Api } from '@repo/api';
-import { PersonId, RoleGrantId, type GrantRole, type IsoDate } from '@repo/domain';
+import { Api, CurrentActor } from '@repo/api';
+import { EngagementId, PersonId, RoleGrantId, type GrantRole, type IsoDate } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { assert, layer } from '@effect/vitest';
-import { eq } from 'drizzle-orm';
-import { Effect } from 'effect';
+import { and, eq, inArray } from 'drizzle-orm';
+import { Effect, Option } from 'effect';
 import { HttpApiTest } from 'effect/http-api';
+import { loadActor } from '../auth/sessions.ts';
+import { isUniqueViolation } from '../features/shared/mutation.ts';
+import { proposeEngagement } from '../features/support/use-cases.ts';
 import { seedWorld } from '../scripts/seed-world.ts';
 import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
 
@@ -15,7 +18,8 @@ import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
  * case refuses the rest with the right error) and progress privacy (a person's
  * progress reaches only them, their active coaches and their leader chain;
  * an unrelated colleague, a program owner and a tenant admin get none from the
- * profile or coaching endpoints).
+ * profile or coaching endpoints). Two proposals crossing in opposite
+ * directions give one proposal and one Conflict, never a server error (I45).
  */
 const client = HttpApiTest.groups(Api, ['people', 'support']);
 
@@ -149,5 +153,82 @@ layer(ScenarioLayer, { timeout: 60_000 })('coaching proposals and progress priva
           .pipe(Effect.flip);
         assert.strictEqual(ownReport._tag, 'Unprocessable');
       }),
+  );
+
+  it.effect('two coaches proposing to each other at once: one proposal, one Conflict', () =>
+    Effect.gen(function* () {
+      yield* atScenarioTime;
+      const db = yield* Db;
+      // The two people added by the first test, now both coaches with no relationship.
+      const people = yield* db
+        .select()
+        .from(schema.person)
+        .where(inArray(schema.person.displayName, ['Pia Lund', 'Ada Ruiz']))
+        .orderBy(schema.person.displayName);
+      const [ada, pia] = people;
+      if (!ada || !pia) return yield* Effect.die('the first test adds Pia and Ada');
+      yield* db.insert(schema.roleGrant).values(
+        [ada, pia].map((p) => ({
+          id: RoleGrantId.generate(),
+          tenantId: p.tenantId,
+          personId: p.id,
+          role: 'coach' as const,
+          validFrom: '2025-01-01' as IsoDate,
+          source: 'seed',
+        })),
+      );
+      const as = (personId: PersonId) =>
+        loadActor(db, ada.tenantId, personId).pipe(Effect.map(Option.getOrThrow));
+      const adaActor = yield* as(ada.id);
+      const piaActor = yield* as(pia.id);
+      // Each asks the other to coach them, concurrently. On PostgreSQL the pair
+      // lock makes the second wait and see the first; PGlite runs them in turn.
+      const outcomes = yield* Effect.all(
+        [
+          proposeEngagement({ coachId: pia.id, coacheeId: ada.id, note: null }).pipe(
+            Effect.provideService(CurrentActor, adaActor),
+          ),
+          proposeEngagement({ coachId: ada.id, coacheeId: pia.id, note: null }).pipe(
+            Effect.provideService(CurrentActor, piaActor),
+          ),
+        ].map((proposal) =>
+          proposal.pipe(
+            Effect.map(() => 'proposed'),
+            Effect.catch((e) => Effect.succeed(e._tag)),
+          ),
+        ),
+        { concurrency: 'unbounded' },
+      );
+      assert.deepStrictEqual(outcomes.toSorted(), ['Conflict', 'proposed']);
+      const live = yield* db
+        .select()
+        .from(schema.engagement)
+        .where(
+          and(
+            inArray(schema.engagement.coachId, [ada.id, pia.id]),
+            inArray(schema.engagement.coacheeId, [ada.id, pia.id]),
+          ),
+        );
+      assert.lengthOf(live, 1);
+
+      // Should two proposals still cross, the database refuses the second, and the
+      // use case recognises that refusal as this pair's Conflict.
+      const [first] = live;
+      const refused = yield* db
+        .insert(schema.engagement)
+        .values({
+          id: EngagementId.generate(),
+          tenantId: ada.tenantId,
+          coachId: first!.coacheeId,
+          coacheeId: first!.coachId,
+          proposedById: first!.coacheeId,
+          status: 'proposed',
+          note: null,
+          expiresAt: first!.expiresAt,
+        })
+        .pipe(Effect.flip);
+      assert.isTrue(isUniqueViolation('engagement_live_pair_unique')(refused));
+      assert.isFalse(isUniqueViolation('another_index')(refused));
+    }),
   );
 });

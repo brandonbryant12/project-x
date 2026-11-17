@@ -1,6 +1,7 @@
 import { Conflict, Forbidden, InvalidTransition } from '@repo/api';
 import type { Lifecycle } from '@repo/domain';
-import { Effect } from 'effect';
+import { Cause, Effect } from 'effect';
+import { isSqlErrorReason } from 'effect/sql/SqlError';
 import type { AnyStateMachine, ContextFrom, EventFromLogic } from 'xstate';
 
 /**
@@ -57,3 +58,29 @@ export const requireUpdated =
   <A>(entity: string) =>
   (rows: ReadonlyArray<A>) =>
     rows.length === 0 ? Effect.fail(staleWrite(entity)) : Effect.succeed(rows[0] as A);
+
+/**
+ * Whether a failed write broke the named unique index. Both drivers
+ * (`@effect/sql-pg`, PGlite) classify SQLSTATE 23505 as a `UniqueViolation`
+ * reason carrying the index name; Drizzle's query error holds it inside an
+ * Effect `Cause`, so the error's causes are searched a few links deep.
+ */
+export const isUniqueViolation =
+  (constraint: string) =>
+  (error: unknown): boolean => {
+    const search = (value: unknown, depth: number): boolean => {
+      if (depth > 4 || typeof value !== 'object' || value === null) return false;
+      if (isSqlErrorReason(value)) {
+        return value._tag === 'UniqueViolation' && value.constraint === constraint;
+      }
+      if (Cause.isCause(value)) {
+        return value.reasons.some(
+          (reason) =>
+            (Cause.isFailReason(reason) && search(reason.error, depth + 1)) ||
+            (Cause.isDieReason(reason) && search(reason.defect, depth + 1)),
+        );
+      }
+      return search((value as { readonly cause?: unknown }).cause, depth + 1);
+    };
+    return search(error, 0);
+  };
