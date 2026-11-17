@@ -11,3 +11,6 @@ test-results/
 playwright-report/
 apps/web/screenshots/
 .DS_Store
+
+# Task-owned QA environment and verification results (tools/verify)
+.data/
