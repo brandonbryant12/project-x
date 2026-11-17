@@ -7,6 +7,8 @@ import {
   INTERACTION_KINDS,
   LEVELS,
   PlanLifecycle,
+  POINTS_RANGE,
+  SKILL_ROLES,
   type ActivityId,
   type ActivityTemplateId,
   type EvidenceId,
@@ -31,6 +33,7 @@ import { activityTemplate, skillFk } from './catalog.ts';
 import {
   createdAt,
   inList,
+  inRange,
   instant,
   isoDate,
   oneOf,
@@ -62,6 +65,11 @@ export const plan = pgTable(
     endorsedAt: instant('endorsed_at'),
     /** Closing review written when the plan completes. */
     closingSummary: text('closing_summary'),
+    /** The closing review: recorded by the owner, then confirmed (fixed) by an agreer. */
+    reviewRecordedById: text('review_recorded_by_id').$type<PersonId>(),
+    reviewRecordedAt: instant('review_recorded_at'),
+    reviewConfirmedById: text('review_confirmed_by_id').$type<PersonId>(),
+    reviewConfirmedAt: instant('review_confirmed_at'),
     version: versionColumn(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -72,10 +80,29 @@ export const plan = pgTable(
     personFk('plan_owner_fk', t.tenantId, t.ownerId),
     personFk('plan_agreed_by_fk', t.tenantId, t.agreedById),
     personFk('plan_endorsed_by_fk', t.tenantId, t.endorsedById),
+    personFk('plan_review_recorded_by_fk', t.tenantId, t.reviewRecordedById),
+    personFk('plan_review_confirmed_by_fk', t.tenantId, t.reviewConfirmedById),
     oneOf('plan_status_check', t.status, PlanLifecycle.states),
     check('plan_period', sql`${t.periodEnd} > ${t.periodStart}`),
     check('plan_agreed_pair', sql`(${t.agreedById} is null) = (${t.agreedAt} is null)`),
     check('plan_not_self_agreed', sql`${t.agreedById} is null or ${t.agreedById} <> ${t.ownerId}`),
+    check(
+      'plan_review_recorded_pair',
+      sql`(${t.reviewRecordedById} is null) = (${t.reviewRecordedAt} is null)`,
+    ),
+    check(
+      'plan_review_confirmed_pair',
+      sql`(${t.reviewConfirmedById} is null) = (${t.reviewConfirmedAt} is null)`,
+    ),
+    // A review is confirmed only after it is recorded, and never by its owner.
+    check(
+      'plan_review_confirmed_after_recorded',
+      sql`${t.reviewConfirmedAt} is null or ${t.reviewRecordedAt} is not null`,
+    ),
+    check(
+      'plan_review_not_self_confirmed',
+      sql`${t.reviewConfirmedById} is null or ${t.reviewConfirmedById} <> ${t.ownerId}`,
+    ),
     check(
       'plan_agreed_when_live',
       sql`${t.status} not in ('active', 'paused', 'completed') or ${t.agreedById} is not null`,
@@ -172,6 +199,16 @@ export const activitySkill = pgTable(
     activityId: text('activity_id').$type<ActivityId>().notNull(),
     skillId: text('skill_id').$type<SkillId>().notNull(),
     position: integer('position').notNull().default(0),
+    /** The skill's place in this work; at most one primary (use cases, not the database). */
+    role: text('role').notNull(),
+    /** This activity's own value for the skill; applies only to credits signed afterwards. */
+    pointsOverride: integer('points_override'),
+    pointsOverrideById: text('points_override_by_id').$type<PersonId>(),
+    /**
+     * The template's value for this skill, copied when the work was added. Signing
+     * reads this copy (never the live template), and only for the same role.
+     */
+    templatePoints: integer('template_points'),
   },
   (t) => [
     primaryKey({ columns: [t.activityId, t.skillId] }),
@@ -181,6 +218,14 @@ export const activitySkill = pgTable(
       foreignColumns: [activity.tenantId, activity.id],
     }),
     skillFk('activity_skill_skill_fk', t.tenantId, t.skillId),
+    personFk('activity_skill_points_override_by_fk', t.tenantId, t.pointsOverrideById),
+    oneOf('activity_skill_role_check', t.role, SKILL_ROLES),
+    inRange('activity_skill_points_override', t.pointsOverride, POINTS_RANGE, { nullable: true }),
+    inRange('activity_skill_template_points', t.templatePoints, POINTS_RANGE, { nullable: true }),
+    check(
+      'activity_skill_points_override_pair',
+      sql`(${t.pointsOverride} is null) = (${t.pointsOverrideById} is null)`,
+    ),
   ],
 );
 

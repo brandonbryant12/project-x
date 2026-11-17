@@ -1,6 +1,14 @@
-import { BadgeAwardId, GrantRole, IsoDate, ObservationId, ObservationMode } from '@repo/domain';
+import {
+  BadgeAwardId,
+  GrantRole,
+  IsoDate,
+  ObservationId,
+  CreditRole,
+  ObservationMode,
+} from '@repo/domain';
 import { Schema } from 'effect';
 import { Instant, PersonSummary, ProgressView, SkillRef } from './common.ts';
+import { PointsSource } from './observations.ts';
 
 export const BadgeView = Schema.Struct({
   id: BadgeAwardId,
@@ -50,6 +58,13 @@ export const BadgeReceiptView = Schema.Struct({
       levelName: Schema.String,
       mode: ObservationMode,
       narrativeSaw: Schema.NullOr(Schema.String),
+      /** "How this was earned": what this credit was worth, its role and where the value came from. */
+      points: Schema.Number,
+      /** `unclassified`: observed before roles existed. */
+      role: CreditRole,
+      pointsSource: PointsSource,
+      /** False when another credit for the same work counted (one piece of work counts once). */
+      counted: Schema.Boolean,
     }),
   ),
 });

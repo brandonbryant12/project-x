@@ -20,8 +20,10 @@ import {
   type ObservationStatus,
   type ObserverBasis,
   type PersonId,
+  type PointsSource,
   type QuestionSetId,
   type SkillId,
+  type CreditRole,
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
@@ -238,10 +240,14 @@ const loadObservationParts = Effect.fn('observations.viewParts')(function* (
 
 type ObservationParts = Effect.Success<ReturnType<typeof loadObservationParts>>;
 
-/** Ratings and levels; an unsigned draft hides levels and ticks from all but the observer. */
+/**
+ * Ratings and levels; an unsigned draft hides levels and ticks from all but the
+ * observer. Roles show to everyone; only the observer of unsigned work may change them.
+ */
 const ratingViews = (
   { ratings, ticks, skills, definitions }: ObservationParts,
   draftHidden: boolean,
+  roleChoosable: boolean,
 ): ObservationView['ratings'] =>
   ratings.flatMap((r) => {
     const skill = skills.get(r.skillId);
@@ -256,25 +262,44 @@ const ratingViews = (
           ? []
           : ticks.filter((t) => t.skillId === r.skillId).map((t) => t.indicatorId),
         credit: r.credit,
+        role: r.role as CreditRole,
+        roleChoosable,
       },
     ];
   });
 
 /** What signing produced: credits, badges earned here, and earlier credits for the same skills. */
-const outcomeViews = ({ credits, earnedHere, earlierRows, skills, people }: ObservationParts) => ({
-  credits: credits.flatMap((c) => {
-    const skill = skills.get(c.skillId);
-    return skill
-      ? [
-          {
-            skill: toSkillRef(skill),
-            level: c.level,
-            levelName: LEVEL_NAMES[c.level as Level],
-            firstHand: c.isFirstHand,
-          },
-        ]
-      : [];
-  }),
+const outcomeViews = ({
+  credits,
+  ratings,
+  earnedHere,
+  earlierRows,
+  skills,
+  people,
+}: ObservationParts) => ({
+  // In the order the skills were rated.
+  credits: credits
+    .toSorted(
+      (a, b) =>
+        ratings.findIndex((r) => r.skillId === a.skillId) -
+        ratings.findIndex((r) => r.skillId === b.skillId),
+    )
+    .flatMap((c) => {
+      const skill = skills.get(c.skillId);
+      return skill
+        ? [
+            {
+              skill: toSkillRef(skill),
+              level: c.level,
+              levelName: LEVEL_NAMES[c.level as Level],
+              firstHand: c.isFirstHand,
+              points: c.points,
+              role: c.role as CreditRole,
+              pointsSource: c.pointsSource as PointsSource,
+            },
+          ]
+        : [];
+    }),
   badgesEarned: earnedHere.flatMap((b) => {
     const skill = skills.get(b.skillId);
     return skill
@@ -379,7 +404,11 @@ export const buildObservationView = Effect.fn('observations.view')(function* (
       : null,
     requestNote: notes.request ?? null,
     requestedSkills: refsFor(skills, skillIds),
-    ratings: ratingViews(parts, draftHidden),
+    ratings: ratingViews(
+      parts,
+      draftHidden,
+      isObserver && (row.status === 'requested' || row.status === 'drafting'),
+    ),
     narrativeSaw: narrativeVisible ? (row.narrativeSaw ?? '') : '',
     narrativeNext: narrativeVisible ? (row.narrativeNext ?? '') : '',
     returnNote: notes.return ?? null,

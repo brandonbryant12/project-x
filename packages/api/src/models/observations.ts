@@ -18,6 +18,10 @@ import {
   SkillVersionId,
   ActivityId,
   BadgeAwardId,
+  CreditRole,
+  MAX_SKILLS_CEILING,
+  POINTS_SOURCES,
+  SkillRole,
 } from '@repo/domain';
 import { Schema } from 'effect';
 import { Instant, PersonSummary, SkillRef } from './common.ts';
@@ -50,8 +54,18 @@ export const RatingView = Schema.Struct({
   level: Schema.NullOr(Level),
   indicatorIds: Schema.Array(SkillIndicatorId),
   credit: Schema.Boolean,
+  /**
+   * The skill's place in this work; decides what its credit is worth.
+   * `unclassified` only on ratings signed before roles existed.
+   */
+  role: CreditRole,
+  /** True only for the observer of unsigned work that lists no skills: they pick the primary one. */
+  roleChoosable: Schema.Boolean,
 });
 export type RatingView = typeof RatingView.Type;
+
+export const PointsSource = Schema.Literals(POINTS_SOURCES);
+export type PointsSource = typeof PointsSource.Type;
 
 export const ObservationView = Schema.Struct({
   id: ObservationId,
@@ -97,6 +111,12 @@ export const ObservationView = Schema.Struct({
       level: Schema.Number,
       levelName: Schema.String,
       firstHand: Schema.Boolean,
+      /** Frozen at signing. */
+      points: Schema.Number,
+      /** `unclassified`: observed before roles existed (label it so). */
+      role: CreditRole,
+      /** Where the points came from (`legacy` for credits signed before points). */
+      pointsSource: PointsSource,
     }),
   ),
   badgesEarned: Schema.Array(
@@ -145,8 +165,9 @@ export const InboxView = Schema.Struct({
 });
 export type InboxView = typeof InboxView.Type;
 
+/** The hard ceiling; the tenant's credit policy sets the working limit, checked by the server. */
 const SkillIds = Schema.Array(SkillId).pipe(
-  Schema.check(Schema.isMinLength(1), Schema.isMaxLength(3)),
+  Schema.check(Schema.isMinLength(1), Schema.isMaxLength(MAX_SKILLS_CEILING)),
 );
 
 export const RequestObservationInput = Schema.Struct({
@@ -175,6 +196,11 @@ export const RatingInput = Schema.Struct({
   level: Schema.NullOr(Level),
   indicatorIds: Schema.Array(SkillIndicatorId),
   credit: Schema.Boolean,
+  /**
+   * The observer's choice of role, honoured only for work that lists no skills;
+   * otherwise the work decides. Omitted: the first rated skill is primary.
+   */
+  role: Schema.optional(SkillRole),
 });
 export type RatingInput = typeof RatingInput.Type;
 
@@ -183,7 +209,7 @@ export const ObservationDraftInput = Schema.Struct({
   version: Schema.Number,
   /** How the OBSERVER knows (not the coachee's claim). Frozen at signing. */
   mode: ObservationMode,
-  ratings: Schema.Array(RatingInput).pipe(Schema.check(Schema.isMaxLength(3))),
+  ratings: Schema.Array(RatingInput).pipe(Schema.check(Schema.isMaxLength(MAX_SKILLS_CEILING))),
   narrativeSaw: Schema.String.pipe(Schema.check(Schema.isMaxLength(4000))),
   narrativeNext: Schema.String.pipe(Schema.check(Schema.isMaxLength(4000))),
 });

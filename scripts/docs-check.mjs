@@ -42,19 +42,9 @@ const notYet = (text) => NOT_YET_WORDS.test(text) || /\bIf\b/.test(text);
 
 /**
  * Banned terms. `docs` applies to Markdown in scope; `source` to tracked
- * TypeScript, JSON and config files. Negations ("there are no points") are
- * fine: the points patterns only match points used as a unit.
+ * TypeScript, JSON and config files.
  */
 const BANNED = [
-  {
-    name: 'points as a credit unit',
-    reason: 'Credit is demonstrations, not points (ADR 0007 amendment, CONTEXT.md).',
-    pattern:
-      /\b\d+\s+points?\b(?![-\w]*\s+(?:at|to)\b)|\b(?:earn(?:s|ed|ing)?|award(?:s|ed)?|score[sd]?|gain(?:s|ed)?)\s+(?:\w+\s+)?points?\b|\bcredit\s+points?\b|\bpoints?\s+(?:per|balance|total|threshold)\b|\btotal\s+points?\b/i,
-    allow: /\b(no|not|never|gone|superseded|replaced?|instead of|no longer|removed)\b/i,
-    docs: true,
-    source: ['apps/web/src/', 'packages/ui/src/'],
-  },
   {
     name: '@cc package scope',
     reason: 'Package names stay product-neutral (@repo/*).',

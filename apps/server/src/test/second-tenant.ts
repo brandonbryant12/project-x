@@ -1,4 +1,11 @@
-import { GRANT_ROLES, PersonId, RoleGrantId, TenantId, type IsoDate } from '@repo/domain';
+import {
+  GRANT_ROLES,
+  PersonId,
+  RoleGrantId,
+  TenantId,
+  initialCreditPolicy,
+  type IsoDate,
+} from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { Effect } from 'effect';
 
@@ -18,6 +25,7 @@ export const seedSecondTenant = Effect.gen(function* () {
     name: 'Southwind Advisors',
     slug: 'southwind',
     timeZone: 'America/Chicago',
+    settings: { creditPolicy: initialCreditPolicy() },
   });
   yield* db.insert(schema.person).values({
     id: personId,

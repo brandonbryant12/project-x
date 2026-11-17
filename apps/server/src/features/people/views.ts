@@ -4,12 +4,15 @@ import {
   canReadNarrative,
   checkObserverEligibility,
   developmentAccess,
+  projectWork,
   hasCoachGrantOn,
   type BadgeAwardId,
   type Level,
   type ObservationMode,
   type PersonId,
+  type PointsSource,
   type SkillId,
+  type CreditRole,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { and, desc, eq, gte, ilike, inArray, or } from 'drizzle-orm';
@@ -19,7 +22,7 @@ import { loadPlanSkills } from '../shared/catalog-reads.ts';
 import { relationLabel } from '../shared/directory.ts';
 import { loadPeople, personFrom, toPersonSummary } from '../shared/people.ts';
 import { currentPlanOf } from '../shared/plans.ts';
-import { netCreditsBySkill, progressFor } from '../shared/recognition.ts';
+import { netCreditsBySkill, progressFor, toCreditFact } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { loadSkills, toSkillRef } from '../shared/skills.ts';
 
@@ -253,7 +256,11 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
   );
   const observers = new Set(credits.map((x) => x.observerId)).size;
   const firstHand = new Set(credits.filter((x) => x.isFirstHand).map((x) => x.interactionId)).size;
-  const demonstrations = new Set(credits.map((x) => x.interactionId)).size;
+  // Points through the one projection: each piece of work once, at its highest value.
+  const work = projectWork(credits.map(toCreditFact));
+  const counted = new Set(work.map((w) => w.countedCreditId));
+  const demonstrations = work.length;
+  const points = work.reduce((sum, w) => sum + w.value, 0);
   const visibleCount = credits.filter((c) =>
     canReadNarrative(facts, {
       viewerId: actor.personId,
@@ -271,7 +278,7 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
       awardedAt: badge.awardedAt.toISOString(),
     },
     holder: personFrom(people, badge.personId),
-    facts: `Observed ${demonstrations} ${demonstrations === 1 ? 'time' : 'times'} · ${observers} observers · ${firstHand} seen first-hand · over ${weeks(span)} weeks`,
+    facts: `Observed ${demonstrations} ${demonstrations === 1 ? 'time' : 'times'} · ${points} points · ${observers} observers · ${firstHand} seen first-hand · over ${weeks(span)} weeks`,
     narrativesVisible: visibleCount > 0,
     observations: credits.map((c) => {
       const obs = observations.find((o) => o.id === c.observationId);
@@ -289,6 +296,10 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
         levelName: LEVEL_NAMES[c.level as Level],
         mode: c.mode as ObservationMode,
         narrativeSaw: readable ? (obs?.narrativeSaw ?? null) : null,
+        points: c.points,
+        role: c.role as CreditRole,
+        pointsSource: c.pointsSource as PointsSource,
+        counted: counted.has(c.id),
       };
     }),
   };

@@ -61,6 +61,24 @@ export const OBSERVATION_MODE_LABELS: Readonly<Record<ObservationMode, string>> 
 
 export const isFirstHand = (mode: ObservationMode): boolean => mode !== 'discussed';
 
+/**
+ * A skill's place in one piece of work. At most one `primary` per activity and
+ * per observation: a product rule enforced in domain code and use cases, not by
+ * the database, because it may change. A credit's role decides its points.
+ */
+export const SKILL_ROLES = ['primary', 'secondary'] as const;
+export const SkillRole = Schema.Literals(SKILL_ROLES);
+export type SkillRole = typeof SkillRole.Type;
+
+/**
+ * The role a credit or signed rating carries. `unclassified` marks rows written
+ * before roles existed: they never assert primary focus. New rows are only
+ * `primary` or `secondary` (the credit trigger refuses `unclassified`).
+ */
+export const CREDIT_ROLES = [...SKILL_ROLES, 'unclassified'] as const;
+export const CreditRole = Schema.Literals(CREDIT_ROLES);
+export type CreditRole = typeof CreditRole.Type;
+
 /** Why an observer is eligible. `designated`: named by the subject's leader or coach (ADR 0020). */
 export const OBSERVER_BASES = ['leader', 'coach', 'designated'] as const;
 export const ObserverBasis = Schema.Literals(OBSERVER_BASES);

@@ -15,6 +15,7 @@ import {
   OPEN_OBSERVATION_STATES,
   type ActivityStatus,
   type SkillId,
+  type SkillRole,
   type SkillVersionId,
   INTERACTION_KIND_LABELS,
 } from '@repo/domain';
@@ -32,13 +33,17 @@ import { recordAudit } from '../../shared/audit.ts';
 import { notify } from '../../shared/notify.ts';
 import { basisEdge } from '../../shared/relationships.ts';
 import { currentPlanOf } from '../../shared/plans.ts';
+import { tenantCreditPolicy } from '../../shared/recognition.ts';
+import { requireSkillLimit, rolesFor, skillsOfActivity } from './roles.ts';
 import { currentVersions, dueDate, requireEligible } from './shared.ts';
 
+/** Rating rows for a new observation, levels empty, each with its role in the work (design §4). */
 const ratingRows = (
   tenantId: Parameters<typeof currentVersions>[0],
   observationId: ObservationId,
   skillIds: ReadonlyArray<SkillId>,
   versions: ReadonlyMap<SkillId, SkillVersionId>,
+  roles: ReadonlyArray<SkillRole>,
 ) =>
   skillIds.map((skillId, position) => ({
     tenantId,
@@ -48,7 +53,27 @@ const ratingRows = (
     level: null,
     credit: true,
     position,
+    role: roles[position] as SkillRole,
   }));
+
+/**
+ * Default roles for a new observation's ratings: each skill's role on the
+ * activity, else secondary; with no primary among them, the first is primary.
+ * From here on the observer owns them.
+ */
+const initialRoles = (
+  tenantId: Parameters<typeof currentVersions>[0],
+  activityId: ActivityId | null,
+  skillIds: ReadonlyArray<SkillId>,
+) =>
+  Effect.gen(function* () {
+    yield* requireSkillLimit(yield* tenantCreditPolicy(tenantId), skillIds.length);
+    const skills = activityId ? yield* skillsOfActivity(tenantId, activityId) : [];
+    return yield* rolesFor(
+      skills,
+      skillIds.map((skillId) => ({ skillId })),
+    );
+  });
 
 /** The coachee asks an eligible observer to look at a logged interaction. */
 export const requestObservation = Effect.fn('useCase.requestObservation')(function* (
@@ -88,6 +113,7 @@ export const requestObservation = Effect.fn('useCase.requestObservation')(functi
       new Conflict({ message: 'You have already asked this person about this work.' }),
     );
   const versions = yield* currentVersions(actor.tenantId, input.skillIds);
+  const roles = yield* initialRoles(actor.tenantId, interaction.activityId, input.skillIds);
   const edge = yield* basisEdge(actor.tenantId, {
     observerId: input.observerId,
     subjectId: actor.personId,
@@ -114,7 +140,7 @@ export const requestObservation = Effect.fn('useCase.requestObservation')(functi
       });
       yield* db
         .insert(schema.observationRating)
-        .values(ratingRows(actor.tenantId, id, input.skillIds, versions));
+        .values(ratingRows(actor.tenantId, id, input.skillIds, versions, roles));
       yield* recordAudit(actor, {
         entityType: 'observation',
         entityId: id,
@@ -197,6 +223,7 @@ export const startObservation = Effect.fn('useCase.startObservation')(function* 
       }),
     );
   }
+  const roles = yield* initialRoles(actor.tenantId, activityId ?? null, input.skillIds);
   const id = ObservationId.generate();
   const interactionId = InteractionId.generate();
   const dueAt = yield* dueDate(actor.tenantId);
@@ -257,7 +284,7 @@ export const startObservation = Effect.fn('useCase.startObservation')(function* 
       });
       yield* db
         .insert(schema.observationRating)
-        .values(ratingRows(actor.tenantId, id, input.skillIds, versions));
+        .values(ratingRows(actor.tenantId, id, input.skillIds, versions, roles));
       yield* recordAudit(actor, {
         entityType: 'observation',
         entityId: id,
