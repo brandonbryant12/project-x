@@ -33,7 +33,7 @@ here is our best current design and is open to domain experts (see
 | **Coaching**    | CoachingEngagement, ObserverDesignation                                                                                     | The mesh: any coach can engage anyone. Carries no reporting authority. Conversations and commitments are deferred (ADR 0019).        |
 | **Development** | DevelopmentPlan (focus skills with **target levels**), Activity (with an **observation commitment**), Interaction, Evidence | The coachee's workspace. Logging an event is never credit.                                                                           |
 | **Recognition** | Observation, Rating, CreditEntry, CreditReversal, BadgeAward, BadgeWaiver                                                   | The **only** context that writes credit.                                                                                             |
-| **Advisory**    | AdvisoryCheck, Exposure, Label, SecondRead, QuestionSetRelease                                                              | Gemini Decisions wrapper and the learning loop (ADR 0016).                                                                           |
+| **Advisory**    | AdvisoryCheck, AdvisoryDisposition                                                                                          | Gemini Decisions wrapper: the privacy screen only. The learning loop is deferred (ADR 0016).                                         |
 | **Compliance**  | AuditEvent, Note, LegalHold                                                                                                 | Append-only and exportable. Human reasons live in purgeable notes.                                                                   |
 | **Hub**         | Notification, NotificationPreference; the adoption view (a read-only projection)                                            | Tells people what waits on them, and shows the program owner aggregates. Writes nothing in other contexts (ADR 0018, ADR 0021).      |
 
@@ -78,7 +78,7 @@ Each one maps to its tests in [invariants.md](../testing/invariants.md).
 - **I2.** Credit is created only by `SIGN`, and it agrees with the
   observation, rating and interaction that created it (enforced by database
   foreign keys).
-- **I3.** The ledger, audit trail, labels and published catalog are
+- **I3.** The ledger, audit trail and published catalog are
   append-only. Corrections are reversal rows.
 - **I4.** Eligibility is evaluated as of the interaction date. The basis
   points at the exact reporting-line or engagement row.
@@ -173,7 +173,7 @@ transitions that only a human can make.
 | **AdvisoryCheck**            | pending → completed · failed · skipped                                                                                                                  | Written once. Failures never count as a pass.                                                                                                                                                                                                                                                                        |
 
 These are deliberately **not** machines: `CreditEntry` and `CreditReversal`
-(immutable facts), badge progress (a projection), labels (facts),
+(immutable facts), badge progress (a projection),
 `ObserverDesignation` (a fact that may be ended once), and `Notification` (an
 outbox row: `pending → sent · skipped · failed`, set only by the dispatcher).
 
@@ -185,7 +185,7 @@ outbox row: `pending → sent · skipped · failed`, set only by the dispatcher)
 | Plans, progress, interactions, levels | The person, their active coaches, their whole leader chain                                                            |
 | **Observation narratives**            | The person, the observer who wrote them, active coaches, and the **direct** leader. The wider chain sees levels only. |
 | Held or escalated evidence            | Its author, plus tenant admins or compliance reviewers                                                                |
-| Assistant checks                      | The observer (not the subject). Shadow-arm checks are visible to no one.                                              |
+| Assistant checks                      | The observer (not the subject).                                                                                       |
 | Audit trail and AI usage              | Tenant admins and compliance reviewers. Reading them is itself audited.                                               |
 | Designations for a person             | The person, the designee, the person's leader and coaches                                                             |
 | Adoption view                         | Program owners. Aggregates only, no names, no cell under five people                                                  |

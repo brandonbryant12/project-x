@@ -66,11 +66,7 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   legal_hold: 'audit',
   audit_event: 'audit',
   advisory_check: 'audit',
-  advisory_exposure: 'audit',
-  advisory_label: 'audit',
   advisory_disposition: 'audit',
-  advisory_question_snapshot: 'audit',
-  question_set_release: 'audit',
   second_read: 'audit',
   second_read_rating: 'audit',
 };
@@ -100,7 +96,6 @@ export const LABEL_COLUMNS: Readonly<Record<string, ReadonlyArray<string>>> = {
   skill_indicator: ['text'],
   skill_profile: ['name'],
   skill_version: ['change_note'],
-  question_set_release: ['dataset_ref', 'experiment_ref', 'approved_by', 'notes'],
 };
 
 /** Text that holds a code from a closed set or an opaque reference, not prose. */
@@ -111,8 +106,6 @@ export const CODED_COLUMNS: Readonly<Record<string, ReadonlyArray<string>>> = {
   interaction: ['client_ref'],
   advisory_check: ['provider', 'failure'],
   advisory_disposition: ['disposition'],
-  advisory_label: ['label_value', 'strength', 'labeler_role'],
-  advisory_question_snapshot: ['digest'],
   second_read: ['assigned_reason'],
   audit_event: ['auth_method', 'from_state', 'to_state'],
 };

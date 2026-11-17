@@ -422,21 +422,6 @@ export const buildInteractionView = Effect.fn('development.interactionView')(fun
     interaction.ownerId,
     ...eligible.map((e) => e.personId),
   ]);
-  const suggestions = yield* db
-    .select({ result: schema.advisoryCheck.result })
-    .from(schema.advisoryCheck)
-    .where(
-      and(
-        eq(schema.advisoryCheck.subjectType, 'interaction'),
-        eq(schema.advisoryCheck.subjectId, interaction.id),
-        eq(schema.advisoryCheck.questionSet, 'skill-suggest'),
-        eq(schema.advisoryCheck.status, 'completed'),
-      ),
-    );
-  const suggestedIds =
-    (suggestions[0]?.result as { suggestedSkillIds?: Array<SkillId> } | null)?.suggestedSkillIds ??
-    [];
-  const skills = yield* loadSkills(actor.tenantId, suggestedIds);
   const isAuthor = evidence?.authorId === actor.personId;
   return {
     id: interaction.id,
@@ -466,6 +451,5 @@ export const buildInteractionView = Effect.fn('development.interactionView')(fun
           [...OPEN_OBSERVATION_STATES, 'signed'].includes(o.status as never),
       ),
     })),
-    suggestedSkills: refsFor(skills, suggestedIds),
   } satisfies InteractionView;
 });

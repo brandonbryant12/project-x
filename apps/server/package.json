@@ -21,7 +21,6 @@
     "@repo/domain": "workspace:*",
     "drizzle-orm": "catalog:",
     "effect": "catalog:",
-    "langsmith": "0.11.8",
     "nodemailer": "10.5.0",
     "openid-client": "catalog:",
     "xstate": "catalog:"

@@ -57,7 +57,6 @@ layer(ScenarioLayer, { timeout: 60_000 })('observer owns mode and drafts', (it) 
               skillId,
               level: 2 as const,
               indicatorIds: [],
-              suggestedIndicatorIds: [],
               credit: true,
             },
           ],

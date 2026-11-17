@@ -91,12 +91,10 @@ const ObserverPicker = ({
 
 const SkillPicker = ({
   skills,
-  suggested,
   chosen,
   onToggle,
 }: {
   readonly skills: ReadonlyArray<SkillRef>;
-  readonly suggested: ReadonlyArray<SkillId>;
   readonly chosen: ReadonlyArray<SkillId>;
   readonly onToggle: (id: SkillId) => void;
 }) => (
@@ -105,7 +103,6 @@ const SkillPicker = ({
     <div className="flex flex-wrap gap-1.5">
       {skills.map((s) => {
         const on = chosen.includes(s.id);
-        const hint = !on && suggested.includes(s.id);
         return (
           <button
             type="button"
@@ -117,16 +114,14 @@ const SkillPicker = ({
               on
                 ? 'border-primary bg-primary-soft text-primary-ink'
                 : 'border-line text-ink-2 hover:bg-sunken',
-              hint && 'border-dashed border-info/60 text-info-ink',
             )}
           >
             {s.name}
-            {hint ? <span className="ml-1.5 text-meta">Suggested</span> : null}
           </button>
         );
       })}
     </div>
-    <FieldHint>Up to three. Dashed ones are the assistant’s suggestion; you decide.</FieldHint>
+    <FieldHint>Up to three.</FieldHint>
   </Field>
 );
 
@@ -167,7 +162,7 @@ export const RequestObservationDialog = ({
     },
   });
   const data = interaction.data;
-  const chosenSkills = skillIds ?? data?.suggestedSkills.map((s) => s.id).slice(0, 3) ?? [];
+  const chosenSkills = skillIds ?? [];
   const toggleSkill = (id: SkillId) =>
     setSkillIds(
       chosenSkills.includes(id)
@@ -227,12 +222,7 @@ export const RequestObservationDialog = ({
               ))}
             </SegmentedControl>
           </Field>
-          <SkillPicker
-            skills={catalog.data ?? []}
-            suggested={data.suggestedSkills.map((x) => x.id)}
-            chosen={chosenSkills}
-            onToggle={toggleSkill}
-          />
+          <SkillPicker skills={catalog.data ?? []} chosen={chosenSkills} onToggle={toggleSkill} />
           <Field>
             <Label htmlFor="request-note">Note to them · optional</Label>
             <Textarea

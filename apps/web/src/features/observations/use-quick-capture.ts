@@ -186,7 +186,7 @@ export const useQuickCapture = (
     const { id, version } = await ensureDraft();
     const saved = await call('observations', 'saveDraft', {
       params: { id },
-      payload: toPayload(draft, version, new Set()),
+      payload: toPayload(draft, version),
     });
     started.current = { id, version: saved.version };
     await qc.invalidateQueries();
@@ -198,7 +198,7 @@ export const useQuickCapture = (
     try {
       const signed = await call('observations', 'sign', {
         params: { id },
-        payload: toPayload(draft, version, new Set()),
+        payload: toPayload(draft, version),
       });
       await qc.invalidateQueries();
       return signed;

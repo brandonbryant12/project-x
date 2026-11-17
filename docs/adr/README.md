@@ -31,7 +31,7 @@ does any of the following:
 | [0013](./0013-observability-otel-to-datadog.md)               | OpenTelemetry from Effect to the Datadog Agent over OTLP                                                     | Accepted (amended)              |
 | [0014](./0014-session-auth-with-openid-client.md)             | First-party cookie sessions; Entra via `openid-client`; a dev persona sign-in                                | Accepted                        |
 | [0015](./0015-audit-trail-and-ai-decision-records.md)         | Every human and AI decision leaves an explainable, append-only record                                        | Accepted                        |
-| [0016](./0016-learning-loop-ground-truth-and-langsmith.md)    | Ground truth comes from real actions; LangSmith is an optional, privacy-bounded workbench                    | Accepted                        |
+| [0016](./0016-learning-loop-ground-truth-and-langsmith.md)    | Ground truth comes from real actions; LangSmith is an optional, privacy-bounded workbench                    | **Deferred**                    |
 | [0017](./0017-skill-profiles-and-position-history.md)         | A skill can mean different things in different roles: profiles, expectations by job family, position history | **Proposed** (columns accepted) |
 | [0018](./0018-notifications-outbox-and-content-policy.md)     | Notifications go through a transactional outbox, under a content policy                                      | Accepted                        |
 | [0019](./0019-coaching-conversations-and-commitments.md)      | Coaching conversations and commitments are first-class, and neither earns credit                             | **Deferred** (pilot feedback)   |

@@ -4,7 +4,6 @@ import {
   EngagementId,
   EngagementLifecycle,
   hasCoachGrantOn,
-  type AdvisoryCheckId,
   type EngagementStatus,
   type PersonId,
 } from '@repo/domain';
@@ -134,31 +133,4 @@ export const engagementEvent = Effect.fn('useCase.engagementEvent')(function* (
       yield* recordAudit(actor, { entityType: 'engagement', entityId: row.id, event, from, to });
     }),
   );
-});
-
-/** Records that the viewer saw an advisory check (and whether they expanded it). */
-export const recordAdvisorySeen = Effect.fn('useCase.advisorySeen')(function* (
-  id: AdvisoryCheckId,
-  expanded: boolean,
-) {
-  const actor = yield* CurrentActor;
-  const db = yield* Db;
-  const [check] = yield* db
-    .select({ id: schema.advisoryCheck.id })
-    .from(schema.advisoryCheck)
-    .where(and(eq(schema.advisoryCheck.tenantId, actor.tenantId), eq(schema.advisoryCheck.id, id)));
-  if (!check) return yield* Effect.fail(new NotFound({ entity: 'advisory', id }));
-  yield* db
-    .insert(schema.advisoryExposure)
-    .values({
-      tenantId: actor.tenantId,
-      checkId: check.id,
-      viewerId: actor.personId,
-      firstSeenAt: yield* now,
-      expanded,
-    })
-    .onConflictDoUpdate({
-      target: [schema.advisoryExposure.checkId, schema.advisoryExposure.viewerId],
-      set: { expanded: expanded ? true : schema.advisoryExposure.expanded },
-    });
 });

@@ -37,9 +37,7 @@ import { addDaysIso, now, today } from '../../platform/time.ts';
 import {
   initialEvidenceState,
   screenEvidenceWithAssistant,
-  suggestSkills,
 } from '../shared/advisory/evidence-screening.ts';
-import { labelFromPrivacyDecision } from '../shared/advisory/labels.ts';
 import { recordAudit } from '../shared/audit.ts';
 import { notify } from '../shared/notify.ts';
 import { digestOf } from '../shared/notes.ts';
@@ -520,8 +518,6 @@ export const logInteraction = Effect.fn('useCase.logInteraction')(function* (
   );
   if (screening.status === 'available' && decisions.availability.enabled)
     yield* afterCommit(screenEvidenceWithAssistant(actor, evidenceId));
-  if (screening.status !== 'held')
-    yield* afterCommit(suggestSkills(actor, interactionId, input.reflection));
   return interactionId;
 });
 
@@ -580,8 +576,6 @@ export const reviseEvidence = Effect.fn('useCase.reviseEvidence')(function* (
         ...(screening.status === 'held' && { reasonCode: 'privacy_local' as const }),
         policyVersion: 'local-screen@1',
       });
-      // Revising text the assistant held is weak evidence the hold was right (ADR 0016).
-      if (from === 'held') yield* labelFromPrivacyDecision(actor, evidence.id, 'revised');
     }),
   );
   if (screening.status === 'available' && decisions.availability.enabled)

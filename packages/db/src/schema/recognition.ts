@@ -225,8 +225,6 @@ export const observationIndicator = pgTable(
     skillId: text('skill_id').$type<SkillId>().notNull(),
     skillVersionId: text('skill_version_id').$type<SkillVersionId>().notNull(),
     indicatorId: text('indicator_id').$type<SkillIndicatorId>().notNull(),
-    /** true when the observer accepted an assistant suggestion (label provenance). */
-    suggested: boolean('suggested').notNull().default(false),
   },
   (t) => [
     primaryKey({ columns: [t.observationId, t.indicatorId] }),

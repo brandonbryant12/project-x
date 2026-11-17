@@ -1,10 +1,9 @@
-import { AdvisoryCheckId, EngagementId, PersonId } from '@repo/domain';
+import { EngagementId, PersonId } from '@repo/domain';
 import { Schema } from 'effect';
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api';
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import { Authenticated } from '../auth.ts';
 import { Conflict, Forbidden, InvalidTransition, NotFound, Unprocessable } from '../errors.ts';
 import {
-  AdvisorySeenInput,
   CoachingView,
   EngagementEventType,
   EngagementView,
@@ -31,13 +30,6 @@ export class SupportGroup extends HttpApiGroup.make('support')
       payload: Schema.Struct({ event: EngagementEventType }),
       success: EngagementView,
       error: [NotFound, Forbidden, InvalidTransition, Conflict],
-    }),
-    /** Records that the viewer saw an assistant check (exposure for unbiased labels). */
-    HttpApiEndpoint.post('advisorySeen', '/advisory/:id/seen', {
-      params: { id: AdvisoryCheckId },
-      payload: AdvisorySeenInput,
-      success: HttpApiSchema.NoContent,
-      error: NotFound,
     }),
   )
   .middleware(Authenticated) {}

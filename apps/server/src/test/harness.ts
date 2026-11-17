@@ -12,7 +12,6 @@ import { ALL_MOCK_RULES } from '../features/shared/advisory/question-sets.ts';
 import { ApiHandlers } from '../http/api-layer.ts';
 import { Background } from '../platform/background.ts';
 import type { AppConfig } from '../platform/config.ts';
-import { Tracing } from '../platform/langsmith.ts';
 import { Settings } from '../platform/settings.ts';
 
 /**
@@ -59,7 +58,6 @@ export const testConfig: AppConfig = {
     flowSecret: undefined,
   },
   decisions: { mode: 'mock', apiKey: undefined, paidTierConfirmed: false },
-  langsmith: { tracing: false, apiKey: undefined, project: 'test', content: 'none' },
   telemetry: {
     enabled: false,
     otlpEndpoint: undefined,
@@ -85,14 +83,13 @@ const services = Layer.mergeAll(
   layerTestDb,
   DecisionsMockLayer(ALL_MOCK_RULES),
   Background.layerInline,
-  Tracing.disabled,
   Layer.succeed(Settings, testConfig),
   TestSession.layer,
 );
 
 /** Hands the already-built services to each request, so tests and handlers share one database. */
 const RequestServices = Layer.effectContext(
-  Effect.context<Db | SqlClient.SqlClient | Decisions | Background | Tracing | Settings>(),
+  Effect.context<Db | SqlClient.SqlClient | Decisions | Background | Settings>(),
 );
 
 export const ScenarioLayer = ApiHandlers.pipe(

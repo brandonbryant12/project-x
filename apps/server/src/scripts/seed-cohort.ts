@@ -372,7 +372,6 @@ export const seedCohort = Effect.gen(function* () {
               skillId,
               level,
               indicatorIds: [],
-              suggestedIndicatorIds: [],
               credit: rand() > 0.15,
             };
           }),

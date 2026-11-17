@@ -1,21 +1,17 @@
 import {
   ADVISORY_DISPOSITIONS,
   AdvisoryCheckLifecycle,
-  LABEL_SOURCES,
   QUESTION_SETS,
   type AdvisoryCheckId,
   type AdvisoryDispositionId,
-  type AdvisoryLabelId,
   type ObservationId,
   type PersonId,
-  type QuestionSetReleaseId,
   type SecondReadId,
 } from '@repo/domain';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
-  doublePrecision,
   foreignKey,
   index,
   integer,
@@ -51,8 +47,6 @@ export const advisoryCheck = pgTable(
     subjectId: text('subject_id').notNull(),
     /** The subject row's `version` when evaluated: a stale check can never apply to newer text. */
     subjectVersion: integer('subject_version').notNull(),
-    /** `shown` to people, or `shadow` (computed, never shown) for unbiased labels (ADR 0016). */
-    arm: text('arm').notNull().default('shown'),
     status: text('status').notNull(),
     provider: text('provider').notNull(),
     model: text('model'),
@@ -67,23 +61,11 @@ export const advisoryCheck = pgTable(
     inputTokens: integer('input_tokens'),
     costUsdMicros: integer('cost_usd_micros'),
     latencyMs: integer('latency_ms'),
-    /** LangSmith root run id when tracing is on (ADR 0016). */
-    traceRunId: text('trace_run_id'),
     createdAt: createdAt(),
     completedAt: instant('completed_at'),
   },
   (t) => [
     unique('advisory_check_tenant_id_key').on(t.tenantId, t.id),
-    foreignKey({
-      name: 'advisory_check_release_fk',
-      columns: [t.questionSet, t.questionSetVersion],
-      foreignColumns: [questionSetRelease.questionSet, questionSetRelease.setVersion],
-    }),
-    foreignKey({
-      name: 'advisory_check_questions_fk',
-      columns: [t.questionsDigest],
-      foreignColumns: [advisoryQuestionSnapshot.digest],
-    }),
     oneOf('advisory_check_subject_type_check', t.subjectType, [
       'evidence',
       'observation',
@@ -91,7 +73,6 @@ export const advisoryCheck = pgTable(
     ]),
     oneOf('advisory_check_status_check', t.status, AdvisoryCheckLifecycle.states),
     oneOf('advisory_check_question_set_check', t.questionSet, QUESTION_SETS),
-    oneOf('advisory_check_arm_check', t.arm, ['shown', 'shadow']),
     oneOf('advisory_check_provider_check', t.provider, ['google', 'mock', 'disabled', 'local']),
     check(
       'advisory_check_effect_check',
@@ -99,72 +80,6 @@ export const advisoryCheck = pgTable(
     ),
     index('advisory_check_subject_idx').on(t.tenantId, t.subjectType, t.subjectId),
     index('advisory_check_usage_idx').on(t.tenantId, t.createdAt),
-  ],
-);
-
-/** Who saw a check, and whether they opened it. Lets evaluation exclude anchored labels. */
-export const advisoryExposure = pgTable(
-  'advisory_exposure',
-  {
-    tenantId: tenantIdColumn(),
-    checkId: text('check_id').$type<AdvisoryCheckId>().notNull(),
-    viewerId: text('viewer_id').$type<PersonId>().notNull(),
-    firstSeenAt: instant('first_seen_at').notNull(),
-    expanded: boolean('expanded').notNull().default(false),
-  },
-  (t) => [
-    primaryKey({ columns: [t.checkId, t.viewerId] }),
-    foreignKey({
-      name: 'advisory_exposure_check_fk',
-      columns: [t.tenantId, t.checkId],
-      foreignColumns: [advisoryCheck.tenantId, advisoryCheck.id],
-    }),
-    personFk('advisory_exposure_viewer_fk', t.tenantId, t.viewerId),
-  ],
-);
-
-/**
- * Ground truth for ONE question of ONE check, derived server-side from a real
- * action (ADR 0016) — never a "was this helpful?" click. Append-only.
- */
-export const advisoryLabel = pgTable(
-  'advisory_label',
-  {
-    id: text('id').$type<AdvisoryLabelId>().primaryKey(),
-    tenantId: tenantIdColumn(),
-    checkId: text('check_id').$type<AdvisoryCheckId>().notNull(),
-    questionKey: text('question_key').notNull(),
-    questionSet: text('question_set').notNull(),
-    questionSetVersion: integer('question_set_version').notNull(),
-    modelProbability: doublePrecision('model_probability'),
-    threshold: doublePrecision('threshold'),
-    /** The human truth in the question's closed set, e.g. 'yes' | 'no' or a choice key. */
-    labelValue: text('label_value').notNull(),
-    source: text('source').notNull(),
-    strength: text('strength').notNull(),
-    /** The check's arm at labeling time; only `shadow` + gold labels enter eval sets. */
-    arm: text('arm').notNull(),
-    labelerId: text('labeler_id').$type<PersonId>(),
-    labelerRole: text('labeler_role'),
-    inputEntityType: text('input_entity_type').notNull(),
-    inputEntityId: text('input_entity_id').notNull(),
-    inputDigest: text('input_digest').notNull(),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    foreignKey({
-      name: 'advisory_label_check_fk',
-      columns: [t.tenantId, t.checkId],
-      foreignColumns: [advisoryCheck.tenantId, advisoryCheck.id],
-    }),
-    personFk('advisory_label_labeler_fk', t.tenantId, t.labelerId),
-    oneOf('advisory_label_source_check', t.source, LABEL_SOURCES),
-    oneOf('advisory_label_strength_check', t.strength, ['gold', 'silver', 'weak']),
-    oneOf('advisory_label_arm_check', t.arm, ['shown', 'shadow']),
-    oneOf('advisory_label_question_set_check', t.questionSet, QUESTION_SETS),
-    // Retries must not double-count a label in an evaluation set.
-    unique('advisory_label_once').on(t.tenantId, t.checkId, t.questionKey, t.source),
-    index('advisory_label_set_idx').on(t.questionSet, t.questionSetVersion, t.createdAt),
   ],
 );
 
@@ -244,39 +159,5 @@ export const advisoryDisposition = pgTable(
     personFk('advisory_disposition_actor_fk', t.tenantId, t.actorId),
     oneOf('advisory_disposition_value_check', t.disposition, ADVISORY_DISPOSITIONS),
     index('advisory_disposition_check_idx').on(t.tenantId, t.checkId),
-  ],
-);
-
-/** Content-addressed copy of the exact questions sent, so any check can be reproduced years later. */
-export const advisoryQuestionSnapshot = pgTable('advisory_question_snapshot', {
-  digest: text('digest').primaryKey(),
-  questions: jsonb('questions').notNull(),
-  createdAt: createdAt(),
-});
-
-/** A released question-set version with the evidence that justified it (AI board record). */
-export const questionSetRelease = pgTable(
-  'question_set_release',
-  {
-    id: text('id').$type<QuestionSetReleaseId>().primaryKey(),
-    questionSet: text('question_set').notNull(),
-    /** Content version of the question set (not an optimistic-concurrency counter). */
-    setVersion: integer('set_version').notNull(),
-    /** Digest of the question template (sets built from the catalog vary per input). */
-    templateDigest: text('template_digest').notNull(),
-    thresholds: jsonb('thresholds').$type<Readonly<Record<string, number>>>().notNull(),
-    effect: text('effect').notNull(),
-    datasetRef: text('dataset_ref'),
-    experimentRef: text('experiment_ref'),
-    metrics: jsonb('metrics').$type<Readonly<Record<string, number>>>(),
-    approvedBy: text('approved_by'),
-    approvedAt: instant('approved_at'),
-    notes: text('notes'),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    oneOf('question_set_release_set_check', t.questionSet, QUESTION_SETS),
-    oneOf('question_set_release_effect_check', t.effect, ['hold', 'escalate', 'nudge']),
-    unique('question_set_release_version_key').on(t.questionSet, t.setVersion),
   ],
 );

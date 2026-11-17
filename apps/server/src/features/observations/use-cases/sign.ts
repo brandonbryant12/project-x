@@ -23,10 +23,7 @@ import {
 import { Db, schema, transactionally } from '@repo/db';
 import { and, eq, inArray } from 'drizzle-orm';
 import { Effect } from 'effect';
-import { afterCommit } from '../../../platform/background-context.ts';
 import { now } from '../../../platform/time.ts';
-import { labelFromSigning } from '../../shared/advisory/labels.ts';
-import { runNarrativeChecks } from '../../shared/advisory/narrative-checks.ts';
 import { recordAudit } from '../../shared/audit.ts';
 import { notify } from '../../shared/notify.ts';
 import { decide, requireUpdated } from '../../shared/mutation.ts';
@@ -129,7 +126,6 @@ const writeDraft = Effect.fn('observations.writeDraft')(function* (
     );
   }
   if (allTicks.length > 0) {
-    const suggested = new Set(input.ratings.flatMap((r) => r.suggestedIndicatorIds));
     yield* db.insert(schema.observationIndicator).values(
       allTicks.map((t) => ({
         tenantId: actor.tenantId,
@@ -137,17 +133,11 @@ const writeDraft = Effect.fn('observations.writeDraft')(function* (
         skillId: t.skillId,
         skillVersionId: pinned.get(t.skillId) as SkillVersionId,
         indicatorId: t.indicatorId,
-        suggested: suggested.has(t.indicatorId),
       })),
     );
   }
   return updated;
 });
-
-const narrativeChanged = (row: ObservationRow, input: ObservationDraftInput) =>
-  input.narrativeSaw.trim().length >= MIN_NARRATIVE_LENGTH &&
-  (input.narrativeSaw !== (row.narrativeSaw ?? '') ||
-    input.narrativeNext !== (row.narrativeNext ?? ''));
 
 export const saveDraft = Effect.fn('useCase.saveObservationDraft')(function* (
   id: ObservationId,
@@ -164,14 +154,13 @@ export const saveDraft = Effect.fn('useCase.saveObservationDraft')(function* (
     permitted: true,
   });
   yield* transactionally(writeDraft(actor, row, input, to));
-  if (narrativeChanged(row, input)) yield* afterCommit(runNarrativeChecks(actor, id));
 });
 
 /**
  * SIGN — the only code path that writes credit (ADR 0007, invariant I2).
  * Re-checks eligibility as of the interaction date, then in ONE transaction:
  * saves the final draft, signs, appends one demonstration per credited skill,
- * awards newly met badges, derives ground-truth labels and audits it all.
+ * awards newly met badges and audits it all.
  */
 export const signObservation = Effect.fn('useCase.signObservation')(function* (
   id: ObservationId,
@@ -284,22 +273,6 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
         entityType: 'observation',
         entityId: row.id,
         actorId: actor.personId,
-      });
-      const candidates = yield* db
-        .select({ id: schema.skillIndicator.id })
-        .from(schema.skillIndicator)
-        .where(
-          inArray(
-            schema.skillIndicator.skillVersionId,
-            ratings.map((r) => r.skillVersionId),
-          ),
-        );
-      yield* labelFromSigning(actor, {
-        observationId: row.id,
-        interactionId: row.interactionId,
-        tickedIndicatorIds: input.ratings.flatMap((r) => r.indicatorIds),
-        candidateIndicatorIds: candidates.map((c) => c.id),
-        ratedSkillIds: input.ratings.map((r) => r.skillId),
       });
       return yield* awardEarnedBadges(
         actor,

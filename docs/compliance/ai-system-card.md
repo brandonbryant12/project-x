@@ -12,20 +12,22 @@ Google **Gemini Decisions API** (`gemini-decision-1`). The model **never
 generates text**. Every result is an _assistant check_ recorded in
 `advisory_check`.
 
-| Question set              | Input                                                                   | What it may do                                                                                                                                  | What it never does                     |
-| ------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `privacy-screen` v1       | A coachee's reflection, after the local deterministic screen has passed | **Hold** suspected client PII (hidden until revised or released by an admin); **escalate** complaints or specific recommendations to compliance | Release anything                       |
-| `narrative-indicators` v1 | The observer's own note, **after** they wrote it                        | Propose indicators the note appears to describe (chips the observer may accept)                                                                 | Pre-tick indicators, set a level, sign |
-| `narrative-quality` v1    | The observer's own note                                                 | Nudge toward behavior, effect and next step                                                                                                     | Block signing, rewrite the note        |
-| `mode-consistency` v1     | The observer's own note                                                 | Nudge when a note claimed as first-hand reads like a debrief                                                                                    | Change the mode                        |
-| `skill-suggest` v1        | A logged reflection                                                     | Suggest skills, shown unselected                                                                                                                | Select skills                          |
+Only `privacy-screen` runs. The nudge sets (`narrative-indicators`,
+`narrative-quality`, `mode-consistency`, `skill-suggest`) and the learning
+loop that would calibrate them (labels, shadow arm, exposure logging, question
+set releases, LangSmith) were removed on 2026-11-17 and are **deferred** with
+ADR 0016: the provider runs as a deterministic mock and live use is not yet
+cleared, so there is nothing to calibrate.
+
+| Question set        | Input                                                                   | What it may do                                                                                                                                  | What it never does |
+| ------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `privacy-screen` v1 | A coachee's reflection, after the local deterministic screen has passed | **Hold** suspected client PII (hidden until revised or released by an admin); **escalate** complaints or specific recommendations to compliance | Release anything   |
 
 ## 2. Intended use and limits (Map)
 
 - **Users:** observers (coaches and leaders), coachees, tenant admins and
   compliance reviewers at one financial-services firm.
-- **Purpose:** make observers faster and more specific, and keep client PII
-  out of development records.
+- **Purpose:** keep client PII out of development records.
 - **Out of scope, by design:**
   - granting credit, awarding badges, releasing held content, or setting
     levels;
@@ -38,24 +40,25 @@ generates text**. Every result is an _assistant check_ recorded in
 
 ## 3. Human oversight (Govern)
 
-- **Human first.** Checks on an observer's note run after the note is written.
-  Suggestions are never pre-applied.
+- **Human first.** The assistant never reads an observer's note and never
+  suggests anything; it only screens a coachee's reflection after the local
+  screen has passed it.
 - **Every effect is labelled** "Assistant check. An automated check; you
   decide."
 - **Holds can be released** by an admin and **escalations resolved** by
   compliance. Each such decision is an `advisory_disposition` (who, what, why)
   and an audit event.
-- **Promotion is gated.** A question set's effect can move from _nudge_ to
-  _hold_ only through a recorded `question_set_release` with metrics and an
-  approver.
+- **Changes are gated.** Changing a question set's wording, thresholds or
+  effect bumps its version in source and needs AI governance board approval
+  (G1).
 
 ## 4. Traceability (Measure)
 
 Every check stores:
 
 - the question set and version;
-- a digest of the **exact questions**, with the questions themselves in
-  `advisory_question_snapshot`;
+- a digest of the **exact questions** (the versioned questions live in
+  `apps/server/src/features/shared/advisory/question-sets.ts`);
 - a digest of the input (the text is not stored on the check);
 - the subject's version;
 - the provider and model;
@@ -66,17 +69,10 @@ Every check stores:
 
 ## 5. Validity and calibration (Measure)
 
-- **Ground-truth labels** come from real actions (ADR 0016):
-  - ticks kept or removed at signing;
-  - the skills finally rated;
-  - holds released (gold) or revised (weak);
-  - in future: blind second reads, reported misses, and mode changes.
-- **Bias controls:**
-  - a 15% **shadow arm**, computed but never shown, gives unbiased labels;
-  - exposure logging records who saw each check;
-  - evaluation sets use only shadow-arm and gold labels.
-- **Metrics per question:** precision and recall at the operating point,
-  expected calibration error, and override rate by arm.
+- **Calibration is deferred** (ADR 0016). Before live use, the board reviews
+  `privacy-screen` against synthetic PII-seeded text; the dispositions on
+  released holds and resolved escalations are the human record to compare
+  against.
 - **Current state:** all thresholds are **uncalibrated starting points**. No
   live calls have been made yet; development uses a deterministic mock.
 
@@ -94,11 +90,9 @@ Every check stores:
 ## 7. Monitoring and cost
 
 - `/admin/ai-usage` (tenant admins and compliance) reports, per day and
-  question set: checks, failures, holds, tokens, cost, p95 latency, labels and
-  override rate.
+  question set: checks, failures, and holds or escalations.
 - _Planned:_ the same figures exported as OTLP metrics to Datadog for alerting.
-- **Proposed review triggers:** an override rate above 30% or a failure rate
-  above 5% over 7 days (G4).
+- **Proposed review triggers:** a failure rate above 5% over 7 days (G4).
 
 ## 8. Data protection
 
@@ -107,14 +101,12 @@ Every check stores:
     used for training;
   - a DPA;
   - agreed data residency (D4).
-- **LangSmith** (optional) receives digests and probabilities only, unless
-  `LANGSMITH_CONTENT=screened` is approved.
 - Provider inputs and outputs never appear in logs or traces.
 
 ## 9. Open items before production
 
 1. Compliance approval of the processors and the data scope (D4).
-2. Live baseline: run `privacy-screen` in the shadow arm on synthetic
-   PII-seeded text, then measure recall.
-3. Board approval of the promotion gate and review thresholds (G1, G4).
-4. A second-read workflow (UI) for gold labels.
+2. Live baseline: run `privacy-screen` on synthetic PII-seeded text, then
+   measure recall.
+3. Board approval of the change gate and review thresholds (G1, G4).
+4. Revisit the learning loop (ADR 0016) once live checks run.

@@ -25,16 +25,7 @@ const requireGovernance = (actor: Actor) =>
         new Forbidden({ message: 'Only tenant admins and compliance reviewers can see this.' }),
       );
 
-const percentile = (values: ReadonlyArray<number>, p: number) => {
-  if (values.length === 0) return null;
-  const sorted = values.toSorted((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1)] ?? null;
-};
-
-/**
- * AI cost and quality monitoring (ADR 0016): spend, volume, failures, holds and
- * how often humans disagreed — per day and question set, from decision records.
- */
+/** Assistant checks, failures and holds per day and question set, from decision records. */
 const aiUsageReport = Effect.fn('admin.aiUsageReport')(function* (
   actor: Actor,
   from: IsoDate,
@@ -51,15 +42,6 @@ const aiUsageReport = Effect.fn('admin.aiUsageReport')(function* (
         lt(schema.advisoryCheck.createdAt, new Date(`${addDaysIso(to, 1)}T00:00:00Z`)),
       ),
     );
-  const labels = yield* db
-    .select()
-    .from(schema.advisoryLabel)
-    .where(
-      and(
-        eq(schema.advisoryLabel.tenantId, actor.tenantId),
-        gte(schema.advisoryLabel.createdAt, new Date(`${from}T00:00:00Z`)),
-      ),
-    );
   const groups = new Map<string, Array<(typeof checks)[number]>>();
   for (const check of checks) {
     const key = `${toIsoDate(check.createdAt)}|${check.questionSet}|${check.provider}`;
@@ -67,14 +49,6 @@ const aiUsageReport = Effect.fn('admin.aiUsageReport')(function* (
   }
   const rows = [...groups.entries()].map(([key, group]): AiUsageRow => {
     const [day, questionSet, provider] = key.split('|') as [IsoDate, QuestionSetId, string];
-    const ids = new Set(group.map((c) => c.id));
-    const groupLabels = labels.filter((l) => ids.has(l.checkId) && l.strength !== 'weak');
-    const disagreements = groupLabels.filter(
-      (l) =>
-        l.modelProbability !== null &&
-        l.threshold !== null &&
-        l.modelProbability >= l.threshold !== (l.labelValue === 'yes'),
-    );
     return {
       day,
       questionSet,
@@ -82,21 +56,13 @@ const aiUsageReport = Effect.fn('admin.aiUsageReport')(function* (
       checks: group.length,
       failed: group.filter((c) => c.status === 'failed').length,
       holds: group.filter((c) => c.effect === 'hold' || c.effect === 'escalate').length,
-      inputTokens: group.reduce((n, c) => n + (c.inputTokens ?? 0), 0),
-      costUsd: group.reduce((n, c) => n + (c.costUsdMicros ?? 0), 0) / 1_000_000,
-      p95LatencyMs: percentile(
-        group.flatMap((c) => (c.latencyMs === null ? [] : [c.latencyMs])),
-        0.95,
-      ),
-      labels: groupLabels.length,
-      overrideRate: groupLabels.length > 0 ? disagreements.length / groupLabels.length : null,
     };
   });
   return {
     from,
     to,
-    totalCostUsd: rows.reduce((n, r) => n + r.costUsd, 0),
     totalChecks: rows.reduce((n, r) => n + r.checks, 0),
+    totalHolds: rows.reduce((n, r) => n + r.holds, 0),
     rows: rows.toSorted(
       (a, b) => b.day.localeCompare(a.day) || a.questionSet.localeCompare(b.questionSet),
     ),

@@ -122,28 +122,8 @@ export const ADVISORY_DISPOSITIONS = ['agreed', 'overrode', 'ignored'] as const;
 export const AdvisoryDisposition = Schema.Literals(ADVISORY_DISPOSITIONS);
 export type AdvisoryDisposition = typeof AdvisoryDisposition.Type;
 
-/** Where a ground-truth label came from (ADR 0016). Derived from real actions, never asked for. */
-export const LABEL_SOURCES = [
-  'tick_kept',
-  'tick_removed',
-  'skill_final',
-  'hold_released',
-  'hold_revised',
-  'reported_miss',
-  'mode_changed',
-  'mode_kept',
-  'second_read',
-] as const;
-export const LabelSource = Schema.Literals(LABEL_SOURCES);
-export type LabelSource = typeof LabelSource.Type;
-
-export const QUESTION_SETS = [
-  'privacy-screen',
-  'narrative-indicators',
-  'narrative-quality',
-  'mode-consistency',
-  'skill-suggest',
-] as const;
+/** Only the privacy screen runs; the nudge sets are parked with ADR 0016 (deferred). */
+export const QUESTION_SETS = ['privacy-screen'] as const;
 export const QuestionSetId = Schema.Literals(QUESTION_SETS);
 export type QuestionSetId = typeof QuestionSetId.Type;
 

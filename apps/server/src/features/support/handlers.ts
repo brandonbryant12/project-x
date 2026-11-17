@@ -5,12 +5,7 @@ import { HttpApiBuilder } from 'effect/http-api';
 import { apiErrorsOnly } from '../../http/api-errors.ts';
 import { buildHome } from './home.ts';
 import { buildCoaching, buildEngagementViews, buildTeam } from './team.ts';
-import {
-  engagementEvent,
-  loadEngagement,
-  proposeEngagement,
-  recordAdvisorySeen,
-} from './use-cases.ts';
+import { engagementEvent, loadEngagement, proposeEngagement } from './use-cases.ts';
 
 const engagementView = (id: EngagementId) =>
   Effect.gen(function* () {
@@ -39,8 +34,5 @@ export const SupportHandlers = HttpApiBuilder.group(Api, 'support', (handlers) =
         Effect.andThen(engagementView(params.id)),
         apiErrorsOnly,
       ),
-    )
-    .handle('advisorySeen', ({ params, payload }) =>
-      recordAdvisorySeen(params.id, payload.expanded).pipe(apiErrorsOnly),
     ),
 );

@@ -39,14 +39,6 @@ export const AdvisoryView = Schema.Struct({
       outcome: Schema.Literals(['yes', 'no', 'unclear']),
     }),
   ),
-  /** evidence-pre-read: indicator ids the evidence appears to address. */
-  appearsToAddress: Schema.Array(Schema.String),
-  /** narrative-quality: which parts the narrative appears to contain. */
-  narrativeParts: Schema.NullOr(
-    Schema.Struct({ behavior: Schema.Boolean, effect: Schema.Boolean, nextStep: Schema.Boolean }),
-  ),
-  /** skill-suggest: suggested skills. */
-  suggestedSkillIds: Schema.Array(SkillId),
   provider: Schema.String,
 });
 export type AdvisoryView = typeof AdvisoryView.Type;
@@ -182,8 +174,6 @@ export const RatingInput = Schema.Struct({
   skillId: SkillId,
   level: Schema.NullOr(Level),
   indicatorIds: Schema.Array(SkillIndicatorId),
-  /** Indicators accepted from an assistant suggestion (label provenance). */
-  suggestedIndicatorIds: Schema.Array(SkillIndicatorId),
   credit: Schema.Boolean,
 });
 export type RatingInput = typeof RatingInput.Type;
@@ -224,5 +214,3 @@ export const ObserveTarget = Schema.Struct({
   focusSkills: Schema.Array(SkillRef),
 });
 export type ObserveTarget = typeof ObserveTarget.Type;
-
-export const AdvisorySeenInput = Schema.Struct({ expanded: Schema.Boolean });

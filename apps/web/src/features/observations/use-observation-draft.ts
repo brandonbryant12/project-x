@@ -1,7 +1,7 @@
 import type { ObservationView, RatingInput } from '@repo/api';
 import type { Level, ObservationMode, SkillId, SkillIndicatorId } from '@repo/domain';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { call, queryOptions } from '@/lib/api.ts';
 
 export interface DraftRating {
@@ -40,18 +40,9 @@ const fromView = (view: ObservationView): Draft => ({
   narrativeNext: view.narrativeNext,
 });
 
-/** Indicators the assistant proposed from the observer's note (ADR 0016: human first). */
-export const suggestedIndicatorIds = (view: ObservationView) =>
-  new Set(
-    view.advisory
-      .filter((a) => a.questionSet === 'narrative-indicators' && a.status === 'completed')
-      .flatMap((a) => a.appearsToAddress),
-  );
-
 export const toPayload = (
   draft: Draft,
   version: number,
-  suggested: ReadonlySet<string>,
 ): {
   version: number;
   mode: ObservationMode;
@@ -65,8 +56,6 @@ export const toPayload = (
     skillId: r.skillId,
     level: r.level,
     indicatorIds: [...r.indicatorIds],
-    // An accepted suggestion: the observer ticked an indicator the assistant proposed.
-    suggestedIndicatorIds: r.indicatorIds.filter((id) => suggested.has(id)),
     credit: r.credit,
   })),
   narrativeSaw: draft.narrativeSaw,
@@ -92,7 +81,6 @@ export const useObservationDraft = (view: ObservationView, editable: boolean) =>
   const version = useRef(view.version);
   const dirty = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suggested = useMemo(() => suggestedIndicatorIds(view), [view]);
   const key = queryOptions('observations', 'get', { params: { id: view.id } }).queryKey;
 
   // Adopt server state only when we have no unsaved local edits.
@@ -109,20 +97,18 @@ export const useObservationDraft = (view: ObservationView, editable: boolean) =>
       try {
         const saved = await call('observations', 'saveDraft', {
           params: { id: view.id },
-          payload: toPayload(next, version.current, suggested),
+          payload: toPayload(next, version.current),
         });
         version.current = saved.version;
         dirty.current = false;
         setSave({ kind: 'saved', at: Date.now() });
         qc.setQueryData(key, saved);
-        // Narrative checks run after the save commits; pick them up shortly.
-        setTimeout(() => void qc.invalidateQueries({ queryKey: key }), 1500);
       } catch (error) {
         const tag = (error as { _tag?: string })._tag;
         setSave({ kind: tag === 'Conflict' ? 'conflict' : 'failed' });
       }
     },
-    [view.id, suggested, qc, key],
+    [view.id, qc, key],
   );
 
   const update = useCallback(
@@ -145,7 +131,6 @@ export const useObservationDraft = (view: ObservationView, editable: boolean) =>
     draft,
     update,
     save,
-    suggested,
     version: () => version.current,
     cancelPendingSave: () => timer.current && clearTimeout(timer.current),
   };

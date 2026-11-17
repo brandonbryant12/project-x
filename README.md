@@ -46,7 +46,6 @@ Sign in as any seeded persona from the sign-in page:
 | Identity      | Microsoft Entra ID (app roles assigned to AD groups)                                |
 | AI            | Gemini Decisions API (advisory only)                                                |
 | Observability | OpenTelemetry to Datadog                                                            |
-| AI tracing    | LangSmith, optional                                                                 |
 
 Monorepo: `packages/{domain,api,db,ai,ui}` and `apps/{server,web}`.
 

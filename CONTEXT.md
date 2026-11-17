@@ -62,10 +62,7 @@ add it here first. The model behind the terms is described in
 | **Assistant check** | One Decisions API evaluation, recorded with digests, probabilities, thresholds, effect and rationale. It may hold, escalate or nudge. It never clears. |                         |
 | **Question set**    | A versioned set of closed questions with thresholds, e.g. `privacy-screen` v1. Changing the wording bumps the version.                                 | Prompt                  |
 | **Hold / escalate** | Hold: suspected client PII, so the text is hidden until revised or released. Escalate: a complaint or specific recommendation, routed to compliance.   |                         |
-| **Label**           | Ground truth for one question, derived from a real action (a tick kept, a hold released). Never a "was this helpful?" click.                           | Disposition             |
-| **Disposition**     | A human's explicit decision on a check (agreed or overrode), recorded with who and why.                                                                | Label                   |
-| **Shadow arm**      | The slice of checks computed but never shown, so the human labels on them are unbiased.                                                                |                         |
-| **Exposure**        | The record that someone saw, or opened, an assistant check.                                                                                            |                         |
+| **Disposition**     | A human's explicit decision on a check (agreed or overrode), recorded with who and why.                                                                | Audit event             |
 | **Note**            | A human-written reason (return note, void reason, …). It is purgeable content, linked from the audit event.                                            | Audit event             |
 | **Audit event**     | An immutable record of who did what, when, why (reason code and note) and under which policy version.                                                  | Activity                |
 

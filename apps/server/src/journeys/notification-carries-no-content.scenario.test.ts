@@ -59,7 +59,6 @@ layer(ScenarioLayer.pipe(Layer.provideMerge(NotifierMemory)), { timeout: 60_000 
                 skillId: rating.skill.id,
                 level: 3,
                 indicatorIds: [],
-                suggestedIndicatorIds: [],
                 credit: true,
               },
             ],

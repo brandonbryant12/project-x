@@ -18,7 +18,6 @@ import { apiRoutes } from '../http/api-layer.ts';
 import { SecurityMiddleware } from '../http/security.ts';
 import { Background } from '../platform/background.ts';
 import type { AppConfig } from '../platform/config.ts';
-import { Tracing } from '../platform/langsmith.ts';
 import { Settings } from '../platform/settings.ts';
 import { seedWorld } from '../scripts/seed-world.ts';
 import { makeFakeEntra } from '../test/fake-oidc.ts';
@@ -80,7 +79,6 @@ const AuthLayer = Layer.effect(
       layerTestDb,
       DecisionsMockLayer(ALL_MOCK_RULES),
       Background.layerInline,
-      Tracing.disabled,
       Layer.succeed(Settings, config),
     ),
   ),

@@ -228,10 +228,7 @@ const Editor = ({ view }: { readonly view: ObservationView }) => {
   const desktop = useIsDesktop();
   const qc = useQueryClient();
   const editable = view.viewerRole === 'observer' && EDITABLE.has(view.status);
-  const { draft, update, save, suggested, version, cancelPendingSave } = useObservationDraft(
-    view,
-    editable,
-  );
+  const { draft, update, save, version, cancelPendingSave } = useObservationDraft(view, editable);
   const [reviewing, setReviewing] = useState(false);
   const [noteEvent, setNoteEvent] = useState<NoteEvent | null>(null);
   const transition = useApiMutation('observations', 'transition', {
@@ -257,7 +254,7 @@ const Editor = ({ view }: { readonly view: ObservationView }) => {
     cancelPendingSave();
     const signed = await call('observations', 'sign', {
       params: { id: view.id },
-      payload: toPayload(draft, version(), suggested),
+      payload: toPayload(draft, version()),
     });
     await qc.invalidateQueries();
     return signed;
@@ -303,7 +300,6 @@ const Editor = ({ view }: { readonly view: ObservationView }) => {
                 levels={levelsOf(r.skillId)}
                 idPrefix={view.id}
                 draft={r}
-                suggested={suggested}
                 compact={!desktop}
                 canRemove={draft.ratings.length > 1}
                 onChange={(next) => setRating(r.skillId, next)}
@@ -335,7 +331,6 @@ const Editor = ({ view }: { readonly view: ObservationView }) => {
               onSaw={(v) => update((d) => ({ ...d, narrativeSaw: v }))}
               onNext={(v) => update((d) => ({ ...d, narrativeNext: v }))}
               subjectFirstName={first}
-              advisory={view.advisory}
               readOnly={!editable}
             />
           </div>

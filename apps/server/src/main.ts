@@ -15,7 +15,6 @@ import { staticSpaLayer } from './http/static.ts';
 import { Background } from './platform/background.ts';
 import { AppConfig, validateConfig, type AppConfig as Config } from './platform/config.ts';
 import { ObservabilityLive } from './platform/observability.ts';
-import { Tracing } from './platform/langsmith.ts';
 import { Settings } from './platform/settings.ts';
 import { NotificationsLive } from './features/notifications/dispatcher.ts';
 import { NotifierLog, NotifierSmtp } from './platform/notifier.ts';
@@ -51,7 +50,6 @@ export const makeServer = (config: Config) => {
     }),
     decisionsLayer(config),
     Background.layer,
-    Tracing.layer(config),
   );
   const routes = Layer.mergeAll(
     ApiLive,

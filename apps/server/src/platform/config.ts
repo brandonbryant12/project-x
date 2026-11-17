@@ -41,16 +41,6 @@ export const AppConfig = Config.all({
       Config.withDefault(false),
     ),
   }),
-  /** LangSmith workbench for assistant checks (ADR 0016). Off by default. */
-  langsmith: Config.all({
-    tracing: Config.Boolean('LANGSMITH_TRACING').pipe(Config.withDefault(false)),
-    apiKey: optionalRedacted('LANGSMITH_API_KEY'),
-    project: Config.String('LANGSMITH_PROJECT').pipe(Config.withDefault('app-dev')),
-    /** none: digests and keys only. screened: also text that passed both privacy screens. */
-    content: Config.Literals(['none', 'screened'], 'LANGSMITH_CONTENT').pipe(
-      Config.withDefault('none' as const),
-    ),
-  }),
   telemetry: Config.all({
     enabled: Config.Boolean('TELEMETRY_ENABLED').pipe(Config.withDefault(false)),
     otlpEndpoint: optionalString('OTEL_EXPORTER_OTLP_ENDPOINT'),
@@ -106,9 +96,6 @@ export const validateConfig = (config: AppConfig): Effect.Effect<AppConfig, Conf
         'DECISIONS_MODE=live needs DECISIONS_PAID_TIER_CONFIRMED=true (free tier may train on inputs).',
       );
     }
-  }
-  if (config.langsmith.tracing && !config.langsmith.apiKey) {
-    problems.push('LANGSMITH_TRACING=true needs LANGSMITH_API_KEY.');
   }
   if (config.notify.transport === 'smtp' && (!config.notify.smtpHost || !config.notify.from)) {
     problems.push('NOTIFY_TRANSPORT=smtp needs SMTP_HOST and NOTIFY_FROM.');

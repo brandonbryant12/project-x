@@ -65,7 +65,7 @@ describe('architecture', () => {
   });
 
   it('I9: every table is tenant-scoped, except the declared global ones', () => {
-    const GLOBAL = new Set(['tenant', 'question_set_release', 'advisory_question_snapshot']);
+    const GLOBAL = new Set(['tenant']);
     const all = tables();
     expect(all.length).toBeGreaterThan(25);
     const unscoped = all

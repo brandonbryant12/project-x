@@ -7,7 +7,6 @@ import { rmSync } from 'node:fs';
 import { ALL_MOCK_RULES } from '../features/shared/advisory/question-sets.ts';
 import { Background } from '../platform/background.ts';
 import { AppConfig, validateConfig } from '../platform/config.ts';
-import { Tracing } from '../platform/langsmith.ts';
 import { Settings } from '../platform/settings.ts';
 import { seedCohort } from './seed-cohort.ts';
 import { seedWorld } from './seed-world.ts';
@@ -45,7 +44,6 @@ const main = Effect.gen(function* () {
         layerFromUrl({ url: config.databaseUrl, migrate: true }),
         DecisionsMockLayer(ALL_MOCK_RULES),
         Background.layerInline,
-        Tracing.disabled,
         Layer.succeed(Settings, config),
       ),
     ),

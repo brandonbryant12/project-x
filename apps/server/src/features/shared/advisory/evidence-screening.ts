@@ -1,17 +1,15 @@
-import { Decisions } from '@repo/ai';
 import type { Actor } from '@repo/api';
 import {
   EvidenceLifecycle,
   screenLocally,
   type EvidenceId,
   type EvidenceStatus,
-  type SkillId,
 } from '@repo/domain';
 import { Db, schema, transactionally } from '@repo/db';
 import { and, eq } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { recordAudit } from '../audit.ts';
-import { privacyScreen, skillSuggest } from './question-sets.ts';
+import { privacyScreen } from './question-sets.ts';
 import { runCheck } from './runner.ts';
 
 /**
@@ -108,30 +106,4 @@ export const screenEvidenceWithAssistant = Effect.fn('evidence.assistantScreen')
       );
     }),
   );
-});
-
-/** Background: suggest skills for a logged interaction (nudge only). */
-export const suggestSkills = Effect.fn('interaction.suggestSkills')(function* (
-  actor: Actor,
-  interactionId: string,
-  text: string,
-) {
-  const db = yield* Db;
-  const decisions = yield* Decisions;
-  if (!decisions.availability.enabled) return;
-  const skills = yield* db
-    .select({ id: schema.skill.id, name: schema.skill.name, summary: schema.skill.summary })
-    .from(schema.skill)
-    .where(and(eq(schema.skill.tenantId, actor.tenantId), eq(schema.skill.status, 'published')));
-  const built = skillSuggest.build(skills.map((s) => ({ ...s, id: s.id as SkillId })));
-  yield* runCheck({
-    actor,
-    questionSet: skillSuggest,
-    built,
-    subjectType: 'interaction',
-    subjectId: interactionId,
-    subjectVersion: 1,
-    text,
-    interpret: (result) => skillSuggest.interpret(result.answers, built.thresholds),
-  });
 });

@@ -1,7 +1,17 @@
 # ADR 0016: Ground truth comes from real actions; LangSmith is an optional, privacy-bounded workbench
 
-- Status: Accepted
+- Status: **Deferred** (2026-11-17)
 - Date: 2026-11-16
+
+> **Deferred, 2026-11-17.** The provider runs as a deterministic mock and
+> infosec has not cleared live use, so there is nothing to calibrate. Removed:
+> LangSmith tracing and its configuration, the shadow arm, ground-truth labels,
+> exposure logging, the `advisory_label`, `advisory_exposure`,
+> `question_set_release` and `advisory_question_snapshot` tables, and the
+> nudge question sets that only the loop would have tuned. Kept:
+> `advisory_check` (ADR 0015), `advisory_disposition` and the privacy screen.
+> Revisit once live checks run. The text below is the original decision.
+
 - Builds on: [ADR 0008](./0008-decisions-api-is-advisory.md), [ADR 0015](./0015-audit-trail-and-ai-decision-records.md)
 - Amends: ADR 0008's "provider inputs and outputs are never logged" (see section 4)
 

@@ -186,7 +186,6 @@ export const InteractionView = Schema.Struct({
       alreadyAsked: Schema.Boolean,
     }),
   ),
-  suggestedSkills: Schema.Array(SkillRef),
 });
 export type InteractionView = typeof InteractionView.Type;
 

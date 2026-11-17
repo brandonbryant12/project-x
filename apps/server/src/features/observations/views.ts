@@ -73,14 +73,11 @@ const toAdvisoryView = (row: typeof schema.advisoryCheck.$inferSelect): Advisory
     status: row.status as AdvisoryView['status'],
     effect: row.effect ?? null,
     findings: result?.findings ? [...result.findings] : [],
-    appearsToAddress: result?.appearsToAddress ? [...result.appearsToAddress] : [],
-    narrativeParts: result?.narrativeParts ?? null,
-    suggestedSkillIds: result?.suggestedSkillIds ? [...result.suggestedSkillIds] : [],
     provider: row.provider,
   };
 };
 
-/** Latest *shown* check per question set for the given subjects. Shadow checks never reach people. */
+/** Latest check per question set for the given subjects. */
 const visibleChecks = Effect.fn('observations.checks')(function* (
   tenantId: TenantId,
   subjects: ReadonlyArray<{ type: string; id: string }>,
@@ -93,7 +90,6 @@ const visibleChecks = Effect.fn('observations.checks')(function* (
     .where(
       and(
         eq(schema.advisoryCheck.tenantId, tenantId),
-        eq(schema.advisoryCheck.arm, 'shown'),
         inArray(
           schema.advisoryCheck.subjectId,
           subjects.map((s) => s.id),

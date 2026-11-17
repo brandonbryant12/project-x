@@ -71,7 +71,6 @@ layer(ScenarioLayer, { timeout: 60_000 })('designated observer signs', (it) => {
               skillId: skill.id,
               level: 2,
               indicatorIds: [],
-              suggestedIndicatorIds: [],
               credit: true,
             },
           ],

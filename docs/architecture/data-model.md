@@ -6,12 +6,12 @@ rules every table follows. The code lives in `packages/db/src/schema/`.
 
 ## 1. Three kinds of table
 
-| Kind                  | Examples                                                                                                 | Mutability              | Rules                                                                                                                                                                           |
-| --------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Directory mirrors** | `person`, `reporting_line`, `role_grant`, `person_position`                                              | Synced from Entra or HR | Effective-dated (`valid_from`, `valid_to`). Never edited by product flows. History is kept so eligibility can be evaluated _as of_ any date.                                    |
-| **Workflow entities** | `plan`, `activity`, `observation`, `engagement`, `evidence`                                              | Current state changes   | One `status` column, constrained to the lifecycle's states. A `version` integer for optimistic concurrency. Every transition also writes `audit_event` in the same transaction. |
-| **Facts and ledgers** | `credit_entry`, `audit_event`, `advisory_check`, `advisory_label`, `badge_award`, `observer_designation` | **Append-only**         | Never `UPDATE`d to erase history; corrections are new rows that point at the old ones. Denormalized on purpose: each row explains itself without joins to mutable data.         |
-| **Operational**       | `session`, `notification`, `notification_preference`                                                     | Plumbing                | Hold no content and explain nothing to an auditor. Deleted 90 days after last use (`operational` class). A `notification` row's status changes only in the dispatcher.          |
+| Kind                  | Examples                                                                                                       | Mutability              | Rules                                                                                                                                                                           |
+| --------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Directory mirrors** | `person`, `reporting_line`, `role_grant`, `person_position`                                                    | Synced from Entra or HR | Effective-dated (`valid_from`, `valid_to`). Never edited by product flows. History is kept so eligibility can be evaluated _as of_ any date.                                    |
+| **Workflow entities** | `plan`, `activity`, `observation`, `engagement`, `evidence`                                                    | Current state changes   | One `status` column, constrained to the lifecycle's states. A `version` integer for optimistic concurrency. Every transition also writes `audit_event` in the same transaction. |
+| **Facts and ledgers** | `credit_entry`, `audit_event`, `advisory_check`, `advisory_disposition`, `badge_award`, `observer_designation` | **Append-only**         | Never `UPDATE`d to erase history; corrections are new rows that point at the old ones. Denormalized on purpose: each row explains itself without joins to mutable data.         |
+| **Operational**       | `session`, `notification`, `notification_preference`                                                           | Plumbing                | Hold no content and explain nothing to an auditor. Deleted 90 days after last use (`operational` class). A `notification` row's status changes only in the dispatcher.          |
 
 `observer_designation` is a fact with one permitted change: it may be ended
 early, once, by setting `ended_on` (enforced by a trigger).
@@ -103,10 +103,7 @@ tenant ─┬─ business_function
         ├─ credit_entry      (append-only ledger: one demonstration, with profile and subject position)
         ├─ badge_award       (awarded/revoked; receipt snapshot)
         ├─ advisory_check    (one AI evaluation: digests, probabilities, thresholds, effect, rationale)
-        ├─ advisory_exposure (who saw which check, shown or shadow arm)
-        ├─ advisory_label    (ground truth per question, derived from real actions)
         ├─ second_read       (blind calibration read of a signed observation)
-        ├─ question_set_release (versioned questions, thresholds and their measured quality)
         ├─ notification      (outbox: one message to one person, no free text)
         └─ audit_event       (append-only: who, what, from → to, why, under which policy)
 ```

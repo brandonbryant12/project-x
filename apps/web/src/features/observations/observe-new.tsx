@@ -316,7 +316,6 @@ const SkillsRow = ({
             levels={capture.levelsOf(r.skillId)}
             idPrefix="capture"
             draft={r}
-            suggested={new Set()}
             compact={!desktop}
             collapseIndicators
             canRemove={draft.ratings.length > 1}

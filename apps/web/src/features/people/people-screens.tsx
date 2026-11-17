@@ -167,48 +167,29 @@ export const TimelineScreen = ({ items }: { readonly items: ReadonlyArray<Timeli
   );
 };
 
-const usd = (n: number) =>
-  n.toLocaleString(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: n < 1 ? 4 : 2,
-  });
-const pct = (n: number | null) => (n === null ? '—' : `${Math.round(n * 100)}%`);
-const latency = (ms: number | null) => (ms === null ? '—' : `${ms} ms`);
-
-/** AI cost and quality for governance (ADR 0016). Plain table: auditors read numbers, not charts. */
+/** Assistant checks and holds for governance (ADR 0015). Plain table: auditors read numbers, not charts. */
 export const AiUsageScreen = ({ usage }: { readonly usage: AiUsageView }) => (
   <Page>
     <PageHeader
       eyebrow="Governance"
       title="Assistant checks"
-      description={`${usage.totalChecks} checks cost ${usd(usage.totalCostUsd)} from ${formatDate(usage.from)} to ${formatDate(usage.to, { year: 'numeric' })}. Disagreement is measured against human decisions, never against the model itself.`}
+      description={`${usage.totalChecks} checks, ${usage.totalHolds} held or escalated, from ${formatDate(usage.from)} to ${formatDate(usage.to, { year: 'numeric' })}. The assistant may hold text for a person to review; it never clears anything.`}
     />
     {usage.rows.length === 0 ? (
       <EmptyState>No assistant checks ran in this period.</EmptyState>
     ) : (
       <>
         <Card className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[760px] text-left text-ui">
+          <table className="w-full text-left text-ui">
             <thead>
               <tr className="border-b border-line text-meta text-ink-3">
-                {[
-                  'Day',
-                  'Question set',
-                  'Provider',
-                  'Checks',
-                  'Failed',
-                  'Held or escalated',
-                  'Tokens',
-                  'Cost',
-                  'p95 latency',
-                  'Labels',
-                  'Humans disagreed',
-                ].map((h) => (
-                  <th key={h} className="px-4 py-3 font-medium whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
+                {['Day', 'Question set', 'Provider', 'Checks', 'Failed', 'Held or escalated'].map(
+                  (h) => (
+                    <th key={h} className="px-4 py-3 font-medium whitespace-nowrap">
+                      {h}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-line tabular">
@@ -222,11 +203,6 @@ export const AiUsageScreen = ({ usage }: { readonly usage: AiUsageView }) => (
                   <td className="px-4 py-3">{r.checks}</td>
                   <td className="px-4 py-3">{r.failed}</td>
                   <td className="px-4 py-3">{r.holds}</td>
-                  <td className="px-4 py-3">{r.inputTokens.toLocaleString()}</td>
-                  <td className="px-4 py-3">{usd(r.costUsd)}</td>
-                  <td className="px-4 py-3">{latency(r.p95LatencyMs)}</td>
-                  <td className="px-4 py-3">{r.labels}</td>
-                  <td className="px-4 py-3">{pct(r.overrideRate)}</td>
                 </tr>
               ))}
             </tbody>
@@ -249,11 +225,6 @@ export const AiUsageScreen = ({ usage }: { readonly usage: AiUsageView }) => (
                       ['Checks', r.checks],
                       ['Failed', r.failed],
                       ['Held or escalated', r.holds],
-                      ['Tokens', r.inputTokens.toLocaleString()],
-                      ['Cost', usd(r.costUsd)],
-                      ['p95 latency', latency(r.p95LatencyMs)],
-                      ['Labels', r.labels],
-                      ['Humans disagreed', pct(r.overrideRate)],
                     ] as const
                   ).map(([label, value]) => (
                     <div key={label} className="grid">

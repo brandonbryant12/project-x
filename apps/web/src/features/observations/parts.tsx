@@ -10,7 +10,6 @@ import {
   AssistantNote,
   AssistantPreRead,
   Button,
-  cn,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -35,8 +34,8 @@ import {
 } from '@repo/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { call, queryOptions } from '@/lib/api.ts';
+import { useState } from 'react';
+import { queryOptions } from '@/lib/api.ts';
 import { formatLongDate, kindLabel, levelName } from '@/lib/format.ts';
 import { BASIS_LABEL, basisSentence, EVIDENCE_STATUS } from '@/lib/lifecycle-presentation.ts';
 import { MIN_SAW, type DraftRating } from './use-observation-draft.ts';
@@ -138,23 +137,7 @@ export const preReadFindings = (advisory: ReadonlyArray<AdvisoryView>): Array<Pr
     return a.findings.map((f) => ({ key: `${a.id}-${f.key}`, label: f.label, outcome: f.outcome }));
   });
 
-/** Records exposure once per check (learning loop: anchored labels can be excluded). */
-export const useAdvisorySeen = (advisory: ReadonlyArray<AdvisoryView>) => {
-  const seen = useRef(new Set<string>());
-  useEffect(() => {
-    for (const a of advisory) {
-      if (a.status !== 'completed' || seen.current.has(a.id)) continue;
-      seen.current.add(a.id);
-      void call('support', 'advisorySeen', {
-        params: { id: a.id },
-        payload: { expanded: true },
-      }).catch(() => undefined);
-    }
-  }, [advisory]);
-};
-
 export const PreReadPanel = ({ advisory }: { readonly advisory: ReadonlyArray<AdvisoryView> }) => {
-  useAdvisorySeen(advisory);
   const findings = preReadFindings(advisory);
   const anyFailed = advisory.some((a) => a.status === 'failed');
   const pending = advisory.some((a) => a.status === 'pending');
@@ -167,38 +150,12 @@ export const PreReadPanel = ({ advisory }: { readonly advisory: ReadonlyArray<Ad
   );
 };
 
-const PARTS = [
-  ['behavior', 'Specific behavior'],
-  ['effect', 'Effect'],
-  ['nextStep', 'Next step'],
-] as const;
-
-export const NarrativeMeter = ({ parts }: { readonly parts: AdvisoryView['narrativeParts'] }) => (
-  <div className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-live="polite">
-    {PARTS.map(([key, label]) => {
-      const on = parts?.[key] ?? false;
-      return (
-        <span key={key} className="inline-flex items-center gap-1.5 text-meta text-ink-3">
-          <span
-            aria-hidden
-            className={cn('h-1 w-6 rounded-full', on ? 'bg-info' : 'bg-line-strong/60')}
-          />
-          {label}
-          <span className="sr-only">{on ? '(appears present)' : '(not detected)'}</span>
-        </span>
-      );
-    })}
-    {parts ? <span className="text-meta text-ink-3">· assistant check</span> : null}
-  </div>
-);
-
 export const NarrativeEditor = ({
   saw,
   next,
   onSaw,
   onNext,
   subjectFirstName,
-  advisory,
   readOnly,
 }: {
   readonly saw: string;
@@ -206,65 +163,40 @@ export const NarrativeEditor = ({
   readonly onSaw: (v: string) => void;
   readonly onNext: (v: string) => void;
   readonly subjectFirstName: string;
-  readonly advisory: ReadonlyArray<AdvisoryView>;
   readonly readOnly: boolean;
-}) => {
-  const quality = advisory.find(
-    (a) => a.questionSet === 'narrative-quality' && a.status === 'completed',
-  );
-  const mode = advisory.find(
-    (a) => a.questionSet === 'mode-consistency' && a.status === 'completed',
-  );
-  const generic = quality?.narrativeParts && !quality.narrativeParts.behavior;
-  return (
-    <section className="grid gap-5">
-      <Field>
-        <Label htmlFor="narrative-saw">What I saw</Label>
-        <Textarea
-          id="narrative-saw"
-          rows={4}
-          readOnly={readOnly}
-          value={saw}
-          onChange={(e) => onSaw(e.target.value)}
-          placeholder={`What did ${subjectFirstName} do, and what did it lead to?`}
-          className="narrative min-h-32"
-        />
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <NarrativeMeter parts={quality?.narrativeParts ?? null} />
-          {saw.trim().length < MIN_SAW ? (
-            <FieldHint className="tabular">
-              {MIN_SAW - saw.trim().length} more characters to sign
-            </FieldHint>
-          ) : null}
-        </div>
-      </Field>
-      {generic ? (
-        <AssistantNote>
-          This reads as general praise. Adding what {subjectFirstName} did and what it led to will
-          make it more useful to them. You can sign as it is.
-        </AssistantNote>
+}) => (
+  <section className="grid gap-5">
+    <Field>
+      <Label htmlFor="narrative-saw">What I saw</Label>
+      <Textarea
+        id="narrative-saw"
+        rows={4}
+        readOnly={readOnly}
+        value={saw}
+        onChange={(e) => onSaw(e.target.value)}
+        placeholder={`What did ${subjectFirstName} do, and what did it lead to?`}
+        className="narrative min-h-32"
+      />
+      {saw.trim().length < MIN_SAW ? (
+        <FieldHint className="tabular">
+          {MIN_SAW - saw.trim().length} more characters to sign
+        </FieldHint>
       ) : null}
-      {mode?.effect === 'nudge' ? (
-        <AssistantNote>
-          This appears to describe what you were told rather than what you saw. If so, change how
-          you observed it to “We discussed it”.
-        </AssistantNote>
-      ) : null}
-      <Field>
-        <Label htmlFor="narrative-next">What next</Label>
-        <Textarea
-          id="narrative-next"
-          rows={2}
-          readOnly={readOnly}
-          value={next}
-          onChange={(e) => onNext(e.target.value)}
-          placeholder="One concrete thing to try next time"
-          className="narrative min-h-20"
-        />
-      </Field>
-    </section>
-  );
-};
+    </Field>
+    <Field>
+      <Label htmlFor="narrative-next">What next</Label>
+      <Textarea
+        id="narrative-next"
+        rows={2}
+        readOnly={readOnly}
+        value={next}
+        onChange={(e) => onNext(e.target.value)}
+        placeholder="One concrete thing to try next time"
+        className="narrative min-h-20"
+      />
+    </Field>
+  </section>
+);
 
 /** One skill being rated: level first, then the optional indicators for that level. */
 export const RatingEditor = ({
@@ -272,7 +204,6 @@ export const RatingEditor = ({
   levels,
   idPrefix,
   draft,
-  suggested,
   onChange,
   onRemove,
   canRemove,
@@ -284,7 +215,6 @@ export const RatingEditor = ({
   readonly levels: ReadonlyArray<SkillLevelDefinition>;
   readonly idPrefix: string;
   readonly draft: DraftRating;
-  readonly suggested: ReadonlySet<string>;
   readonly onChange: (next: DraftRating) => void;
   readonly onRemove: () => void;
   readonly canRemove: boolean;
@@ -306,7 +236,6 @@ export const RatingEditor = ({
             id={`${idPrefix}-${indicator.id}`}
             text={indicator.text}
             checked={draft.indicatorIds.includes(indicator.id)}
-            assistantMatch={suggested.has(indicator.id)}
             onCheckedChange={(on) => toggle(indicator.id, on)}
           />
         ))

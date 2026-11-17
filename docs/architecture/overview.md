@@ -20,7 +20,6 @@ flowchart LR
   entra["Microsoft Entra ID<br/>SSO · app roles via AD groups · manager"]
   gemini["Google Gemini Decisions API<br/>closed-set judgments (advisory)"]
   dd["Datadog<br/>traces · metrics · logs"]
-  ls["LangSmith (optional)<br/>run trees · feedback · datasets"]
   mail["Firm SMTP relay<br/>email notifications (planned)"]
   teams["Teams activity feed<br/>(later, behind config)"]
 
@@ -28,7 +27,6 @@ flowchart LR
   app -->|OIDC sign-in, roles claim| entra
   app -->|text-only checks, no client identifiers| gemini
   app -->|OTLP| dd
-  app -.->|digests by default| ls
   app -->|names, counts, dates, link — no content| mail
   app -.-> teams
 ```
@@ -81,7 +79,7 @@ flowchart TB
     a["CurrentActor (from session)"] --> p["policy: may this actor? (packages/domain/policy)"]
     p --> m["lifecycle: does the state allow it? (XState machine)"]
     m --> t["transactionally: write rows + audit_event (+ version check)"]
-    t --> ac["afterCommit: assistant checks, LangSmith feedback"]
+    t --> ac["afterCommit: assistant privacy screen"]
   end
   h --> usecase
 ```
@@ -103,9 +101,6 @@ sequenceDiagram
   W->>S: PUT /observations/:id/draft (version n)
   S->>DB: save draft (version n → n+1)
   S-->>W: view (autosaved)
-  S-)AI: after commit — narrative checks on the observer's own note
-  AI--)S: probabilities
-  S->>DB: advisory_check (digests, probabilities, thresholds, effect)
   O->>W: Review and sign
   W->>S: POST /observations/:id/sign
   S->>S: eligibility as of the interaction date · lifecycle allows SIGN
@@ -114,28 +109,24 @@ sequenceDiagram
   S->>DB: status = signed, content_digest
   S->>DB: credit_entry per credited skill (FKs pin it to the observation)
   S->>DB: badge_award + receipt rows when criteria are met
-  S->>DB: advisory_label (ticks kept / skills rated) · audit_event
+  S->>DB: audit_event
   S->>DB: COMMIT
   S-->>W: receipt (credits, badges earned)
 ```
 
-## 5. Assistant checks and the learning loop
+## 5. Assistant checks
 
 ```mermaid
 flowchart LR
-  text["Text<br/>reflection or observer's note"] --> local{"Local screen<br/>(deterministic, fails closed)"}
+  text["Text<br/>a coachee's reflection"] --> local{"Local screen<br/>(deterministic, fails closed)"}
   local -- PII pattern --> held["Evidence: held"]
-  local -- clear --> check["Assistant check<br/>question set vN"]
-  check -->|shadow arm 15%| shadow["Recorded, never shown"]
-  check -->|shown| effect{"Effect"}
+  local -- clear --> check["Assistant check<br/>privacy-screen vN"]
+  check --> effect{"Effect"}
   effect -- hold --> held
   effect -- escalate --> esc["Evidence: escalated → compliance"]
-  effect -- nudge --> ui["Assistant pre-read<br/>(observer decides)"]
-  human["Human actions<br/>tick kept · skill rated · hold released"] --> labels[("advisory_label")]
-  shadow & ui --> human
-  labels --> eval["Weekly eval: precision/recall · calibration · override rate"]
-  eval --> release["question_set_release vN+1<br/>(AI board approval)"]
-  release --> check
+  effect -- none or failed --> avail["Evidence: stays available"]
+  held -- admin releases --> disp[("advisory_disposition")]
+  esc -- compliance resolves --> disp
 ```
 
 ## 5a. Notifications: the outbox
@@ -198,7 +189,6 @@ erDiagram
   OBSERVATION }o--|| ENGAGEMENT : "basis (coach)"
   OBSERVATION }o--|| OBSERVER_DESIGNATION : "basis (designated)"
   PERSON ||--o{ NOTIFICATION : "recipient"
-  ADVISORY_CHECK ||--o{ ADVISORY_LABEL : "ground truth"
   ADVISORY_CHECK ||--o{ ADVISORY_DISPOSITION : "human decision"
 ```
 
@@ -208,7 +198,7 @@ The three kinds of tables follow different rules:
 - **Workflow entities** (status plus version): plan, activity, observation,
   engagement, evidence.
 - **Append-only facts** (enforced by triggers): credit, reversal, audit,
-  label, published catalog. A designation is a fact that may be ended once.
+  published catalog. A designation is a fact that may be ended once.
 - **Operational** (deleted after 90 days): sessions, the notification outbox,
   preferences.
 
@@ -246,7 +236,7 @@ flowchart LR
 | Data                 | Postgres 18 + Drizzle's Effect driver; PGlite runs the same migrations in tests             | 0004             |
 | Identity             | Entra OIDC; app roles mirrored to dated grants; relationships carry authority               | 0006, 0014       |
 | Credit               | Only from SIGN; append-only demonstrations; badges by criteria                              | 0007             |
-| AI                   | Advisory only; human first; explainable records; learning loop                              | 0008, 0015, 0016 |
+| AI                   | Advisory only; privacy screen only; explainable records; learning loop deferred             | 0008, 0015, 0016 |
 | Privacy and audit    | No client PII; purgeable notes; append-only audit with `seq`                                | 0012, 0015       |
 | Observability        | Effect native OTLP to Datadog                                                               | 0013             |
 | Notifications        | Transactional outbox, dispatcher in the scheduler, no content in messages                   | 0018             |

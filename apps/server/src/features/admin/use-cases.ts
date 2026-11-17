@@ -9,7 +9,6 @@ import { Db, schema, transactionally } from '@repo/db';
 import { and, desc, eq } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { now } from '../../platform/time.ts';
-import { labelFromPrivacyDecision } from '../shared/advisory/labels.ts';
 import { recordAudit } from '../shared/audit.ts';
 import { decide } from '../shared/mutation.ts';
 
@@ -90,8 +89,6 @@ export const resolveEvidence = Effect.fn('admin.resolveEvidence')(function* (
           reasonCode: payload.event === 'RELEASE' ? 'admin_release' : 'compliance_resolution',
         });
       }
-      if (payload.event === 'RELEASE')
-        yield* labelFromPrivacyDecision(actor, evidence.id, 'released');
     }),
   );
 });

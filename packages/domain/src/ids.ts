@@ -148,23 +148,11 @@ export const SkillIndicatorId = withGenerator(
 );
 export type SkillIndicatorId = typeof SkillIndicatorId.Type;
 
-export const AdvisoryLabelId = withGenerator(
-  'lbl',
-  Schema.String.pipe(Schema.check(idPattern('lbl')), Schema.brand('AdvisoryLabelId')),
-);
-export type AdvisoryLabelId = typeof AdvisoryLabelId.Type;
-
 export const SecondReadId = withGenerator(
   'srd',
   Schema.String.pipe(Schema.check(idPattern('srd')), Schema.brand('SecondReadId')),
 );
 export type SecondReadId = typeof SecondReadId.Type;
-
-export const QuestionSetReleaseId = withGenerator(
-  'qsr',
-  Schema.String.pipe(Schema.check(idPattern('qsr')), Schema.brand('QuestionSetReleaseId')),
-);
-export type QuestionSetReleaseId = typeof QuestionSetReleaseId.Type;
 
 export const CreditReversalId = withGenerator(
   'rev',
