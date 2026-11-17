@@ -129,8 +129,9 @@ layer(ScenarioLayer, { timeout: 120_000 })('logged work and reflections stay pri
         // Sam, her coach, is offered the work, attaches, and reads her reflection.
         yield* signInAs('Sam Rivera');
         const asSam = (yield* api.observations.targets()).people.find((t) => t.person.id === maya);
+        assert.isDefined(asSam);
         assert.include(
-          asSam?.work.map((w) => w.id),
+          asSam.work.map((w) => w.id),
           work.id,
         );
         const attached = yield* api.observations.start({
