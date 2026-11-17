@@ -404,7 +404,10 @@ const scenario = (world: Effect.Success<typeof seedDirectoryAndCatalog>) =>
                 templateId: template(slug),
                 title: title$,
                 description: t?.description ?? '',
-                targetSkillIds: (t?.skills ?? []).slice(0, 2).map(skill),
+                skills: (t?.skills ?? []).slice(0, 2).map((skillSlug, position) => ({
+                  skillId: skill(skillSlug),
+                  role: defaultSkillRole(position),
+                })),
                 dueOn: addDaysIso(on, 60),
                 intendedObserverId: world.id(coach),
                 intendedMode: 'saw_it',

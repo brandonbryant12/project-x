@@ -1,7 +1,9 @@
 import type {
   Actor,
+  ActivitySkillView,
   ActivityView,
   DevelopmentView,
+  FocusSkillView,
   InteractionSummary,
   InteractionView,
   PlanView,
@@ -9,11 +11,13 @@ import type {
 } from '@repo/api';
 import {
   ActivityLifecycle,
+  BADGE_LEVELS,
   CURRENT_PLAN_STATES,
   LEVEL_NAMES,
   OPEN_OBSERVATION_STATES,
   PlanLifecycle,
   canReadNarrative,
+  resolveCreditValue,
   coachesOf,
   developmentAccess,
   eligibleObserversOf,
@@ -27,11 +31,14 @@ import {
   type ObservationMode,
   type ObservationStatus,
   type PersonId,
+  type CreditPolicy,
   type PlanEventType,
   type PlanId,
+  type PlanOutcome,
   type PlanStatus,
   type RelationshipFacts,
   type SkillId,
+  type SkillRole,
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
@@ -39,13 +46,29 @@ import { and, desc, eq, inArray, isNotNull, ne, notInArray } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { today } from '../../platform/time.ts';
 import { loadPeople, personFrom } from '../shared/people.ts';
-import { netCreditsBySkill, progressFor } from '../shared/recognition.ts';
+import { netCreditsBySkill, progressFor, tenantCreditPolicy } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
-import { loadActivitySkills, loadPlanSkills } from '../shared/catalog-reads.ts';
+import {
+  loadActivitySkillRows,
+  loadPlanSkills,
+  type ActivitySkillRow,
+  type PlanSkillRow,
+} from '../shared/catalog-reads.ts';
 import { currentPlanOf, planAgreers } from '../shared/plans.ts';
-import { loadSkills, refsFor, toSkillRef } from '../shared/skills.ts';
+import { loadSkills, toSkillRef } from '../shared/skills.ts';
+import {
+  editWorkRefusal,
+  planCapabilities,
+  planRelation,
+  setValueRefusal,
+  type PlanRelation,
+} from './permissions.ts';
+import { observedActivityIds } from './use-cases.ts';
 
 type PlanRow = typeof schema.plan.$inferSelect;
+type SkillRow = typeof schema.skill.$inferSelect;
+type CreditRow = typeof schema.creditEntry.$inferSelect;
+type People = ReadonlyMap<PersonId, PersonSummary>;
 
 /** Plan events the viewer may send, from lifecycle (can) ∩ policy (who). */
 const planActions = (
@@ -63,6 +86,7 @@ const planActions = (
     focusSkillCount,
     activityCount,
     endorsed: plan.endorsedById !== null,
+    reviewConfirmed: plan.reviewConfirmedAt !== null,
   };
   const allowedByPolicy: Record<PlanEventType, boolean> = {
     PROPOSE: isOwner,
@@ -136,6 +160,7 @@ const interactionSummaries = Effect.fn('development.interactions')(function* (
         interaction.ownerId === viewerId &&
         ev?.status !== 'held' &&
         eligible.some((e) => !live.has(e.personId)),
+      canReviseEvidence: ev?.authorId === viewerId && ev.status === 'held',
     });
   }
   return result;
@@ -178,6 +203,83 @@ const latestTryNext = Effect.fn('development.tryNext')(function* (
   return readable ? { ...row, narrativeNext: row.narrativeNext, signedAt: row.signedAt } : null;
 });
 
+/** Focus skills with their target, how far observation has reached and the review's outcome. */
+const focusSkillViews = (
+  focus: ReadonlyArray<PlanSkillRow>,
+  skills: ReadonlyMap<SkillId, SkillRow>,
+  credits: ReadonlyMap<SkillId, ReadonlyArray<CreditRow>>,
+): Array<FocusSkillView> =>
+  focus.flatMap((f) => {
+    const row = skills.get(f.skillId);
+    if (!row) return [];
+    const mine = credits.get(f.skillId) ?? [];
+    const atTarget = mine.filter((c) => c.level >= f.targetLevel);
+    return [
+      {
+        skill: toSkillRef(row),
+        targetLevel: f.targetLevel,
+        targetLevelName: LEVEL_NAMES[f.targetLevel],
+        targetHasBadge: (BADGE_LEVELS as ReadonlyArray<number>).includes(f.targetLevel),
+        highestObservedLevel: mine.length > 0 ? Math.max(...mine.map((c) => c.level)) : null,
+        observedAtTarget: new Set(atTarget.map((c) => c.interactionId)).size,
+        outcome: f.outcome as PlanOutcome | null,
+      },
+    ];
+  });
+
+const reviewView = (plan: PlanRow, people: People): PlanView['review'] =>
+  plan.reviewRecordedById && plan.reviewRecordedAt
+    ? {
+        recordedBy: personFrom(people, plan.reviewRecordedById),
+        recordedAt: plan.reviewRecordedAt.toISOString(),
+        confirmedBy: plan.reviewConfirmedById ? personFrom(people, plan.reviewConfirmedById) : null,
+        confirmedAt: plan.reviewConfirmedAt?.toISOString() ?? null,
+      }
+    : null;
+
+const reviewPeople = (plan: PlanRow): Array<PersonId> => [
+  ...(plan.reviewRecordedById ? [plan.reviewRecordedById] : []),
+  ...(plan.reviewConfirmedById ? [plan.reviewConfirmedById] : []),
+];
+
+/**
+ * Each skill of a piece of work with what one signed observation would add
+ * right now, resolved with the same domain function signing uses.
+ */
+const activitySkillViews = (
+  rows: ReadonlyArray<ActivitySkillRow>,
+  skills: ReadonlyMap<SkillId, SkillRow>,
+  policy: CreditPolicy,
+  people: People,
+): Array<ActivitySkillView> =>
+  rows.flatMap((row) => {
+    const skill = skills.get(row.skillId);
+    if (!skill) return [];
+    const role = row.role as SkillRole;
+    const activity = {
+      role,
+      pointsOverride: row.pointsOverride,
+      templatePoints: row.templatePoints,
+    };
+    return [
+      {
+        skill: toSkillRef(skill),
+        role,
+        value: resolveCreditValue({ role, policy, activity, skill }),
+        override:
+          row.pointsOverride !== null && row.pointsOverrideById
+            ? { points: row.pointsOverride, setBy: personFrom(people, row.pointsOverrideById) }
+            : null,
+        valueWithoutOverride: resolveCreditValue({
+          role,
+          policy,
+          activity: { ...activity, pointsOverride: null },
+          skill,
+        }),
+      },
+    ];
+  });
+
 export const buildPlanView = Effect.fn('development.planView')(function* (
   actor: Actor,
   planId: PlanId,
@@ -217,9 +319,19 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     facts,
   );
   const focus = (yield* loadPlanSkills(actor.tenantId, [plan.id])).get(plan.id) ?? [];
-  const activitySkills = yield* loadActivitySkills(
+  const activitySkills = yield* loadActivitySkillRows(
     actor.tenantId,
     activities.map((a) => a.id),
+  );
+  const policy = yield* tenantCreditPolicy(actor.tenantId);
+  const observed = yield* observedActivityIds(
+    actor.tenantId,
+    activities.map((a) => a.id),
+  );
+  const focusCredits = yield* netCreditsBySkill(
+    actor.tenantId,
+    plan.ownerId,
+    focus.map((f) => f.skillId),
   );
   const coachId = coachesOf(facts, plan.ownerId, on)[0];
   const leaderId = leaderOf(facts, plan.ownerId, on);
@@ -231,17 +343,22 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     ...(leaderId ? [leaderId] : []),
     ...(plan.agreedById ? [plan.agreedById] : []),
     ...(plan.endorsedById ? [plan.endorsedById] : []),
+    ...reviewPeople(plan),
     ...activities.flatMap((a) => (a.intendedObserverId ? [a.intendedObserverId] : [])),
+    ...[...activitySkills.values()]
+      .flat()
+      .flatMap((r) => (r.pointsOverrideById ? [r.pointsOverrideById] : [])),
   ]);
   const skills = yield* loadSkills(actor.tenantId, [
     ...focus.map((f) => f.skillId),
-    ...[...activitySkills.values()].flat(),
+    ...[...activitySkills.values()].flat().map((r) => r.skillId),
   ]);
   const templates = yield* loadTemplates(
     actor.tenantId,
     activities.flatMap((a) => (a.templateId ? [a.templateId] : [])),
   );
   const isOwner = plan.ownerId === actor.personId;
+  const who: PlanRelation = planRelation(actor, plan.ownerId, facts, on);
 
   const activityViews = activities.map((a): ActivityView => ({
     id: a.id,
@@ -253,7 +370,7 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     template: a.templateId
       ? { id: a.templateId, name: templates.get(a.templateId) ?? 'Template' }
       : null,
-    targetSkills: refsFor(skills, activitySkills.get(a.id) ?? []),
+    skills: activitySkillViews(activitySkills.get(a.id) ?? [], skills, policy, people),
     intendedObserver: a.intendedObserverId ? (people.get(a.intendedObserverId) ?? null) : null,
     intendedMode: (a.intendedMode as ObservationMode | null) ?? null,
     interactions: interactions.flatMap((i) => {
@@ -262,10 +379,17 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     }),
     actions: isOwner
       ? ActivityLifecycle.allowed(a.status as ActivityStatus, {}, [
+          { type: 'LOG_INTERACTION' },
           { type: 'COMPLETE' },
           { type: 'CANCEL' },
         ])
       : [],
+    canEdit: editWorkRefusal(who, plan, a) === null,
+    canSetValue:
+      setValueRefusal(who, policy.activityOverrides, plan, {
+        ...a,
+        observed: observed.has(a.id),
+      }) === null,
   }));
   const optional = (id: PersonId | null | undefined): PersonSummary | null =>
     id ? (people.get(id) ?? null) : null;
@@ -280,23 +404,12 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     owner: personFrom(people, plan.ownerId),
     coach: optional(coachId),
     leader: optional(leaderId),
-    focusSkills: focus.flatMap((f) => {
-      const row = skills.get(f.skillId);
-      return row
-        ? [
-            {
-              skill: toSkillRef(row),
-              targetLevel: f.targetLevel,
-              targetLevelName: LEVEL_NAMES[f.targetLevel],
-              outcome: f.outcome,
-            },
-          ]
-        : [];
-    }),
+    focusSkills: focusSkillViews(focus, skills, focusCredits),
     agreedBy: optional(plan.agreedById),
     agreedAt: plan.agreedAt?.toISOString() ?? null,
     endorsedBy: optional(plan.endorsedById),
     closingSummary: plan.closingSummary,
+    review: reviewView(plan, people),
     tryNextTime: tryNext
       ? {
           sentence: tryNext.narrativeNext,
@@ -312,6 +425,10 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
       focus.map((f) => f.skillId),
     ),
     actions: planActions(plan, focus.length, activities.length, actor.personId, facts, on),
+    ...planCapabilities(who, plan),
+    valueRange: policy.activityOverrides.enabled
+      ? { min: policy.activityOverrides.minPoints, max: policy.activityOverrides.maxPoints }
+      : null,
   } satisfies PlanView;
 });
 
@@ -350,8 +467,22 @@ export const buildDevelopmentView = Effect.fn('development.view')(function* (
       ),
     )
     .orderBy(desc(schema.plan.periodEnd));
-  const people = yield* loadPeople(actor.tenantId, [personId]);
+  const people = yield* loadPeople(actor.tenantId, [personId, ...past.flatMap(reviewPeople)]);
   const credits = yield* netCreditsBySkill(actor.tenantId, personId);
+  const pastFocus = yield* loadPlanSkills(
+    actor.tenantId,
+    past.map((p) => p.id),
+  );
+  const pastSkills = yield* loadSkills(
+    actor.tenantId,
+    [...pastFocus.values()].flat().map((f) => f.skillId),
+  );
+  const who = planRelation(
+    actor,
+    personId,
+    yield* loadRelationshipFacts(actor.tenantId),
+    yield* today,
+  );
   const focus = new Set<SkillId>(
     current
       ? ((yield* loadPlanSkills(actor.tenantId, [current.id])).get(current.id) ?? []).map(
@@ -363,12 +494,20 @@ export const buildDevelopmentView = Effect.fn('development.view')(function* (
   return {
     person: personFrom(people, personId),
     plan: current ? yield* buildPlanView(actor, current.id) : null,
-    pastPlans: past.map((p) => ({
-      id: p.id,
-      title: p.title,
-      status: p.status as PlanStatus,
-      periodEnd: p.periodEnd,
-    })),
+    pastPlans: past.map((p) => {
+      const { canRecordReview, canConfirmReview } = planCapabilities(who, p);
+      return {
+        id: p.id,
+        title: p.title,
+        status: p.status as PlanStatus,
+        periodEnd: p.periodEnd,
+        focusSkills: focusSkillViews(pastFocus.get(p.id) ?? [], pastSkills, credits),
+        closingSummary: p.closingSummary,
+        review: reviewView(p, people),
+        canRecordReview,
+        canConfirmReview,
+      };
+    }),
     otherProgress: yield* progressFor(actor.tenantId, personId, other),
   } satisfies DevelopmentView;
 });

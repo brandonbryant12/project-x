@@ -17,7 +17,6 @@ import { screenEvidenceWithAssistant } from '../features/shared/advisory/evidenc
 import { privacyScreen } from '../features/shared/advisory/question-sets.ts';
 import { runCheck } from '../features/shared/advisory/runner.ts';
 import { Background } from '../platform/background.ts';
-import { now } from '../platform/time.ts';
 import {
   MAX_SCREEN_ATTEMPTS,
   RETRY_AFTER_MS,
@@ -112,7 +111,6 @@ const checksOn = (id: string) =>
 const logMissingItsScreen = (reflection: string) =>
   Effect.gen(function* () {
     const actor = yield* mayaActor;
-    const db = yield* Db;
     const interactionId = yield* logInteraction({
       activityId: null,
       adHocTitle: 'Annual review',
@@ -125,12 +123,7 @@ const logMissingItsScreen = (reflection: string) =>
       Effect.provideService(CurrentActor, actor),
       Effect.provideService(Background, lostAfterCommit),
     );
-    // The database stamps a new reflection with its own (wall) clock; put it on the test clock.
     const evidence = yield* evidenceOf(interactionId);
-    yield* db
-      .update(schema.evidence)
-      .set({ updatedAt: yield* now })
-      .where(eq(schema.evidence.id, evidence.id));
     assert.strictEqual(evidence.status, 'available');
     return { actor, interactionId, evidenceId: evidence.id as EvidenceId };
   });

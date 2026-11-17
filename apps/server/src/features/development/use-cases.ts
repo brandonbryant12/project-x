@@ -8,6 +8,8 @@ import {
   type AddActivityInput,
   type CreatePlanInput,
   type LogInteractionInput,
+  type SetActivityValueInput,
+  type UpdateActivityInput,
   type UpdatePlanInput,
 } from '@repo/api';
 import {
@@ -17,17 +19,22 @@ import {
   EvidenceLifecycle,
   InteractionId,
   LOG_WINDOW_DAYS,
+  OPEN_OBSERVATION_STATES,
   PlanId,
   PlanLifecycle,
+  creditPolicyVersion,
   defaultSkillRole,
   eligibleObserversOf,
   leaderChainOf,
   type ActivityEventType,
   type ActivityStatus,
+  type ActivityTemplateId,
   type EvidenceStatus,
+  type PersonId,
   type PlanEventType,
   type PlanStatus,
   type SkillId,
+  type SkillRole,
   type TenantId,
 } from '@repo/domain';
 import { Db, schema, transactionally } from '@repo/db';
@@ -43,9 +50,26 @@ import { recordAudit } from '../shared/audit.ts';
 import { notify } from '../shared/notify.ts';
 import { digestOf } from '../shared/notes.ts';
 import { decide, requireUpdated } from '../shared/mutation.ts';
-import { loadPlanSkills } from '../shared/catalog-reads.ts';
+import { loadActivitySkillRows, loadPlanSkills } from '../shared/catalog-reads.ts';
+import { tenantCreditPolicy } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { currentPlanOf, planAgreers } from '../shared/plans.ts';
+import {
+  addWorkRefusal,
+  editPlanRefusal,
+  editWorkRefusal,
+  planRelation,
+  setValueRefusal,
+  type Refusal,
+} from './permissions.ts';
+
+/** A refusal from `permissions.ts` as the API error it is. */
+export const refuse = (refusal: Refusal) =>
+  Effect.fail(
+    refusal.kind === 'forbidden'
+      ? new Forbidden({ message: refusal.message })
+      : new Unprocessable({ message: refusal.message }),
+  );
 
 const requirePublishedSkills = Effect.fn('skills.requirePublished')(function* (
   tenantId: TenantId,
@@ -73,7 +97,7 @@ const requirePublishedSkills = Effect.fn('skills.requirePublished')(function* (
   }
 });
 
-const loadPlan = Effect.fn('plan.load')(function* (planId: PlanId) {
+export const loadPlan = Effect.fn('plan.load')(function* (planId: PlanId) {
   const actor = yield* CurrentActor;
   const db = yield* Db;
   const [plan] = yield* db
@@ -134,18 +158,22 @@ export const updatePlan = Effect.fn('useCase.updatePlan')(function* (
   const actor = yield* CurrentActor;
   const db = yield* Db;
   const plan = yield* loadPlan(planId);
-  if (plan.ownerId !== actor.personId) {
-    return yield* Effect.fail(new Forbidden({ message: 'Only the plan’s owner can edit it.' }));
-  }
-  if (PlanLifecycle.isTerminal(plan.status as PlanStatus) && input.closingSummary === undefined) {
-    return yield* Effect.fail(new Unprocessable({ message: 'This plan is closed.' }));
-  }
+  const facts = yield* loadRelationshipFacts(actor.tenantId);
+  const who = planRelation(actor, plan.ownerId, facts, yield* today);
+  // A closed plan is never edited; its closing review has its own use case.
+  const refusal = editPlanRefusal(who, plan);
+  if (refusal) return yield* refuse(refusal);
   if (input.focusSkills && plan.status !== 'draft') {
     return yield* Effect.fail(
       new Unprocessable({
         message: 'Focus skills can change while the plan is a draft. Revise it first.',
         field: 'focusSkills',
       }),
+    );
+  }
+  if (input.periodEnd !== undefined && input.periodEnd <= plan.periodStart) {
+    return yield* Effect.fail(
+      new Unprocessable({ message: 'The plan must end after it starts.', field: 'periodEnd' }),
     );
   }
   if (input.focusSkills)
@@ -161,7 +189,6 @@ export const updatePlan = Effect.fn('useCase.updatePlan')(function* (
           ...(input.title !== undefined && { title: input.title }),
           ...(input.intent !== undefined && { intent: input.intent }),
           ...(input.periodEnd !== undefined && { periodEnd: input.periodEnd }),
-          ...(input.closingSummary !== undefined && { closingSummary: input.closingSummary }),
           version: plan.version + 1,
           updatedAt: yield* now,
         })
@@ -184,7 +211,15 @@ export const updatePlan = Effect.fn('useCase.updatePlan')(function* (
         entityType: 'plan',
         entityId: plan.id,
         event: 'EDIT',
-        data: { fields: Object.keys(input) },
+        data: {
+          fields: Object.keys(input),
+          ...(input.periodEnd !== undefined && {
+            periodEnd: { before: plan.periodEnd, after: input.periodEnd },
+          }),
+          ...(input.focusSkills && {
+            focusSkills: input.focusSkills.map((f) => `${f.skillId}@${f.targetLevel}`),
+          }),
+        },
       });
     }),
   );
@@ -202,6 +237,7 @@ export const planEvent = Effect.fn('useCase.planEvent')(function* (
   const isOwner = plan.ownerId === actor.personId;
   const agreers = planAgreers(facts, plan.ownerId, on);
   const inChain = leaderChainOf(facts, plan.ownerId, on).includes(actor.personId);
+  const reviewConfirmed = plan.reviewConfirmedAt !== null;
   const permitted: Record<PlanEventType, boolean> = {
     PROPOSE: isOwner,
     REVISE: isOwner || agreers.includes(actor.personId),
@@ -231,6 +267,7 @@ export const planEvent = Effect.fn('useCase.planEvent')(function* (
       focusSkillCount: focusCount,
       activityCount: activityCount?.n ?? 0,
       endorsed: plan.endorsedById !== null,
+      reviewConfirmed,
     },
     event: { type: event },
     permitted: permitted[event],
@@ -241,8 +278,22 @@ export const planEvent = Effect.fn('useCase.planEvent')(function* (
     ...(event === 'PROPOSE' && {
       explain: 'Add one to three focus skills and at least one piece of work before proposing.',
     }),
+    ...(event === 'REVISE' &&
+      reviewConfirmed && {
+        explain: 'The closing review is confirmed, so this plan can no longer be revised.',
+      }),
   });
   const at = yield* now;
+  // A revision reopens what was agreed: the agreement, the endorsement and any
+  // closing review not yet confirmed no longer describe the plan (design §8).
+  const revise = event === 'REVISE';
+  const cleared = revise
+    ? [
+        ...(plan.agreedById ? ['agreement'] : []),
+        ...(plan.endorsedById ? ['endorsement'] : []),
+        ...(plan.reviewRecordedAt ? ['review'] : []),
+      ]
+    : [];
   yield* transactionally(
     Effect.gen(function* () {
       yield* db
@@ -252,13 +303,44 @@ export const planEvent = Effect.fn('useCase.planEvent')(function* (
           version: plan.version + 1,
           updatedAt: at,
           ...(event === 'AGREE' && { agreedById: actor.personId, agreedAt: at }),
-          ...(event === 'REVISE' && { agreedById: null, agreedAt: null }),
+          ...(revise && {
+            agreedById: null,
+            agreedAt: null,
+            endorsedById: null,
+            endorsedAt: null,
+            closingSummary: null,
+            reviewRecordedById: null,
+            reviewRecordedAt: null,
+          }),
           ...(event === 'ENDORSE' && { endorsedById: actor.personId, endorsedAt: at }),
         })
         .where(and(eq(schema.plan.id, plan.id), eq(schema.plan.version, plan.version)))
         .returning({ id: schema.plan.id })
         .pipe(Effect.flatMap(requireUpdated('plan')));
-      yield* recordAudit(actor, { entityType: 'plan', entityId: plan.id, event, from, to });
+      if (revise) {
+        yield* db
+          .update(schema.planSkill)
+          .set({ outcome: null })
+          .where(
+            and(eq(schema.planSkill.tenantId, plan.tenantId), eq(schema.planSkill.planId, plan.id)),
+          );
+      }
+      yield* recordAudit(actor, {
+        entityType: 'plan',
+        entityId: plan.id,
+        event,
+        from,
+        to,
+        ...(revise && { data: { cleared } }),
+      });
+      if (cleared.includes('review')) {
+        yield* recordAudit(actor, {
+          entityType: 'plan',
+          entityId: plan.id,
+          event: 'REVIEW_CLEARED',
+          data: { by: 'REVISE', recordedBy: plan.reviewRecordedById },
+        });
+      }
       if (event === 'PROPOSE') {
         for (const recipientId of agreers) {
           yield* notify(actor.tenantId, {
@@ -275,6 +357,83 @@ export const planEvent = Effect.fn('useCase.planEvent')(function* (
   );
 });
 
+/**
+ * The skills of a piece of work: published, each once, at most one primary,
+ * and no more than the hard ceiling (the schema bounds the count).
+ */
+const requireWorkSkills = Effect.fn('activity.requireSkills')(function* (
+  tenantId: TenantId,
+  skills: ReadonlyArray<{ readonly skillId: SkillId; readonly role: SkillRole }>,
+) {
+  if (skills.filter((s) => s.role === 'primary').length > 1) {
+    return yield* Effect.fail(
+      new Unprocessable({ message: 'Choose at most one primary skill.', field: 'skills' }),
+    );
+  }
+  yield* requirePublishedSkills(
+    tenantId,
+    skills.map((s) => s.skillId),
+  );
+});
+
+/** The intended observer must be able to observe the owner today. */
+const requireIntendedObserver = Effect.fn('activity.requireObserver')(function* (
+  facts: Effect.Success<ReturnType<typeof loadRelationshipFacts>>,
+  ownerId: PersonId,
+  observerId: PersonId | null,
+) {
+  if (!observerId) return;
+  const eligible = eligibleObserversOf(facts, ownerId, yield* today).some(
+    (e) => e.personId === observerId,
+  );
+  if (!eligible) {
+    return yield* Effect.fail(
+      new Unprocessable({
+        message: 'That person cannot observe this work.',
+        field: 'intendedObserverId',
+      }),
+    );
+  }
+});
+
+/**
+ * A published template of the tenant, with its own skills' roles and values.
+ * Adding work copies these; signing reads the copy, never the live template.
+ */
+const loadPublishedTemplate = Effect.fn('template.loadPublished')(function* (
+  tenantId: TenantId,
+  templateId: ActivityTemplateId,
+) {
+  const db = yield* Db;
+  const [template] = yield* db
+    .select({ id: schema.activityTemplate.id, status: schema.activityTemplate.status })
+    .from(schema.activityTemplate)
+    .where(
+      and(
+        eq(schema.activityTemplate.tenantId, tenantId),
+        eq(schema.activityTemplate.id, templateId),
+      ),
+    );
+  if (template?.status !== 'published') {
+    return yield* Effect.fail(
+      new Unprocessable({
+        message: 'Start from a published template, or from something of your own.',
+        field: 'templateId',
+      }),
+    );
+  }
+  const skills = yield* db
+    .select()
+    .from(schema.activityTemplateSkill)
+    .where(
+      and(
+        eq(schema.activityTemplateSkill.tenantId, tenantId),
+        eq(schema.activityTemplateSkill.templateId, templateId),
+      ),
+    );
+  return new Map(skills.map((s) => [s.skillId, { role: s.role as SkillRole, points: s.points }]));
+});
+
 export const addActivity = Effect.fn('useCase.addActivity')(function* (
   planId: PlanId,
   input: AddActivityInput,
@@ -283,31 +442,13 @@ export const addActivity = Effect.fn('useCase.addActivity')(function* (
   const db = yield* Db;
   const plan = yield* loadPlan(planId);
   const facts = yield* loadRelationshipFacts(actor.tenantId);
-  const on = yield* today;
-  const canEdit =
-    plan.ownerId === actor.personId ||
-    planAgreers(facts, plan.ownerId, on).includes(actor.personId);
-  if (!canEdit)
-    return yield* Effect.fail(
-      new Forbidden({ message: 'Only the owner or their coach can add work to a plan.' }),
-    );
-  if (PlanLifecycle.isTerminal(plan.status as PlanStatus)) {
-    return yield* Effect.fail(new Unprocessable({ message: 'This plan is closed.' }));
-  }
-  yield* requirePublishedSkills(actor.tenantId, input.targetSkillIds);
-  if (input.intendedObserverId) {
-    const eligible = eligibleObserversOf(facts, plan.ownerId, on).some(
-      (e) => e.personId === input.intendedObserverId,
-    );
-    if (!eligible) {
-      return yield* Effect.fail(
-        new Unprocessable({
-          message: 'That person cannot observe this work.',
-          field: 'intendedObserverId',
-        }),
-      );
-    }
-  }
+  const refusal = addWorkRefusal(planRelation(actor, plan.ownerId, facts, yield* today), plan);
+  if (refusal) return yield* refuse(refusal);
+  yield* requireWorkSkills(actor.tenantId, input.skills);
+  yield* requireIntendedObserver(facts, plan.ownerId, input.intendedObserverId);
+  const template = input.templateId
+    ? yield* loadPublishedTemplate(actor.tenantId, input.templateId)
+    : new Map<SkillId, { role: SkillRole; points: number | null }>();
   const id = ActivityId.generate();
   yield* transactionally(
     Effect.gen(function* () {
@@ -322,27 +463,300 @@ export const addActivity = Effect.fn('useCase.addActivity')(function* (
         dueOn: input.dueOn,
         origin: 'planned',
         intendedObserverId: input.intendedObserverId,
-        intendedMode: input.intendedMode,
+        intendedMode: input.intendedObserverId ? input.intendedMode : null,
         status: 'planned',
       });
       yield* db.insert(schema.activitySkill).values(
-        input.targetSkillIds.map((skillId, position) => ({
-          tenantId: actor.tenantId,
-          activityId: id,
-          skillId,
-          position,
-          role: defaultSkillRole(position),
-        })),
+        input.skills.map((s, position) => {
+          // The template's value holds only for its own skill in its own role.
+          const fromTemplate = template.get(s.skillId);
+          return {
+            tenantId: actor.tenantId,
+            activityId: id,
+            skillId: s.skillId,
+            position,
+            role: s.role,
+            templatePoints: fromTemplate?.role === s.role ? fromTemplate.points : null,
+          };
+        }),
       );
       yield* recordAudit(actor, {
         entityType: 'activity',
         entityId: id,
         event: 'CREATE',
         to: 'planned',
-        data: { planId },
+        data: {
+          planId,
+          templateId: input.templateId,
+          skills: input.skills.map((s) => `${s.skillId}:${s.role}`),
+        },
       });
     }),
   );
+});
+
+const loadActivity = Effect.fn('activity.load')(function* (activityId: ActivityId) {
+  const actor = yield* CurrentActor;
+  const db = yield* Db;
+  const [row] = yield* db
+    .select()
+    .from(schema.activity)
+    .where(and(eq(schema.activity.tenantId, actor.tenantId), eq(schema.activity.id, activityId)));
+  if (!row) return yield* Effect.fail(new NotFound({ entity: 'activity', id: activityId }));
+  return row;
+});
+
+/** The activity, its plan and how the actor stands to it; work outside a plan is not editable here. */
+const loadWork = Effect.fn('activity.loadWork')(function* (activityId: ActivityId) {
+  const actor = yield* CurrentActor;
+  const activity = yield* loadActivity(activityId);
+  if (!activity.planId) {
+    return yield* Effect.fail(new Unprocessable({ message: 'This work is not part of a plan.' }));
+  }
+  const plan = yield* loadPlan(activity.planId);
+  const facts = yield* loadRelationshipFacts(actor.tenantId);
+  const who = planRelation(actor, plan.ownerId, facts, yield* today);
+  return { activity, plan, facts, who };
+});
+
+/** `skill:role` pairs, for audit data. */
+const roles = (rows: ReadonlyArray<{ skillId: SkillId; role: string }>) =>
+  rows.map((r) => `${r.skillId}:${r.role}`);
+
+/** Activity ids among `ids` that have an observation that is open or signed. */
+export const observedActivityIds = Effect.fn('activity.observed')(function* (
+  tenantId: TenantId,
+  ids: ReadonlyArray<ActivityId>,
+) {
+  if (ids.length === 0) return new Set<ActivityId>();
+  const db = yield* Db;
+  const rows = yield* db
+    .selectDistinct({ activityId: schema.interaction.activityId })
+    .from(schema.observation)
+    .innerJoin(
+      schema.interaction,
+      and(
+        eq(schema.interaction.tenantId, schema.observation.tenantId),
+        eq(schema.interaction.id, schema.observation.interactionId),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.observation.tenantId, tenantId),
+        inArray(schema.interaction.activityId, [...ids]),
+        inArray(schema.observation.status, [...OPEN_OBSERVATION_STATES, 'signed', 'under_review']),
+      ),
+    );
+  return new Set(rows.map((r) => r.activityId));
+});
+
+/**
+ * Change planned work: title, description, due date, commitment and skills
+ * with roles (design §6, §8). Skills are diffed, never deleted and re-created,
+ * so an individual value survives edits to other fields and to roles. Removing
+ * a skill removes its value, and changing a role drops the template's value
+ * (it was for the other role). Observations that already exist keep the roles
+ * their observers hold.
+ */
+export const updateActivity = Effect.fn('useCase.updateActivity')(function* (
+  activityId: ActivityId,
+  input: UpdateActivityInput,
+) {
+  const actor = yield* CurrentActor;
+  const db = yield* Db;
+  const { activity, plan, facts, who } = yield* loadWork(activityId);
+  const refusal = editWorkRefusal(who, plan, activity);
+  if (refusal) return yield* refuse(refusal);
+  yield* requireWorkSkills(actor.tenantId, input.skills);
+  yield* requireIntendedObserver(facts, plan.ownerId, input.intendedObserverId);
+  const before =
+    (yield* loadActivitySkillRows(actor.tenantId, [activity.id])).get(activity.id) ?? [];
+  const wanted = new Map(input.skills.map((s, position) => [s.skillId, { ...s, position }]));
+  const removed = before.filter((row) => !wanted.has(row.skillId));
+  const intendedMode = input.intendedObserverId ? input.intendedMode : null;
+  const changed = [
+    ...(input.title !== activity.title ? ['title'] : []),
+    ...(input.description !== activity.description ? ['description'] : []),
+    ...(input.dueOn !== activity.dueOn ? ['dueOn'] : []),
+    ...(input.intendedObserverId !== activity.intendedObserverId ? ['intendedObserverId'] : []),
+    ...(intendedMode !== activity.intendedMode ? ['intendedMode'] : []),
+  ];
+  const at = yield* now;
+  yield* transactionally(
+    Effect.gen(function* () {
+      yield* db
+        .update(schema.activity)
+        .set({
+          title: input.title,
+          description: input.description,
+          dueOn: input.dueOn,
+          intendedObserverId: input.intendedObserverId,
+          intendedMode,
+          version: activity.version + 1,
+          updatedAt: at,
+        })
+        .where(
+          and(eq(schema.activity.id, activity.id), eq(schema.activity.version, activity.version)),
+        )
+        .returning({ id: schema.activity.id })
+        .pipe(Effect.flatMap(requireUpdated('work')));
+      if (removed.length > 0) {
+        yield* db.delete(schema.activitySkill).where(
+          and(
+            eq(schema.activitySkill.tenantId, actor.tenantId),
+            eq(schema.activitySkill.activityId, activity.id),
+            inArray(
+              schema.activitySkill.skillId,
+              removed.map((r) => r.skillId),
+            ),
+          ),
+        );
+      }
+      for (const row of before) {
+        const next = wanted.get(row.skillId);
+        if (!next || (next.role === row.role && next.position === row.position)) continue;
+        yield* db
+          .update(schema.activitySkill)
+          .set({
+            role: next.role,
+            position: next.position,
+            ...(next.role !== row.role && { templatePoints: null }),
+          })
+          .where(
+            and(
+              eq(schema.activitySkill.tenantId, actor.tenantId),
+              eq(schema.activitySkill.activityId, activity.id),
+              eq(schema.activitySkill.skillId, row.skillId),
+            ),
+          );
+      }
+      const added = input.skills.filter((s) => !before.some((row) => row.skillId === s.skillId));
+      if (added.length > 0) {
+        yield* db.insert(schema.activitySkill).values(
+          added.map((s) => ({
+            tenantId: actor.tenantId,
+            activityId: activity.id,
+            skillId: s.skillId,
+            position: wanted.get(s.skillId)?.position ?? 0,
+            role: s.role,
+          })),
+        );
+      }
+      yield* recordAudit(actor, {
+        entityType: 'activity',
+        entityId: activity.id,
+        event: 'EDIT',
+        data: {
+          // Text fields are content: the audit names them, never copies them.
+          changed,
+          before: {
+            dueOn: activity.dueOn,
+            intendedObserverId: activity.intendedObserverId,
+            intendedMode: activity.intendedMode,
+            skills: roles(before),
+          },
+          after: {
+            dueOn: input.dueOn,
+            intendedObserverId: input.intendedObserverId,
+            intendedMode,
+            skills: roles(input.skills),
+          },
+          removedValues: removed
+            .filter((r) => r.pointsOverride !== null)
+            .map((r) => ({ skillId: r.skillId, points: r.pointsOverride })),
+        },
+      });
+    }),
+  );
+  return plan.id;
+});
+
+/**
+ * Set or clear one skill's individual value on planned work (design §6). It is
+ * written before the work is observed and applies to credits signed afterwards;
+ * the reason is kept as a note and the change is audited with before and after.
+ */
+export const setActivityValue = Effect.fn('useCase.setActivityValue')(function* (
+  activityId: ActivityId,
+  input: SetActivityValueInput,
+) {
+  const actor = yield* CurrentActor;
+  const db = yield* Db;
+  const { activity, plan, who } = yield* loadWork(activityId);
+  const policy = yield* tenantCreditPolicy(actor.tenantId);
+  const observed = (yield* observedActivityIds(actor.tenantId, [activity.id])).has(activity.id);
+  const refusal = setValueRefusal(who, policy.activityOverrides, plan, { ...activity, observed });
+  if (refusal) return yield* refuse(refusal);
+  const reason = input.reason.trim();
+  if (reason.length < 10) {
+    return yield* Effect.fail(
+      new Unprocessable({ message: 'Say why, in at least 10 characters.', field: 'reason' }),
+    );
+  }
+  const { minPoints, maxPoints } = policy.activityOverrides;
+  if (input.points !== null && (input.points < minPoints || input.points > maxPoints)) {
+    return yield* Effect.fail(
+      new Unprocessable({
+        message: `Use a whole number from ${minPoints} to ${maxPoints}.`,
+        field: 'points',
+      }),
+    );
+  }
+  const rows = (yield* loadActivitySkillRows(actor.tenantId, [activity.id])).get(activity.id) ?? [];
+  const row = rows.find((r) => r.skillId === input.skillId);
+  if (!row) {
+    return yield* Effect.fail(
+      new Unprocessable({ message: 'That skill is not part of this work.', field: 'skillId' }),
+    );
+  }
+  if (input.points === null && row.pointsOverride === null) {
+    return yield* Effect.fail(
+      new Unprocessable({ message: 'This skill has no value of its own to clear.' }),
+    );
+  }
+  yield* transactionally(
+    Effect.gen(function* () {
+      // The version bump serializes this with edits of the same work.
+      yield* db
+        .update(schema.activity)
+        .set({ version: activity.version + 1, updatedAt: yield* now })
+        .where(
+          and(eq(schema.activity.id, activity.id), eq(schema.activity.version, activity.version)),
+        )
+        .returning({ id: schema.activity.id })
+        .pipe(Effect.flatMap(requireUpdated('work')));
+      yield* db
+        .update(schema.activitySkill)
+        .set({
+          pointsOverride: input.points,
+          pointsOverrideById: input.points === null ? null : actor.personId,
+        })
+        .where(
+          and(
+            eq(schema.activitySkill.tenantId, actor.tenantId),
+            eq(schema.activitySkill.activityId, activity.id),
+            eq(schema.activitySkill.skillId, row.skillId),
+          ),
+        );
+      yield* recordAudit(actor, {
+        entityType: 'activity',
+        entityId: activity.id,
+        event: input.points === null ? 'CLEAR_VALUE' : 'SET_VALUE',
+        note: { kind: 'value_override', body: reason },
+        policyVersion: creditPolicyVersion(policy),
+        data: {
+          skillId: row.skillId,
+          role: row.role,
+          before: { points: row.pointsOverride, setById: row.pointsOverrideById },
+          after: {
+            points: input.points,
+            setById: input.points === null ? null : actor.personId,
+          },
+        },
+      });
+    }),
+  );
+  return { planId: plan.id, ownerId: plan.ownerId };
 });
 
 export const activityEvent = Effect.fn('useCase.activityEvent')(function* (
@@ -351,11 +765,7 @@ export const activityEvent = Effect.fn('useCase.activityEvent')(function* (
 ) {
   const actor = yield* CurrentActor;
   const db = yield* Db;
-  const [row] = yield* db
-    .select()
-    .from(schema.activity)
-    .where(and(eq(schema.activity.tenantId, actor.tenantId), eq(schema.activity.id, activityId)));
-  if (!row) return yield* Effect.fail(new NotFound({ entity: 'activity', id: activityId }));
+  const row = yield* loadActivity(activityId);
   const from = row.status as ActivityStatus;
   const to = yield* decide({
     lifecycle: ActivityLifecycle,
@@ -432,6 +842,7 @@ export const logInteraction = Effect.fn('useCase.logInteraction')(function* (
   const interactionId = InteractionId.generate();
   const evidenceId = EvidenceId.generate();
   const screening = initialEvidenceState(input.reflection);
+  const at = yield* now;
   yield* transactionally(
     Effect.gen(function* () {
       if (!activityId) {
@@ -491,7 +902,7 @@ export const logInteraction = Effect.fn('useCase.logInteraction')(function* (
         kind: input.kind,
         clientRef: input.clientRef,
         // The Effect clock, not the database's: replayed history and tests stay honest.
-        createdAt: yield* now,
+        createdAt: at,
       });
       yield* db.insert(schema.evidence).values({
         id: evidenceId,
@@ -502,6 +913,9 @@ export const logInteraction = Effect.fn('useCase.logInteraction')(function* (
         contentDigest: digestOf(input.reflection),
         status: screening.status,
         holdReason: screening.holdReason,
+        // The application clock, as revisions use: the screening sweep compares the two.
+        createdAt: at,
+        updatedAt: at,
       });
       yield* recordAudit(actor, {
         entityType: 'interaction',

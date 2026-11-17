@@ -2,6 +2,7 @@ import {
   ACTIVITY_ORIGINS,
   CURRENT_PLAN_STATES,
   OBSERVATION_MODES,
+  PLAN_OUTCOMES,
   ActivityLifecycle,
   EvidenceLifecycle,
   INTERACTION_KINDS,
@@ -43,8 +44,6 @@ import {
   versionColumn,
 } from './columns.ts';
 import { personFk } from './directory.ts';
-
-export const PLAN_OUTCOMES = ['achieved', 'partly', 'carried_over', 'not_pursued'] as const;
 
 /** A development plan: the coachee's plan for a period, agreed with their coach. */
 export const plan = pgTable(

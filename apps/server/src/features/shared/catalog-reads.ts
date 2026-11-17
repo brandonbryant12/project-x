@@ -114,6 +114,30 @@ export const loadActivitySkills = Effect.fn('activity.skills')(function* (
   return result;
 });
 
+export type ActivitySkillRow = typeof schema.activitySkill.$inferSelect;
+
+/** Each activity's skill rows (role and values included), in position order. */
+export const loadActivitySkillRows = Effect.fn('activity.skillRows')(function* (
+  tenantId: TenantId,
+  activityIds: ReadonlyArray<ActivityId>,
+) {
+  const result = new Map<ActivityId, Array<ActivitySkillRow>>();
+  if (activityIds.length === 0) return result;
+  const db = yield* Db;
+  const rows = yield* db
+    .select()
+    .from(schema.activitySkill)
+    .where(
+      and(
+        eq(schema.activitySkill.tenantId, tenantId),
+        inArray(schema.activitySkill.activityId, [...activityIds]),
+      ),
+    )
+    .orderBy(asc(schema.activitySkill.position), asc(schema.activitySkill.skillId));
+  for (const row of rows) result.set(row.activityId, [...(result.get(row.activityId) ?? []), row]);
+  return result;
+});
+
 export const loadTemplateSkills = Effect.fn('template.skills')(function* (
   tenantId: TenantId,
   templateIds: ReadonlyArray<ActivityTemplateId>,
