@@ -22,7 +22,6 @@ import {
 } from '@repo/domain';
 import { Schema } from 'effect';
 import { Instant, PersonSummary, ProgressView, SkillRef } from './common.ts';
-import { PointsSource } from './observations.ts';
 
 export const PlanEventType = Schema.Literals(PlanLifecycle.events);
 export const ActivityEventType = Schema.Literals(ActivityLifecycle.events);
@@ -52,7 +51,8 @@ export type PlanOutcome = typeof PlanOutcome.Type;
 /** What a resolved value is and where it came from (the domain resolver, as signing uses it). */
 export const ResolvedValue = Schema.Struct({
   points: Schema.Number,
-  source: PointsSource,
+  /** Never `legacy`: that marks only credits signed before points existed. */
+  source: Schema.Literals(['activity', 'template', 'skill', 'tenant']),
 });
 
 /** One skill of a piece of work: its role, and what a signed observation would add right now. */

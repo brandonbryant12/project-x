@@ -358,21 +358,29 @@ export const planEvent = Effect.fn('useCase.planEvent')(function* (
 });
 
 /**
- * The skills of a piece of work: published, each once, at most one primary,
- * and no more than the hard ceiling (the schema bounds the count).
+ * The skills of a piece of work: each once, at most one primary, no more than
+ * the hard ceiling (the schema bounds the count), and every newly chosen skill
+ * published. A skill already on the work may stay after it is retired.
  */
 const requireWorkSkills = Effect.fn('activity.requireSkills')(function* (
   tenantId: TenantId,
   skills: ReadonlyArray<{ readonly skillId: SkillId; readonly role: SkillRole }>,
+  alreadyOn: ReadonlySet<SkillId> = new Set(),
 ) {
   if (skills.filter((s) => s.role === 'primary').length > 1) {
     return yield* Effect.fail(
       new Unprocessable({ message: 'Choose at most one primary skill.', field: 'skills' }),
     );
   }
+  const ids = skills.map((s) => s.skillId);
+  if (new Set(ids).size !== ids.length) {
+    return yield* Effect.fail(
+      new Unprocessable({ message: 'Each skill can be chosen once.', field: 'skills' }),
+    );
+  }
   yield* requirePublishedSkills(
     tenantId,
-    skills.map((s) => s.skillId),
+    ids.filter((id) => !alreadyOn.has(id)),
   );
 });
 
@@ -567,10 +575,10 @@ export const updateActivity = Effect.fn('useCase.updateActivity')(function* (
   const { activity, plan, facts, who } = yield* loadWork(activityId);
   const refusal = editWorkRefusal(who, plan, activity);
   if (refusal) return yield* refuse(refusal);
-  yield* requireWorkSkills(actor.tenantId, input.skills);
-  yield* requireIntendedObserver(facts, plan.ownerId, input.intendedObserverId);
   const before =
     (yield* loadActivitySkillRows(actor.tenantId, [activity.id])).get(activity.id) ?? [];
+  yield* requireWorkSkills(actor.tenantId, input.skills, new Set(before.map((row) => row.skillId)));
+  yield* requireIntendedObserver(facts, plan.ownerId, input.intendedObserverId);
   const wanted = new Map(input.skills.map((s, position) => [s.skillId, { ...s, position }]));
   const removed = before.filter((row) => !wanted.has(row.skillId));
   const intendedMode = input.intendedObserverId ? input.intendedMode : null;
