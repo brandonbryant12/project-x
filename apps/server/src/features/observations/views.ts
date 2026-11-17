@@ -16,6 +16,8 @@ import {
   OPEN_OBSERVATION_STATES,
   ObservationLifecycle,
   canReadNarrative,
+  canViewDevelopment,
+  checkObserverEligibility,
   developmentAccess,
   isEvidenceHeld,
   resolveCreditValue,
@@ -34,6 +36,7 @@ import {
   type SkillId,
   type SkillRole,
   type CreditRole,
+  type RelationshipFacts,
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
@@ -147,6 +150,23 @@ export const canSeeObservation = Effect.fn('observations.canSee')(function* (
     }) !== 'none'
   );
 });
+
+/**
+ * Whether the viewer may read the subject's reflection on this observation's
+ * work (domain-model.md § Visibility). The subject shares it by asking for the
+ * observation; otherwise only the subject's development viewers (they, their
+ * coaches and their leader chain) and admins read it. An observer who started
+ * "I saw this" without development access never receives it.
+ */
+const reflectionSharedWith = (
+  actor: Actor,
+  row: Pick<ObservationRow, 'requestedById' | 'subjectId'>,
+  facts: RelationshipFacts,
+  on: IsoDate,
+) =>
+  row.requestedById === row.subjectId ||
+  isAdmin(actor) ||
+  canViewDevelopment(facts, { viewerId: actor.personId, subjectId: row.subjectId, on });
 
 const viewerRoleOf = (actor: Actor, row: ObservationRow): ObservationView['viewerRole'] => {
   if (row.observerId === actor.personId) return 'observer';
@@ -404,9 +424,11 @@ export const buildObservationView = Effect.fn('observations.view')(function* (
       data: { basis: 'compliance_reviewer' },
     });
   }
+  // Not shared with this viewer: neither the reflection nor its checks are returned (B1).
+  const reflectionShared = reflectionSharedWith(actor, row, facts, on);
   const checks = yield* visibleChecks(actor.tenantId, [
     { type: 'observation', id: row.id },
-    ...(evidence ? [{ type: 'evidence', id: evidence.id }] : []),
+    ...(evidence && reflectionShared ? [{ type: 'evidence', id: evidence.id }] : []),
   ]);
   const isAuthor = evidence?.authorId === actor.personId;
   const hidden =
@@ -445,13 +467,14 @@ export const buildObservationView = Effect.fn('observations.view')(function* (
       activityTitle: activity?.title ?? 'Work',
       clientRef: interaction.clientRef,
     },
-    evidence: evidence
-      ? {
-          status: evidence.status as EvidenceStatus,
-          body: hidden ? null : evidence.body,
-          holdReason: evidence.holdReason,
-        }
-      : null,
+    evidence:
+      evidence && reflectionShared
+        ? {
+            status: evidence.status as EvidenceStatus,
+            body: hidden ? null : evidence.body,
+            holdReason: evidence.holdReason,
+          }
+        : null,
     requestNote: notes.request ?? null,
     requestedSkills: refsFor(skills, skillIds),
     ratings: ratingViews(
@@ -486,11 +509,14 @@ export const buildObservationView = Effect.fn('observations.view')(function* (
 });
 
 const toInboxItems = Effect.fn('observations.inboxItems')(function* (
-  tenantId: TenantId,
+  actor: Actor,
   rows: ReadonlyArray<ObservationRow>,
 ) {
   if (rows.length === 0) return [] as Array<InboxItem>;
+  const { tenantId } = actor;
   const db = yield* Db;
+  const facts = yield* loadRelationshipFacts(tenantId);
+  const on = yield* today;
   const interactionIds = rows.map((r) => r.interactionId);
   const [interactions, ratings, ticks, evidence] = yield* Effect.all([
     db.select().from(schema.interaction).where(inArray(schema.interaction.id, interactionIds)),
@@ -533,9 +559,9 @@ const toInboxItems = Effect.fn('observations.inboxItems')(function* (
   );
   return rows.map((row): InboxItem => {
     const interaction = interactions.find((i) => i.id === row.interactionId);
-    const ev = evidence.find(
-      (e) => e.interactionId === row.interactionId && e.status === 'available',
-    );
+    const ev = reflectionSharedWith(actor, row, facts, on)
+      ? evidence.find((e) => e.interactionId === row.interactionId && e.status === 'available')
+      : undefined;
     return {
       id: row.id,
       status: row.status as ObservationStatus,
@@ -581,7 +607,7 @@ export const buildInbox = Effect.fn('observations.inbox')(function* (actor: Acto
       ),
     )
     .orderBy(schema.observation.dueAt);
-  const items = yield* toInboxItems(actor.tenantId, [...mineAsObserver, ...mineAsSubject]);
+  const items = yield* toInboxItems(actor, [...mineAsObserver, ...mineAsSubject]);
   const byId = new Map(items.map((i) => [i.id, i]));
   const pick = (rows: ReadonlyArray<ObservationRow>) =>
     rows.flatMap((r) => (byId.has(r.id) ? [byId.get(r.id) as InboxItem] : []));
@@ -617,12 +643,18 @@ const workSkillsOf = (
  * The subject's work inside the "I saw this" window that the actor has not
  * already observed (no open or signed observation of theirs on it), newest
  * first. "I saw this" attaches to one of these instead of recording it again.
+ * Logged work is development data: it is listed only to the subject's
+ * development viewers (their coaches and leader chain), and only work the
+ * viewer was an eligible observer for on its date (B1). A designee without
+ * development access records new work they saw instead.
  */
 const attachableWork = Effect.fn('observations.attachableWork')(function* (
   actor: Actor,
+  facts: RelationshipFacts,
   subjectId: PersonId,
   on: IsoDate,
 ) {
+  if (!canViewDevelopment(facts, { viewerId: actor.personId, subjectId, on })) return [];
   const db = yield* Db;
   const interactions = yield* db
     .select()
@@ -652,7 +684,12 @@ const attachableWork = Effect.fn('observations.attachableWork')(function* (
       ),
     );
   const observed = new Set(mine.map((o) => o.interactionId));
-  return interactions.filter((i) => !observed.has(i.id));
+  return interactions.filter(
+    (i) =>
+      !observed.has(i.id) &&
+      checkObserverEligibility(facts, { observerId: actor.personId, subjectId, on: i.occurredOn })
+        .eligible,
+  );
 });
 
 /** People the actor can observe today, with what they are working on and the work they logged. */
@@ -683,7 +720,7 @@ export const buildTargets = Effect.fn('observations.targets')(function* (actor: 
             ),
           )
       : [];
-    const work = yield* attachableWork(actor, subjectId, on);
+    const work = yield* attachableWork(actor, facts, subjectId, on);
     const workActivities = work.length
       ? yield* db
           .select({ id: schema.activity.id, title: schema.activity.title })

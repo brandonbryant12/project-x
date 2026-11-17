@@ -13,6 +13,7 @@ import {
   InteractionId,
   OBSERVE_WINDOW_DAYS,
   ObservationId,
+  canViewDevelopment,
   isEvidenceHeld,
   type ActivityStatus,
   type IsoDate,
@@ -33,7 +34,7 @@ import {
 } from '../../../platform/time.ts';
 import { recordAudit } from '../../shared/audit.ts';
 import { notify } from '../../shared/notify.ts';
-import { basisEdge } from '../../shared/relationships.ts';
+import { basisEdge, loadRelationshipFacts } from '../../shared/relationships.ts';
 import { currentPlanOf } from '../../shared/plans.ts';
 import { tenantCreditPolicy } from '../../shared/recognition.ts';
 import { LIVE_OR_SIGNED } from '../views.ts';
@@ -212,8 +213,11 @@ const requireInsideObserveWindow = (occurredOn: IsoDate, on: IsoDate) => {
 
 /**
  * Work the subject already logged that "I saw this" attaches to (design §9):
- * it must be theirs, and this observer must not already have an open or
- * signed observation of it. Its date and kind are the work's own.
+ * it must be theirs, the observer must have development access to them (their
+ * coach or leader chain; logged work is development data, B1), and this
+ * observer must not already have an open or signed observation of it. Its date
+ * and kind are the work's own; the caller then requires the observer to have
+ * been eligible on that date, exactly as the offered list does.
  */
 const attachableInteraction = Effect.fn('observations.attachable')(function* (
   actor: Actor,
@@ -230,7 +234,15 @@ const attachableInteraction = Effect.fn('observations.attachable')(function* (
         eq(schema.interaction.id, interactionId),
       ),
     );
-  if (!work || work.ownerId !== subjectId) {
+  const mayAttach =
+    work !== undefined &&
+    work.ownerId === subjectId &&
+    canViewDevelopment(yield* loadRelationshipFacts(actor.tenantId), {
+      viewerId: actor.personId,
+      subjectId,
+      on: yield* today,
+    });
+  if (!work || !mayAttach) {
     return yield* Effect.fail(new NotFound({ entity: 'interaction', id: interactionId }));
   }
   yield* requireNotObservedBy(

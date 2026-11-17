@@ -81,7 +81,10 @@ Decisions behind this table:
   takes that work's date and kind instead of creating a second interaction.
   The server accepts only the subject's own work, inside the observe window,
   and never a second open or signed observation of one piece of work by the
-  same observer. Two people deliberately logging one event as two pieces of
+  same observer. Logged work is development data: it is offered only to the
+  subject's coaches and leader chain, and only work the observer was eligible
+  for on its date. The subject's reflection reaches an observer only when the
+  subject asked them, or the observer may see the subject's development. Two people deliberately logging one event as two pieces of
   work is still possible (see the [backlog](../backlog.md)).
 - **A returned request is revised, then resent.** The subject reads the
   return note, revises the reflection from the same screen, may write a new
@@ -144,6 +147,8 @@ Added with weighted signed credit and run-time administration (2026-11-17):
   credit or a badge.
 - **I46.** One piece of work is observed at most once by each observer, and
   "I saw this" attaches only to the subject's own work.
+- **I47.** "I saw this" never shows a person's logged work or reflection to
+  someone who may not see their development.
 
 ## Eligible observer
 
