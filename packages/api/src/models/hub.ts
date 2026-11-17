@@ -139,42 +139,19 @@ export const NotificationPreferences = Schema.Struct({
 });
 export type NotificationPreferences = typeof NotificationPreferences.Type;
 
-/* ---------- Adoption (ADR 0021): aggregates only, no names ---------- */
+/* ---------- Adoption (ADR 0021): four numbers, aggregates only, no names ---------- */
 
-export const AdoptionWeek = Schema.Struct({
-  weekOf: IsoDate,
-  signed: Schema.Number,
-  /** Null when fewer than five values (minimum cell size). */
-  medianDaysToSign: Schema.NullOr(Schema.Number),
-  p90DaysToSign: Schema.NullOr(Schema.Number),
-  requested: Schema.Number,
-  /** Null until the cohort's signing window has closed, or when fewer than five were requested. */
-  expiryRate: Schema.NullOr(Schema.Number),
-  /** Null when fewer than five (minimum cell size). */
-  activeObservers: Schema.NullOr(Schema.Number),
-});
-
+/** Every nullable figure is null when drawn from fewer than `minimumCell` (shown as "fewer than 5"). */
 export const AdoptionView = Schema.Struct({
   asOf: IsoDate,
   minimumCell: Schema.Number,
-  weeks: Schema.Array(AdoptionWeek),
-  /** People with a current plan observed in the last 42 days / people with a current plan. */
-  coverage: Schema.Struct({ observed: Schema.NullOr(Schema.Number), withPlan: Schema.Number }),
+  /** People with an active or paused plan. */
+  withPlan: Schema.Number,
+  /** Of those, people observed for work in the last six weeks. */
+  observedRecently: Schema.NullOr(Schema.Number),
+  /** Over the last four complete weeks: days from logging the work to the signature. */
+  medianDaysToSign: Schema.NullOr(Schema.Number),
+  /** Over the last four weeks: share of requests whose window closed without a signature. */
   expiryRate: Schema.NullOr(Schema.Number),
-  firstHandShare: Schema.NullOr(Schema.Number),
-  feedbackOnlyShare: Schema.NullOr(Schema.Number),
-  acknowledgedShare: Schema.NullOr(Schema.Number),
-  reviewRequestedShare: Schema.NullOr(Schema.Number),
-  /** Distribution: how many people have 0, 1, 2, 3+ distinct observers. */
-  /** Buckets under five people are null (shown as "fewer than 5"). */
-  distinctObservers: Schema.Array(
-    Schema.Struct({ bucket: Schema.String, people: Schema.NullOr(Schema.Number) }),
-  ),
-  /** Histogram of signatures per observer in the last 28 days; never names. */
-  observerLoad: Schema.Array(
-    Schema.Struct({ bucket: Schema.String, observers: Schema.NullOr(Schema.Number) }),
-  ),
-  /** Share of sent notifications followed by the intended action within 7 days. */
-  notificationConversion: Schema.NullOr(Schema.Number),
 });
 export type AdoptionView = typeof AdoptionView.Type;
