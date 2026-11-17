@@ -28,7 +28,7 @@ layer(ScenarioLayer, { timeout: 60_000 })('designated observer signs', (it) => {
       const db = yield* Db;
       const mayaId = yield* signInAs('Maya Chen');
       const marcusId = yield* signInAs('Marcus Hill');
-      const before = yield* api.observations.targets();
+      const before = (yield* api.observations.targets()).people;
       assert.isFalse(before.some((t) => t.person.id === mayaId));
 
       yield* signInAs('Leo Okonkwo');
@@ -42,7 +42,7 @@ layer(ScenarioLayer, { timeout: 60_000 })('designated observer signs', (it) => {
       });
 
       yield* signInAs('Marcus Hill');
-      const targets = yield* api.observations.targets();
+      const targets = (yield* api.observations.targets()).people;
       const maya = targets.find((t) => t.person.id === mayaId);
       assert.isDefined(maya);
       assert.strictEqual(maya.basis, 'designated');
@@ -98,7 +98,7 @@ layer(ScenarioLayer, { timeout: 60_000 })('designated observer signs', (it) => {
       yield* signInAs('Leo Okonkwo');
       yield* api.hub.endDesignation({ params: { id: designation.id } });
       yield* signInAs('Marcus Hill');
-      const after = yield* api.observations.targets();
+      const after = (yield* api.observations.targets()).people;
       assert.isFalse(after.some((t) => t.person.id === mayaId));
       const refused = yield* api.observations
         .start({

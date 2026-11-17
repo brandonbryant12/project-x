@@ -40,7 +40,11 @@ The database enforces most of them, and so do tests.
 
 1. **Credit only from SIGN.** Only `signObservation` writes `credit_entry`. The
    ledger, the audit trail, labels and published catalog versions are
-   append-only (enforced by triggers).
+   append-only (enforced by triggers). A credit's role is the one the
+   observer signed on the rating; its points come from the activity's own
+   value, then the template value copied onto the work, then the skill's,
+   then the tenant's credit policy (read exactly as stored). Both are fixed at
+   signing and never change (`resolveCreditValue`, ADR 0007).
 2. **Lifecycles are XState machines** in `packages/domain/src/lifecycles`.
    Change state only through `decide()`, which combines policy (_who_) with
    the machine (_whether_), and write an audit event in the same transaction.
@@ -94,3 +98,4 @@ Follow the [testing strategy](docs/testing/strategy.md):
 - For UI work, run the screenshot loop and look at the images.
 - For a flow, run the [QA skill](.claude/skills/qa/SKILL.md) and file its
   report.
+- Find the feature and its checks in the [feature map](docs/feature-map/README.md) (`pnpm verify show <id>`), and update the map in the same change ([feature-map skill](.claude/skills/feature-map/SKILL.md)).

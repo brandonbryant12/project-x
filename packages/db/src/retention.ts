@@ -101,6 +101,7 @@ export const CODED_COLUMNS: Readonly<Record<string, ReadonlyArray<string>>> = {
   advisory_check: ['provider', 'failure'],
   advisory_disposition: ['disposition'],
   audit_event: ['auth_method', 'from_state', 'to_state'],
+  credit_entry: ['points_source'],
 };
 
 /** Column names that are structured by convention (ids, codes, states, digests). */

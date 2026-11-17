@@ -1,17 +1,19 @@
 import type {
+  ActivitySkillValue,
   Level,
   PlanId,
   SkillDefinition,
   SkillId,
   SkillIndicatorId,
   SkillVersionId,
+  SkillRole,
   TenantId,
   ActivityId,
-  ActivityTemplateId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { Effect } from 'effect';
+import { businessDateIn } from '../../platform/time.ts';
 
 /** Rebuilds published definitions from relational rows (docs/architecture/data-model.md). */
 export const loadDefinitions = Effect.fn('catalog.definitions')(function* (
@@ -92,11 +94,28 @@ export const loadPlanSkills = Effect.fn('plan.skills')(function* (
   return result;
 });
 
-export const loadActivitySkills = Effect.fn('activity.skills')(function* (
+export type ActivitySkillRow = typeof schema.activitySkill.$inferSelect;
+
+/**
+ * A skill row as value resolution reads it. An individual value applies from
+ * the business date it was set, in the tenant's time zone (I38).
+ */
+export const activitySkillValue = (
+  row: Pick<ActivitySkillRow, 'role' | 'pointsOverride' | 'pointsOverrideAt' | 'templatePoints'>,
+  timeZone: string,
+): ActivitySkillValue => ({
+  role: row.role as SkillRole,
+  pointsOverride: row.pointsOverride,
+  pointsOverrideFrom: row.pointsOverrideAt ? businessDateIn(row.pointsOverrideAt, timeZone) : null,
+  templatePoints: row.templatePoints,
+});
+
+/** Each activity's skill rows (role and values included), in position order. */
+export const loadActivitySkillRows = Effect.fn('activity.skillRows')(function* (
   tenantId: TenantId,
   activityIds: ReadonlyArray<ActivityId>,
 ) {
-  const result = new Map<ActivityId, Array<SkillId>>();
+  const result = new Map<ActivityId, Array<ActivitySkillRow>>();
   if (activityIds.length === 0) return result;
   const db = yield* Db;
   const rows = yield* db
@@ -108,30 +127,7 @@ export const loadActivitySkills = Effect.fn('activity.skills')(function* (
         inArray(schema.activitySkill.activityId, [...activityIds]),
       ),
     )
-    .orderBy(asc(schema.activitySkill.position));
-  for (const row of rows)
-    result.set(row.activityId, [...(result.get(row.activityId) ?? []), row.skillId]);
-  return result;
-});
-
-export const loadTemplateSkills = Effect.fn('template.skills')(function* (
-  tenantId: TenantId,
-  templateIds: ReadonlyArray<ActivityTemplateId>,
-) {
-  const result = new Map<ActivityTemplateId, Array<SkillId>>();
-  if (templateIds.length === 0) return result;
-  const db = yield* Db;
-  const rows = yield* db
-    .select()
-    .from(schema.activityTemplateSkill)
-    .where(
-      and(
-        eq(schema.activityTemplateSkill.tenantId, tenantId),
-        inArray(schema.activityTemplateSkill.templateId, [...templateIds]),
-      ),
-    )
-    .orderBy(asc(schema.activityTemplateSkill.position));
-  for (const row of rows)
-    result.set(row.templateId, [...(result.get(row.templateId) ?? []), row.skillId]);
+    .orderBy(asc(schema.activitySkill.position), asc(schema.activitySkill.skillId));
+  for (const row of rows) result.set(row.activityId, [...(result.get(row.activityId) ?? []), row]);
   return result;
 });

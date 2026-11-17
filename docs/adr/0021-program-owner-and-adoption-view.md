@@ -8,9 +8,29 @@
 > plan, how many were observed in the last 42 days, the median days from
 > logging to signature, and the expiry rate (over the last four complete
 > weeks). The other metrics below are not built, and second-read agreement
-> was dropped with the unwritten `second_read` table. Suppressing complements
-> is in the [backlog](../backlog.md). The text below is the original
-> decision.
+> was dropped with the unwritten `second_read` table. The text below is the
+> original decision.
+
+> **Amended, 2026-11-17: suppression counts people.** A figure is withheld
+> unless at least five distinct people stand behind it, and the person behind
+> an observation is its subject, never the number of observations or
+> requests. "With a plan" (people with an active or paused plan) is withheld
+> under five like every other figure. "Observed recently" is also withheld
+> when subtracting it from "with a plan" would reveal a group under five,
+> including an empty one, and whenever "with a plan" is withheld. Voided
+> observations count for nothing: coverage and median days to sign read only
+> signatures that stand (signed or under review), and the expiry rate leaves
+> voided requests out. The screen says "withheld" in place of a figure. The
+> code is `apps/server/src/features/shared/program.ts` and
+> `apps/server/src/features/hub/adoption.ts`; the tests are
+> `apps/server/src/features/hub/adoption.test.ts` and
+> `apps/server/src/journeys/honest-aggregates.scenario.test.ts`. Team
+> coverage for a leader ignores reversed credit in the same way
+> (`apps/server/src/features/support/team.ts`). Still open: the expiry rate
+> counts every non-voided observation created since the window began, with a
+> closed signing window, including an
+> observer's own "I saw this" drafts and withdrawn or declined requests (see
+> the [backlog](../backlog.md)).
 
 ## Context
 

@@ -18,6 +18,11 @@ export interface ObservationFacts {
   readonly privacyHold: boolean;
   /** The subject has acknowledged the signed observation. */
   readonly acknowledged: boolean;
+  /**
+   * The subject's reflection on the work is held by the privacy screen
+   * (suspected client details): it cannot go to an observer until it clears.
+   */
+  readonly reflectionHeld: boolean;
 }
 
 export const MIN_NARRATIVE_LENGTH = 40;
@@ -44,11 +49,18 @@ const observationMachine = setup({
       context.narrativeLength >= MIN_NARRATIVE_LENGTH &&
       !context.privacyHold,
     notAcknowledged: ({ context }) => !context.acknowledged,
+    reflectionClear: ({ context }) => !context.reflectionHeld,
   },
 }).createMachine({
   id: 'observation',
   initial: 'requested',
-  context: { ratingsComplete: false, narrativeLength: 0, privacyHold: false, acknowledged: false },
+  context: {
+    ratingsComplete: false,
+    narrativeLength: 0,
+    privacyHold: false,
+    acknowledged: false,
+    reflectionHeld: false,
+  },
   states: {
     requested: {
       on: {
@@ -71,8 +83,14 @@ const observationMachine = setup({
         EXPIRE: 'expired',
       },
     },
+    // Sent back with a note: the requester revises the reflection, then resends
+    // it once the privacy screen no longer holds it.
     returned: {
-      on: { RESUBMIT: 'requested', WITHDRAW: 'withdrawn', EXPIRE: 'expired' },
+      on: {
+        RESUBMIT: { target: 'requested', guard: 'reflectionClear' },
+        WITHDRAW: 'withdrawn',
+        EXPIRE: 'expired',
+      },
     },
     // The subject can acknowledge it, or ask for a review if they think it is wrong.
     // Credit stands during a review; only VOID reverses it.

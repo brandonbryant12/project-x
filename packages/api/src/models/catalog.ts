@@ -2,6 +2,7 @@ import {
   ActivityTemplateId,
   InteractionKind,
   SkillLevelDefinition,
+  SkillRole,
   SkillVersionId,
 } from '@repo/domain';
 import { Schema } from 'effect';
@@ -18,6 +19,14 @@ export const SkillCard = Schema.Struct({
 });
 export type SkillCard = typeof SkillCard.Type;
 
+/** A skill on a template: its place in the work, and the template's own value when it has one. */
+export const TemplateSkillView = Schema.Struct({
+  skill: SkillRef,
+  role: SkillRole,
+  points: Schema.NullOr(Schema.Number),
+});
+export type TemplateSkillView = typeof TemplateSkillView.Type;
+
 export const TemplateCard = Schema.Struct({
   id: ActivityTemplateId,
   slug: Schema.String,
@@ -25,6 +34,8 @@ export const TemplateCard = Schema.Struct({
   description: Schema.String,
   kind: InteractionKind,
   suggestedSkills: Schema.Array(SkillRef),
+  /** The same skills, in order, with their roles and values. */
+  skills: Schema.Array(TemplateSkillView),
   typicalMinutes: Schema.NullOr(Schema.Number),
   observationTip: Schema.NullOr(Schema.String),
 });
@@ -36,6 +47,14 @@ export const BadgeHolder = Schema.Struct({
   levelName: Schema.String,
 });
 
+/** A value this skill sets for itself that differs from the tenant's. */
+export const SkillValueDifference = Schema.Struct({
+  key: Schema.Literals(['primaryPoints', 'secondaryPoints', 'badgePoints', 'minPrimaryPoints']),
+  value: Schema.Number,
+  tenantValue: Schema.Number,
+});
+export type SkillValueDifference = typeof SkillValueDifference.Type;
+
 export const SkillDetail = Schema.Struct({
   ...SkillCard.fields,
   versionId: SkillVersionId,
@@ -44,5 +63,7 @@ export const SkillDetail = Schema.Struct({
   holders: Schema.Array(BadgeHolder),
   templates: Schema.Array(TemplateCard),
   myProgress: Schema.NullOr(ProgressView),
+  /** Only the values that differ from the tenant's credit rules. */
+  valueDifferences: Schema.Array(SkillValueDifference),
 });
 export type SkillDetail = typeof SkillDetail.Type;

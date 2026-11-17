@@ -43,3 +43,12 @@ export const EvidenceLifecycle = defineLifecycle({
 });
 
 export type EvidenceStatus = (typeof EvidenceLifecycle.states)[number];
+
+/**
+ * Held for suspected client details: the author must revise it (or an admin
+ * release it) before anything that relies on it, a request or a resend, goes
+ * to an observer. Escalated text is a matter for compliance, which the author
+ * cannot edit away, so it does not block asking someone to observe the work.
+ */
+export const isEvidenceHeld = (status: EvidenceStatus | null | undefined): boolean =>
+  status === 'held';

@@ -1,4 +1,10 @@
-import { CurrentActor, NotFound, type SkillCard, type TemplateCard } from '@repo/api';
+import {
+  CurrentActor,
+  NotFound,
+  type SkillCard,
+  type SkillValueDifference,
+  type TemplateCard,
+} from '@repo/api';
 import {
   LEVEL_NAMES,
   type InteractionKind,
@@ -11,10 +17,11 @@ import { Db, schema } from '@repo/db';
 import { and, asc, eq, ilike, or } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { loadPeople, personFrom } from '../shared/people.ts';
-import { progressFor } from '../shared/recognition.ts';
-import { loadDefinitions, loadTemplateSkills } from '../shared/catalog-reads.ts';
+import { progressFor, tenantCreditPolicy } from '../shared/recognition.ts';
+import { templateSkillViews } from '../shared/catalog.ts';
+import { loadDefinitions } from '../shared/catalog-reads.ts';
 import { currentPlanSkillIds } from '../shared/plans.ts';
-import { loadSkills, refsFor, toSkillRef } from '../shared/skills.ts';
+import { toSkillRef } from '../shared/skills.ts';
 
 interface SkillsQuery {
   readonly q?: string | undefined;
@@ -38,21 +45,24 @@ const toTemplateCards = Effect.fn('catalog.templateCards')(function* (
   tenantId: TenantId,
   rows: ReadonlyArray<typeof schema.activityTemplate.$inferSelect>,
 ) {
-  const suggested = yield* loadTemplateSkills(
+  const views = yield* templateSkillViews(
     tenantId,
     rows.map((r) => r.id),
   );
-  const skills = yield* loadSkills(tenantId, [...suggested.values()].flat());
-  return rows.map((r): TemplateCard => ({
-    id: r.id,
-    slug: r.slug,
-    name: r.name,
-    description: r.description,
-    kind: r.kind as InteractionKind,
-    suggestedSkills: refsFor(skills, suggested.get(r.id) ?? []),
-    typicalMinutes: r.typicalMinutes,
-    observationTip: r.observationTip,
-  }));
+  return rows.map((r): TemplateCard => {
+    const skills = views.get(r.id) ?? [];
+    return {
+      id: r.id,
+      slug: r.slug,
+      name: r.name,
+      description: r.description,
+      kind: r.kind as InteractionKind,
+      suggestedSkills: skills.map((s) => s.skill),
+      skills: skills.map(({ skill, role, points }) => ({ skill, role, points })),
+      typicalMinutes: r.typicalMinutes,
+      observationTip: r.observationTip,
+    };
+  });
 });
 
 /** `GET /catalog/skills`: published skills, with holder counts and the caller's own standing. */
@@ -133,6 +143,13 @@ export const buildSkillDetail = Effect.fn('catalog.skill')(function* (slug: stri
     .pipe(Effect.map((rows) => rows.map((r) => r.template)));
   const inPlan = yield* currentPlanSkillIds(actor.tenantId, actor.personId);
   const [progress] = yield* progressFor(actor.tenantId, actor.personId, [row.id]);
+  const policy = yield* tenantCreditPolicy(actor.tenantId);
+  const tenantValue = {
+    primaryPoints: policy.primaryPoints,
+    secondaryPoints: policy.secondaryPoints,
+    badgePoints: policy.badgePoints,
+    minPrimaryPoints: policy.minPrimaryPoints,
+  };
   const mine = highest.get(actor.personId) ?? null;
   return {
     ...toSkillRef(row),
@@ -154,6 +171,14 @@ export const buildSkillDetail = Effect.fn('catalog.skill')(function* (slug: stri
       })),
     templates: yield* toTemplateCards(actor.tenantId, templates),
     myProgress: progress ?? null,
+    valueDifferences: (Object.keys(tenantValue) as Array<keyof typeof tenantValue>).flatMap(
+      (key): Array<SkillValueDifference> => {
+        const value = row[key];
+        return value !== null && value !== tenantValue[key]
+          ? [{ key, value, tenantValue: tenantValue[key] }]
+          : [];
+      },
+    ),
   };
 });
 

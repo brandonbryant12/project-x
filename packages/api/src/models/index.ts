@@ -7,3 +7,4 @@ export * from './home.ts';
 export * from './admin.ts';
 export * from './hub.ts';
 export * from './directory.ts';
+export * from './program.ts';

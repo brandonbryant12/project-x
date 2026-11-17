@@ -4,6 +4,22 @@ import { check, index, pgTable, text } from 'drizzle-orm/pg-core';
 import { createdAt, instant, oneOf, tenantIdColumn } from './columns.ts';
 import { personFk } from './directory.ts';
 
+/** Kinds of human-written reason. The last four explain value, policy, catalog and plan-review changes. */
+export const NOTE_KINDS = [
+  'request',
+  'return',
+  'decline',
+  'review',
+  'void',
+  'uphold',
+  'release',
+  'resolve',
+  'value_override',
+  'policy_change',
+  'catalog_change',
+  'plan_review',
+] as const;
+
 /**
  * Human-written reasons attached to lifecycle events (return note, decline
  * reason, review request, void reason, release reason). Append-only history —
@@ -26,16 +42,7 @@ export const note = pgTable(
   },
   (t) => [
     personFk('note_author_fk', t.tenantId, t.authorId),
-    oneOf('note_kind_check', t.kind, [
-      'request',
-      'return',
-      'decline',
-      'review',
-      'void',
-      'uphold',
-      'release',
-      'resolve',
-    ]),
+    oneOf('note_kind_check', t.kind, NOTE_KINDS),
     check('note_purge_shape', sql`(${t.body} is null) = (${t.purgedAt} is not null)`),
     index('note_entity_idx').on(t.tenantId, t.entityType, t.entityId, t.createdAt),
   ],

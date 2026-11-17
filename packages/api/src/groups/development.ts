@@ -12,7 +12,11 @@ import {
   LogInteractionInput,
   PlanEventType,
   PlanView,
+  RecordPlanReviewInput,
+  SetActivityValueInput,
+  UpdateActivityInput,
   UpdatePlanInput,
+  WorkTemplate,
 } from '../models/index.ts';
 
 const lifecycleErrors = [NotFound, Forbidden, InvalidTransition, Unprocessable, Conflict] as const;
@@ -20,6 +24,9 @@ const lifecycleErrors = [NotFound, Forbidden, InvalidTransition, Unprocessable, 
 export class DevelopmentGroup extends HttpApiGroup.make('development')
   .add(
     HttpApiEndpoint.get('mine', '/development', { success: DevelopmentView }),
+    HttpApiEndpoint.get('workTemplates', '/development/templates', {
+      success: Schema.Array(WorkTemplate),
+    }),
     HttpApiEndpoint.get('of', '/people/:id/development', {
       params: { id: PersonId },
       success: DevelopmentView,
@@ -38,7 +45,8 @@ export class DevelopmentGroup extends HttpApiGroup.make('development')
     }),
     HttpApiEndpoint.post('planEvent', '/plans/:id/events', {
       params: { id: PlanId },
-      payload: Schema.Struct({ event: PlanEventType }),
+      /** `version`: the plan as the person saw it; a newer plan is a Conflict. */
+      payload: Schema.Struct({ event: PlanEventType, version: Schema.Number }),
       success: PlanView,
       error: lifecycleErrors,
     }),
@@ -46,6 +54,32 @@ export class DevelopmentGroup extends HttpApiGroup.make('development')
       params: { id: PlanId },
       payload: AddActivityInput,
       success: PlanView,
+      error: lifecycleErrors,
+    }),
+    HttpApiEndpoint.post('recordPlanReview', '/plans/:id/review', {
+      params: { id: PlanId },
+      payload: RecordPlanReviewInput,
+      success: PlanView,
+      error: lifecycleErrors,
+    }),
+    HttpApiEndpoint.post('confirmPlanReview', '/plans/:id/review/confirm', {
+      params: { id: PlanId },
+      /** The plan as the confirmer read it: a review recorded again since is a Conflict. */
+      payload: Schema.Struct({ version: Schema.Number }),
+      success: PlanView,
+      error: lifecycleErrors,
+    }),
+    HttpApiEndpoint.patch('updateActivity', '/activities/:id', {
+      params: { id: ActivityId },
+      payload: UpdateActivityInput,
+      success: PlanView,
+      error: lifecycleErrors,
+    }),
+    /** Null when the viewer may not see the plan: a program owner sees nothing per person. */
+    HttpApiEndpoint.post('setActivityValue', '/activities/:id/value', {
+      params: { id: ActivityId },
+      payload: SetActivityValueInput,
+      success: Schema.NullOr(PlanView),
       error: lifecycleErrors,
     }),
     HttpApiEndpoint.post('activityEvent', '/activities/:id/events', {

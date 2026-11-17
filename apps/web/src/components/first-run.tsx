@@ -108,6 +108,20 @@ export const ObserverFirstRun = () => (
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** The program in one sentence; a withheld figure is said to be withheld, never guessed. */
+const healthSentence = ({
+  withPlan,
+  observedRecently,
+  minimumCell,
+}: NonNullable<HomeView['programHealth']>) => {
+  if (withPlan === null)
+    return `Fewer than ${minimumCell} people have a plan, so the figures are withheld.`;
+  const planned = `${count(withPlan, 'person has', 'people have')} a plan`;
+  if (observedRecently === null)
+    return `${planned}; how many were observed in the last six weeks is withheld for privacy.`;
+  return `${planned}; ${observedRecently} ${observedRecently === 1 ? 'was' : 'were'} observed in the last six weeks.`;
+};
+
 /** First run for a program owner: the program, not a plan of their own (ADR 0021: no names). */
 export const ProgramHealthCard = ({
   health,
@@ -123,12 +137,6 @@ export const ProgramHealthCard = ({
       </Button>
     }
   >
-    <p>
-      {count(health.withPlan, 'person has', 'people have')} a plan;{' '}
-      {health.observedRecently === null
-        ? `fewer than ${health.minimumCell} were`
-        : `${health.observedRecently} ${health.observedRecently === 1 ? 'was' : 'were'}`}{' '}
-      observed in the last six weeks.
-    </p>
+    <p>{healthSentence(health)}</p>
   </FirstRunCard>
 );

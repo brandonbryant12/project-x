@@ -1,8 +1,11 @@
 import {
+  BADGE_POINTS_RANGE,
   CatalogItemLifecycle,
   INTERACTION_KINDS,
   LEVELS,
+  POINTS_RANGE,
   SKILL_DOMAINS,
+  SKILL_ROLES,
   type ActivityTemplateId,
   type PersonId,
   type SkillDefinition,
@@ -23,7 +26,15 @@ import {
   unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { createdAt, instant, oneOf, tenantIdColumn, updatedAt, versionColumn } from './columns.ts';
+import {
+  createdAt,
+  inRange,
+  instant,
+  oneOf,
+  tenantIdColumn,
+  updatedAt,
+  versionColumn,
+} from './columns.ts';
 import { personFk, tenant } from './directory.ts';
 
 /**
@@ -51,6 +62,12 @@ export const skill = pgTable(
     draftDefinition: jsonb('draft_definition').$type<SkillDefinition>(),
     /** FK (tenant_id, id, current_version_id) → skill_version is in the integrity migration (circular). */
     currentVersionId: text('current_version_id').$type<SkillVersionId>(),
+    /** Per-skill values over the tenant's credit policy; null uses the policy. Applied at signing. */
+    primaryPoints: integer('primary_points'),
+    secondaryPoints: integer('secondary_points'),
+    badgePoints: integer('badge_points'),
+    /** Points that must come from work where this skill was primary; null uses the policy. */
+    minPrimaryPoints: integer('min_primary_points'),
     version: versionColumn(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -60,6 +77,15 @@ export const skill = pgTable(
     uniqueIndex('skill_tenant_slug_unique').on(t.tenantId, t.slug),
     oneOf('skill_status_check', t.status, CatalogItemLifecycle.states),
     oneOf('skill_domain_check', t.domain, SKILL_DOMAINS),
+    inRange('skill_primary_points', t.primaryPoints, POINTS_RANGE, { nullable: true }),
+    inRange('skill_secondary_points', t.secondaryPoints, POINTS_RANGE, { nullable: true }),
+    inRange('skill_badge_points', t.badgePoints, BADGE_POINTS_RANGE, { nullable: true }),
+    inRange(
+      'skill_min_primary_points',
+      t.minPrimaryPoints,
+      { min: 0, max: BADGE_POINTS_RANGE.max },
+      { nullable: true },
+    ),
   ],
 );
 
@@ -170,6 +196,10 @@ export const activityTemplateSkill = pgTable(
     templateId: text('template_id').$type<ActivityTemplateId>().notNull(),
     skillId: text('skill_id').$type<SkillId>().notNull(),
     position: integer('position').notNull().default(0),
+    /** The skill's place in work made from this template. */
+    role: text('role').notNull(),
+    /** This template's value for the skill in that role; copied onto work when it is added. */
+    points: integer('points'),
   },
   (t) => [
     primaryKey({ columns: [t.templateId, t.skillId] }),
@@ -180,5 +210,7 @@ export const activityTemplateSkill = pgTable(
     }),
     skillFk('activity_template_skill_skill_fk', t.tenantId, t.skillId),
     check('activity_template_skill_position', sql`${t.position} >= 0`),
+    oneOf('activity_template_skill_role_check', t.role, SKILL_ROLES),
+    inRange('activity_template_skill_points', t.points, POINTS_RANGE, { nullable: true }),
   ],
 );

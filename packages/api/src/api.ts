@@ -7,6 +7,7 @@ import { DirectoryGroup } from './groups/directory.ts';
 import { HubGroup } from './groups/hub.ts';
 import { ObservationsGroup } from './groups/observations.ts';
 import { PeopleGroup } from './groups/people.ts';
+import { ProgramGroup } from './groups/program.ts';
 import { SupportGroup } from './groups/support.ts';
 
 /**
@@ -24,5 +25,6 @@ export class Api extends HttpApi.make('app')
   .add(AdminGroup)
   .add(HubGroup)
   .add(DirectoryGroup)
+  .add(ProgramGroup)
   .prefix('/api')
   .annotateMerge(OpenApi.annotations({ title: 'API' })) {}

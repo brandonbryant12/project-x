@@ -13,7 +13,7 @@
     "format": "oxfmt --check",
     "format:fix": "oxfmt",
     "knip": "knip --no-progress",
-    "check": "node scripts/check-node.mjs && pnpm format && pnpm lint:strict && pnpm typecheck && pnpm test && pnpm knip && pnpm docs:check",
+    "check": "node scripts/check-node.mjs && pnpm format && pnpm lint:strict && pnpm typecheck && pnpm test && pnpm knip && pnpm docs:check && pnpm verify check",
     "fix": "pnpm format:fix && pnpm lint:fix",
     "db:up": "docker compose up -d postgres",
     "db:generate": "pnpm --filter @repo/db generate",
@@ -25,7 +25,8 @@
     "docs:lifecycles": "pnpm --filter @repo/domain docs:lifecycles",
     "lint:strict": "oxlint --max-warnings=0",
     "preinstall": "node scripts/check-node.mjs",
-    "docs:check": "node scripts/docs-check.mjs"
+    "docs:check": "node scripts/docs-check.mjs",
+    "verify": "node tools/verify/cli.mjs"
   },
   "devDependencies": {
     "@effect/language-service": "catalog:",

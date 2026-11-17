@@ -12,7 +12,7 @@ import {
   type RelationshipFacts,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
-import { and, desc, eq, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { addDaysIso, today } from '../../platform/time.ts';
 import { loadPlanSkills } from '../shared/catalog-reads.ts';
@@ -41,6 +41,7 @@ export const supportRows = Effect.fn('support.rows')(function* (
       .from(schema.plan)
       .where(
         and(
+          eq(schema.plan.tenantId, actor.tenantId),
           inArray(schema.plan.ownerId, [...personIds]),
           inArray(schema.plan.status, ['draft', 'proposed', 'active', 'paused']),
         ),
@@ -50,15 +51,35 @@ export const supportRows = Effect.fn('support.rows')(function* (
       .from(schema.observation)
       .where(
         and(
+          eq(schema.observation.tenantId, actor.tenantId),
           eq(schema.observation.observerId, actor.personId),
           inArray(schema.observation.subjectId, [...personIds]),
           inArray(schema.observation.status, ['requested', 'drafting']),
         ),
       ),
+    // Credit that stands: a voided observation's credit is reversed and no longer counts.
     db
-      .select()
+      .select({
+        personId: schema.creditEntry.personId,
+        skillId: schema.creditEntry.skillId,
+        observerId: schema.creditEntry.observerId,
+        demonstratedOn: schema.creditEntry.demonstratedOn,
+      })
       .from(schema.creditEntry)
-      .where(inArray(schema.creditEntry.personId, [...personIds]))
+      .leftJoin(
+        schema.creditReversal,
+        and(
+          eq(schema.creditReversal.tenantId, schema.creditEntry.tenantId),
+          eq(schema.creditReversal.creditEntryId, schema.creditEntry.id),
+        ),
+      )
+      .where(
+        and(
+          eq(schema.creditEntry.tenantId, actor.tenantId),
+          inArray(schema.creditEntry.personId, [...personIds]),
+          isNull(schema.creditReversal.id),
+        ),
+      )
       .orderBy(desc(schema.creditEntry.demonstratedOn)),
   ]);
   const focus = yield* loadPlanSkills(

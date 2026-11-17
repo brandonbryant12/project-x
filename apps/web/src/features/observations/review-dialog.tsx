@@ -2,6 +2,8 @@ import type { ObservationView } from '@repo/api';
 import {
   BadgeSeal,
   Button,
+  CREDIT_ROLE_LABELS,
+  CreditFacts,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -82,9 +84,9 @@ export const ReviewAndSignDialog = ({
               {draft.ratings.map((r) => (
                 <li key={r.skillId} className="flex items-baseline justify-between gap-4 text-ui">
                   <span className="font-medium text-ink">{skillName(r.skillId)}</span>
-                  <span className="text-ink-2">
+                  <span className="text-right text-ink-2">
+                    {r.credit ? CREDIT_ROLE_LABELS[r.role] : 'Feedback only'} ·{' '}
                     {r.level ? levelName(r.level) : '—'}
-                    {r.credit ? '' : ' · feedback only'}
                     {r.indicatorIds.length > 0 ? ` · ${r.indicatorIds.length} seen` : ''}
                   </span>
                 </li>
@@ -140,6 +142,7 @@ const Receipt = ({
 }) => {
   const first = view.subject.displayName.split(' ')[0] ?? '';
   const badge = view.badgesEarned.at(-1);
+  const feedbackOnly = view.ratings.filter((r) => !r.credit);
   return (
     <div key="receipt" className="grid animate-fade-up gap-5">
       <div className="flex items-center gap-4">
@@ -152,14 +155,23 @@ const Receipt = ({
         </div>
       </div>
       {view.credits.length > 0 ? (
-        <ul className="grid gap-1.5 border-y border-line py-4">
+        <ul className="grid gap-2 border-y border-line py-4">
           {view.credits.map((c) => (
-            <li key={c.skill.id} className="flex items-baseline justify-between gap-4 text-ui">
-              <span className="text-ink">{c.skill.name}</span>
-              <span className="text-ink-2">
-                {c.levelName}
-                {c.firstHand ? ' · first-hand' : ' · from your discussion'}
+            <li key={c.skill.id} className="grid gap-0.5 text-ui">
+              <span className="flex items-baseline justify-between gap-4">
+                <span className="text-ink">{c.skill.name}</span>
+                <span className="text-ink-2">
+                  {c.levelName}
+                  {c.firstHand ? ' · first-hand' : ' · from your discussion'}
+                </span>
               </span>
+              <CreditFacts role={c.role} points={c.points} source={c.pointsSource} />
+            </li>
+          ))}
+          {feedbackOnly.map((r) => (
+            <li key={r.skill.id} className="flex items-baseline justify-between gap-4 text-ui">
+              <span className="text-ink">{r.skill.name}</span>
+              <span className="text-meta text-ink-3">Feedback only, adds nothing</span>
             </li>
           ))}
         </ul>

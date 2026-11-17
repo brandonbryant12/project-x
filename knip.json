@@ -3,8 +3,8 @@
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {
-      "entry": [],
-      "project": []
+      "entry": ["tools/verify/journeys/*.mjs"],
+      "project": ["tools/verify/**/*.mjs"]
     },
     "apps/server": {
       "entry": ["src/scripts/*.ts", "src/**/*.test.ts"],

@@ -72,11 +72,13 @@ stateDiagram-v2
   [*] --> draft
   draft --> proposed : PROPOSE [proposable]
   draft --> canceled : CANCEL (human)
+  draft --> expired : EXPIRE (system)
   proposed --> active : AGREE (human)
-  proposed --> draft : REVISE
+  proposed --> draft : REVISE [reviewOpen]
   proposed --> proposed : ENDORSE [notEndorsed] (human)
   proposed --> canceled : CANCEL (human)
   proposed --> expired : EXPIRE (system)
+  active --> draft : REVISE [reviewOpen]
   active --> active : ENDORSE [notEndorsed] (human)
   active --> paused : PAUSE
   active --> completed : COMPLETE (human)
@@ -140,6 +142,7 @@ stateDiagram-v2
   [*] --> published
   draft --> published : PUBLISH [complete] (human)
   draft --> discarded : DISCARD
+  published --> published : PUBLISH [complete] (human)
   published --> retired : RETIRE
   retired --> [*]
   discarded --> [*]

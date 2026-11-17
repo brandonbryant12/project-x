@@ -1,10 +1,13 @@
 import {
   BADGE_LEVELS,
   BadgeAwardLifecycle,
+  CREDIT_ROLES,
   LEVELS,
   OBSERVATION_MODES,
   OBSERVER_BASES,
   ObservationLifecycle,
+  POINTS_RANGE,
+  POINTS_SOURCES,
   type BadgeAwardId,
   type CreditId,
   type CreditReversalId,
@@ -39,6 +42,7 @@ import { engagement, observerDesignation } from './coaching.ts';
 import {
   createdAt,
   inList,
+  inRange,
   instant,
   isoDate,
   oneOf,
@@ -185,6 +189,8 @@ export const observationRating = pgTable(
     /** false = feedback only ("not yet"); never posts credit. */
     credit: boolean('credit').notNull().default(true),
     position: integer('position').notNull().default(0),
+    /** The skill's place in this work, owned by the observer; a credit carries the same role. */
+    role: text('role').notNull(),
   },
   (t) => [
     primaryKey({ columns: [t.observationId, t.skillId] }),
@@ -205,7 +211,10 @@ export const observationRating = pgTable(
       foreignColumns: [skillVersion.tenantId, skillVersion.skillId, skillVersion.id],
     }),
     check('observation_rating_level', sql`${t.level} is null or ${t.level} between 1 and 4`),
-    check('observation_rating_position', sql`${t.position} between 0 and 2`),
+    // Up to the hard ceiling of six skills; the tenant's policy sets the working limit.
+    check('observation_rating_position', sql`${t.position} between 0 and 5`),
+    // `unclassified` only on legacy signed ratings (migration); drafts are primary or secondary.
+    oneOf('observation_rating_role_check', t.role, CREDIT_ROLES),
     unique('observation_rating_position_key').on(t.observationId, t.position),
     index('observation_rating_skill_idx').on(t.tenantId, t.skillId),
   ],
@@ -267,6 +276,13 @@ export const creditEntry = pgTable(
     isFirstHand: boolean('is_first_hand').notNull(),
     /** The interaction date: when the skill was shown (span criterion). */
     demonstratedOn: isoDate('demonstrated_on').notNull(),
+    /** The rating's role, copied at signing (checked by trigger). */
+    role: text('role').notNull(),
+    /** What this credit is worth, resolved and frozen at signing. Legacy credits are worth 10 (role `unclassified`). */
+    points: integer('points').notNull(),
+    /** Where the points came from: `activity`, `template`, `skill`, `tenant` or `legacy`. */
+    pointsSource: text('points_source').notNull(),
+    /** `<scoring version>#<tenant credit-policy version>`. */
     policyVersion: text('policy_version').notNull(),
     createdAt: createdAt(),
   },
@@ -307,6 +323,10 @@ export const creditEntry = pgTable(
     oneOf('credit_entry_mode_check', t.mode, OBSERVATION_MODES),
     check('credit_entry_first_hand', sql`${t.isFirstHand} = (${t.mode} <> 'discussed')`),
     check('credit_entry_not_self', sql`${t.personId} <> ${t.observerId}`),
+    // `unclassified` only on legacy credits; the trigger refuses it on new ones.
+    oneOf('credit_entry_role_check', t.role, CREDIT_ROLES),
+    oneOf('credit_entry_points_source_check', t.pointsSource, POINTS_SOURCES),
+    inRange('credit_entry_points', t.points, POINTS_RANGE),
     unique('credit_entry_one_per_observation_skill').on(t.observationId, t.skillId),
     index('credit_entry_person_skill_idx').on(t.tenantId, t.personId, t.skillId),
     index('credit_entry_observer_idx').on(t.tenantId, t.observerId, t.createdAt),

@@ -1,6 +1,7 @@
 import {
   ACTIVITY_GRACE_DAYS,
   ActivityLifecycle,
+  CURRENT_PLAN_STATES,
   EngagementLifecycle,
   ObservationLifecycle,
   PLAN_GRACE_DAYS,
@@ -11,11 +12,12 @@ import {
   type PlanStatus,
 } from '@repo/domain';
 import { Db, schema, transactionally } from '@repo/db';
-import { and, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, inArray, lt, sql } from 'drizzle-orm';
 import { Effect, Layer, Schedule } from 'effect';
 import { Settings } from '../platform/settings.ts';
 import { addDaysIso, now, today } from '../platform/time.ts';
 import { recordAudit } from '../features/shared/audit.ts';
+import { runScreeningSweep } from './screening.ts';
 
 /**
  * Expiry sweeps (ADR 0011). Every expiry goes through the lifecycle machine,
@@ -91,14 +93,18 @@ export const runSweeps = Effect.fn('sweep.run')(function* () {
             lt(schema.activity.dueOn, addDaysIso(on, -ACTIVITY_GRACE_DAYS)),
           ),
         );
+      // Every unfinished plan past its period and grace expires, drafts included,
+      // so a plan revised late never blocks the owner's next one. A recorded
+      // closing review does not exempt a plan: the review is a fact beside the
+      // plan, it can still be recorded and confirmed once the plan has expired,
+      // and expiry never clears it (design §8).
       const plans = yield* db
         .select()
         .from(schema.plan)
         .where(
           and(
-            inArray(schema.plan.status, ['proposed', 'active', 'paused']),
+            inArray(schema.plan.status, [...CURRENT_PLAN_STATES]),
             lt(schema.plan.periodEnd, addDaysIso(on, -PLAN_GRACE_DAYS)),
-            isNull(schema.plan.closingSummary),
           ),
         );
       const counts = yield* Effect.all([
@@ -113,6 +119,7 @@ export const runSweeps = Effect.fn('sweep.run')(function* () {
                 narrativeLength: 0,
                 privacyHold: false,
                 acknowledged: false,
+                reflectionHeld: false,
               },
               { type: 'EXPIRE' },
             ),
@@ -155,7 +162,7 @@ export const runSweeps = Effect.fn('sweep.run')(function* () {
           next: (s) =>
             PlanLifecycle.next(
               s,
-              { focusSkillCount: 1, activityCount: 1, endorsed: false },
+              { focusSkillCount: 1, activityCount: 1, endorsed: false, reviewConfirmed: false },
               { type: 'EXPIRE' },
             ),
           update: (row, to) =>
@@ -180,6 +187,11 @@ export const SchedulerLive = Layer.effectDiscard(
     yield* runSweeps().pipe(
       Effect.catchCause((cause) => Effect.logError('sweep failed', cause)),
       Effect.repeat(Schedule.spaced('1 minute')),
+      Effect.forkScoped,
+    );
+    yield* runScreeningSweep().pipe(
+      Effect.catchCause((cause) => Effect.logError('screening sweep failed', cause)),
+      Effect.repeat(Schedule.spaced('5 minutes')),
       Effect.forkScoped,
     );
   }),

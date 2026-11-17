@@ -108,9 +108,14 @@ const fixture = Effect.gen(function* () {
     status: 'drafting',
     dueAt: new Date(),
   });
-  yield* db
-    .insert(schema.observationRating)
-    .values({ tenantId, observationId, skillId, skillVersionId: versionId, level: 3 });
+  yield* db.insert(schema.observationRating).values({
+    tenantId,
+    observationId,
+    skillId,
+    skillVersionId: versionId,
+    level: 3,
+    role: 'primary',
+  });
   const credit = {
     id: CreditId.generate(),
     tenantId,
@@ -124,6 +129,9 @@ const fixture = Effect.gen(function* () {
     mode: 'saw_it',
     isFirstHand: true,
     demonstratedOn: d('2026-06-01'),
+    role: 'primary',
+    points: 10,
+    pointsSource: 'tenant',
     policyVersion: 'test',
   };
   return {
@@ -222,6 +230,48 @@ layer(layerTestDb)('database integrity', (it) => {
         yield* rejected(db.insert(schema.creditEntry).values({ ...f.credit, mode: 'discussed' })),
       );
     }),
+  );
+
+  it.effect(
+    'I2: a credit carries its rating’s role and a real source, so it cannot claim primary points or be legacy',
+    () =>
+      Effect.gen(function* () {
+        const db = yield* Db;
+        const f = yield* fixture;
+        yield* db
+          .update(schema.observationRating)
+          .set({ role: 'secondary' })
+          .where(eq(schema.observationRating.observationId, f.observationId));
+        yield* sign(f.observationId);
+        assert.isTrue(yield* rejected(db.insert(schema.creditEntry).values(f.credit)));
+        // Points stay inside the policy's hard range whatever the code computes.
+        assert.isTrue(
+          yield* rejected(
+            db.insert(schema.creditEntry).values({ ...f.credit, role: 'secondary', points: 0 }),
+          ),
+        );
+        // Only the migration could fill legacy credits; a new one never claims to be legacy.
+        assert.isTrue(
+          yield* rejected(
+            db
+              .insert(schema.creditEntry)
+              .values({ ...f.credit, role: 'secondary', points: 10, pointsSource: 'legacy' }),
+          ),
+        );
+        yield* db.insert(schema.creditEntry).values({ ...f.credit, role: 'secondary', points: 3 });
+        // Nor an unclassified role, even copied from an unclassified rating.
+        const g = yield* fixture;
+        yield* db
+          .update(schema.observationRating)
+          .set({ role: 'unclassified' })
+          .where(eq(schema.observationRating.observationId, g.observationId));
+        yield* sign(g.observationId);
+        assert.isTrue(
+          yield* rejected(
+            db.insert(schema.creditEntry).values({ ...g.credit, role: 'unclassified' }),
+          ),
+        );
+      }),
   );
 
   it.effect('a signed observation’s ratings and attestation are frozen', () =>

@@ -2,6 +2,7 @@ import type { Actor, FeedItem, HomeView, PersonSummary, QueueItem } from '@repo/
 import {
   LEVEL_NAMES,
   OPEN_OBSERVATION_STATES,
+  PLAN_REVIEW_STATES,
   coacheesOf,
   coachesOf,
   directReportsOf,
@@ -14,16 +15,17 @@ import {
   type RelationshipFacts,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
-import { and, desc, eq, gte, inArray, ne, or } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNotNull, isNull, ne, or } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { addDaysIso, today } from '../../platform/time.ts';
 import { loadPlanSkills } from '../shared/catalog-reads.ts';
 import { firstName, loadPeople, personFrom } from '../shared/people.ts';
-import { progressFor } from '../shared/recognition.ts';
+import { netCreditsBySkill, progressFor } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { loadSkills, refsFor, toSkillRef } from '../shared/skills.ts';
 import { currentPlanOf, planAgreers } from '../shared/plans.ts';
 import { MIN_CELL, planCoverage } from '../shared/program.ts';
+import { latestTryNextTime } from '../shared/try-next-time.ts';
 import { readReceipts, worthObserving } from './brief.ts';
 
 /** One recognition moment per person and skill: the highest level earned (independent review). */
@@ -61,7 +63,10 @@ const firstSentence = (text: string | null) => {
 
 type QueueRows = Effect.Success<ReturnType<typeof loadQueueRows>>;
 
-/** What waits on the viewer: requests, returns, plans and engagements, holds, unrequested work. */
+/**
+ * What waits on the viewer: requests, returns, plans to agree, closing reviews
+ * to confirm, engagements, holds and unrequested work.
+ */
 const loadQueueRows = Effect.fn('support.home.queueRows')(function* (
   actor: Actor,
   facts: RelationshipFacts,
@@ -69,13 +74,15 @@ const loadQueueRows = Effect.fn('support.home.queueRows')(function* (
 ) {
   const db = yield* Db;
   const me = actor.personId;
-  const [observeQueue, returned, myInteractions, held, proposedPlans, proposals] =
+  const tenantId = actor.tenantId;
+  const [observeQueue, returned, myInteractions, held, proposedPlans, reviewed, proposals] =
     yield* Effect.all([
       db
         .select()
         .from(schema.observation)
         .where(
           and(
+            eq(schema.observation.tenantId, tenantId),
             eq(schema.observation.observerId, me),
             inArray(schema.observation.status, ['requested', 'drafting']),
           ),
@@ -84,13 +91,18 @@ const loadQueueRows = Effect.fn('support.home.queueRows')(function* (
         .select()
         .from(schema.observation)
         .where(
-          and(eq(schema.observation.subjectId, me), eq(schema.observation.status, 'returned')),
+          and(
+            eq(schema.observation.tenantId, tenantId),
+            eq(schema.observation.subjectId, me),
+            eq(schema.observation.status, 'returned'),
+          ),
         ),
       db
         .select()
         .from(schema.interaction)
         .where(
           and(
+            eq(schema.interaction.tenantId, tenantId),
             eq(schema.interaction.ownerId, me),
             gte(schema.interaction.occurredOn, addDaysIso(on, -30)),
           ),
@@ -98,29 +110,53 @@ const loadQueueRows = Effect.fn('support.home.queueRows')(function* (
       db
         .select()
         .from(schema.evidence)
-        .where(and(eq(schema.evidence.authorId, me), eq(schema.evidence.status, 'held'))),
+        .where(
+          and(
+            eq(schema.evidence.tenantId, tenantId),
+            eq(schema.evidence.authorId, me),
+            eq(schema.evidence.status, 'held'),
+          ),
+        ),
       db
         .select()
         .from(schema.plan)
-        .where(and(eq(schema.plan.tenantId, actor.tenantId), eq(schema.plan.status, 'proposed'))),
+        .where(and(eq(schema.plan.tenantId, tenantId), eq(schema.plan.status, 'proposed'))),
+      // Closing reviews recorded and not yet confirmed (design §8).
+      db
+        .select()
+        .from(schema.plan)
+        .where(
+          and(
+            eq(schema.plan.tenantId, tenantId),
+            inArray(schema.plan.status, [...PLAN_REVIEW_STATES]),
+            isNotNull(schema.plan.reviewRecordedAt),
+            isNull(schema.plan.reviewConfirmedAt),
+          ),
+        ),
       db
         .select()
         .from(schema.engagement)
         .where(
           and(
+            eq(schema.engagement.tenantId, tenantId),
             eq(schema.engagement.status, 'proposed'),
             or(eq(schema.engagement.coachId, me), eq(schema.engagement.coacheeId, me)),
             ne(schema.engagement.proposedById, me),
           ),
         ),
     ]);
-  const plansToAgree = proposedPlans.filter((p) => planAgreers(facts, p.ownerId, on).includes(me));
+  const isAgreerOf = (ownerId: PersonId) =>
+    ownerId !== me && planAgreers(facts, ownerId, on).includes(me);
+  const plansToAgree = proposedPlans.filter((p) => isAgreerOf(p.ownerId));
+  // The same people who may confirm it on the plan (its owner's agreers).
+  const reviewsToConfirm = reviewed.filter((p) => isAgreerOf(p.ownerId));
   const observed = myInteractions.length
     ? yield* db
         .select({ interactionId: schema.observation.interactionId })
         .from(schema.observation)
         .where(
           and(
+            eq(schema.observation.tenantId, tenantId),
             inArray(
               schema.observation.interactionId,
               myInteractions.map((i) => i.id),
@@ -134,12 +170,20 @@ const loadQueueRows = Effect.fn('support.home.queueRows')(function* (
         )
     : [];
   const unrequested = myInteractions.filter((i) => !observed.some((o) => o.interactionId === i.id));
-  return { observeQueue, returned, held, proposals, plansToAgree, unrequested };
+  return { observeQueue, returned, held, proposals, plansToAgree, reviewsToConfirm, unrequested };
 });
 
 /** Queue items from the rows, soonest due first. */
 const toQueue = (
-  { observeQueue, returned, held, proposals, plansToAgree, unrequested }: QueueRows,
+  {
+    observeQueue,
+    returned,
+    held,
+    proposals,
+    plansToAgree,
+    reviewsToConfirm,
+    unrequested,
+  }: QueueRows,
   people: ReadonlyMap<PersonId, PersonSummary>,
   facts: RelationshipFacts,
   me: PersonId,
@@ -181,6 +225,17 @@ const toQueue = (
       dueAt: null,
       href: `/team/${p.ownerId}`,
       actionLabel: 'Review plan',
+    })),
+    ...reviewsToConfirm.map((p): QueueItem => ({
+      kind: 'confirm_review',
+      id: p.id,
+      title: `${personFrom(people, p.ownerId).displayName} recorded a closing review`,
+      detail: p.title,
+      person: personFrom(people, p.ownerId),
+      relation: coacheesOf(facts, me, on).includes(p.ownerId) ? 'You coach them' : 'Your report',
+      dueAt: null,
+      href: `/team/${p.ownerId}`,
+      actionLabel: 'Read and confirm',
     })),
     ...proposals.map((e): QueueItem => ({
       kind: 'accept_engagement',
@@ -224,17 +279,18 @@ const needsYouQueue = Effect.fn('support.home.queue')(function* (
   on: IsoDate,
 ) {
   const rows = yield* loadQueueRows(actor, facts, on);
-  const { observeQueue, returned, proposals, plansToAgree } = rows;
+  const { observeQueue, returned, proposals, plansToAgree, reviewsToConfirm } = rows;
   const people = yield* loadPeople(actor.tenantId, [
     ...observeQueue.map((o) => o.subjectId),
     ...returned.map((o) => o.observerId),
     ...plansToAgree.map((p) => p.ownerId),
+    ...reviewsToConfirm.map((p) => p.ownerId),
     ...proposals.map((e) => e.proposedById),
   ]);
   return toQueue(rows, people, facts, actor.personId, on);
 });
 
-/** The next step (first unmet benchmark) and a summary of the current plan. */
+/** The progress line (first focus skill with an unmet criterion) and a summary of the current plan. */
 const planSummary = Effect.fn('support.home.plan')(function* (actor: Actor) {
   const db = yield* Db;
   const me = actor.personId;
@@ -251,7 +307,14 @@ const planSummary = Effect.fn('support.home.plan')(function* (actor: Actor) {
   const activities = yield* db
     .select({ id: schema.activity.id })
     .from(schema.activity)
-    .where(eq(schema.activity.planId, plan.id));
+    .where(and(eq(schema.activity.tenantId, actor.tenantId), eq(schema.activity.planId, plan.id)));
+  // Each piece of work once, however many focus skills it was credited in.
+  const credited = yield* netCreditsBySkill(
+    actor.tenantId,
+    me,
+    focus.map((f) => f.skillId),
+  );
+  const observedWork = new Set([...credited.values()].flat().map((c) => c.interactionId));
   const skills = yield* loadSkills(
     actor.tenantId,
     focus.map((f) => f.skillId),
@@ -268,7 +331,7 @@ const planSummary = Effect.fn('support.home.plan')(function* (actor: Actor) {
         focus.map((f) => f.skillId),
       ),
       activityCount: activities.length,
-      observedCount: progress.reduce((n, p) => n + p.demonstrations, 0),
+      observedCount: observedWork.size,
     },
   };
 });
@@ -372,8 +435,8 @@ const recentFeed = Effect.fn('support.home.feed')(function* (
 });
 
 /**
- * Home: what is waiting on this person across every relationship, their plan
- * with its next step, and what happened recently.
+ * Home: what is waiting on this person across every relationship, what to
+ * practise next time and their plan, and what happened recently.
  */
 export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
   const db = yield* Db;
@@ -381,6 +444,7 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
   const facts = yield* loadRelationshipFacts(actor.tenantId);
   const me = actor.personId;
   const queue = yield* needsYouQueue(actor, facts, on);
+  const tryNext = yield* latestTryNextTime(actor, facts, me, on);
   const { nextStep, plan } = yield* planSummary(actor);
   const recently = yield* recentFeed(actor, facts, on);
   const toObserve = yield* worthObserving(actor, facts, on);
@@ -389,7 +453,11 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
     : null;
   const coachIds = coachesOf(facts, me, on);
   const leaderId = leaderOf(facts, me, on);
-  const support = yield* loadPeople(actor.tenantId, [...coachIds, ...(leaderId ? [leaderId] : [])]);
+  const support = yield* loadPeople(actor.tenantId, [
+    ...coachIds,
+    ...(leaderId ? [leaderId] : []),
+    ...(tryNext ? [tryNext.observerId] : []),
+  ]);
   const [me$] = yield* db
     .select({ name: schema.person.displayName })
     .from(schema.person)
@@ -398,6 +466,14 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
     firstName: firstName(me$?.name ?? actor.displayName),
     needsYou: queue.slice(0, 5),
     needsYouTotal: queue.length,
+    tryNextTime: tryNext
+      ? {
+          sentence: tryNext.sentence,
+          observer: personFrom(support, tryNext.observerId),
+          signedAt: tryNext.signedAt.toISOString(),
+          observationId: tryNext.observationId,
+        }
+      : null,
     nextStep,
     recently: recently.slice(0, 6),
     plan,

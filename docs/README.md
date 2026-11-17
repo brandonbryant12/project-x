@@ -10,12 +10,18 @@
 4. [Domain model](product/domain-model.md): entities, eligibility, badges,
    lifecycles and visibility.
 5. [Backlog](backlog.md): what is deferred or not built yet, one line each.
+6. [Feature map](feature-map/README.md): every feature, who uses it, its code, tests, QA playbook and verify commands.
+
+Each product capability is described as **built**, **behind a switch** (off
+by default) or **not built**: see the status table in the
+[product overview](product/overview.md#status) and the
+[backlog](backlog.md).
 
 ## Then, when you need them
 
 | Area         | Pages                                                                                                                                                                                                                                |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Product      | [Open questions](product/open-questions.md) · [questions for domain experts](product/domain-expert-questions.md) · [design contract](../apps/web/DESIGN.md)                                                                          |
+| Product      | [Open questions](product/open-questions.md) · [questions for domain experts](product/domain-expert-questions.md) · [design contract](../apps/web/DESIGN.md) · [feature map](feature-map/README.md)                                   |
 | Architecture | [Overview diagrams](architecture/overview.md) · [data model](architecture/data-model.md) · [lifecycles](architecture/lifecycles.md) (generated) · [identity and access](architecture/identity-and-access.md) · [ADRs](adr/README.md) |
 | Engineering  | [Decision framework](engineering/decision-making.md) · [testing strategy](testing/strategy.md) · [invariants](testing/invariants.md) · [QA skill](../.claude/skills/qa/SKILL.md) and [report template](qa/report-template.md)        |
 | Governance   | [Controls matrix](compliance/controls.md) (SOC 2, FINRA/SEC, AI) · [AI system card](compliance/ai-system-card.md)                                                                                                                    |

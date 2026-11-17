@@ -81,58 +81,7 @@ const KindField = ({
  */
 export const LogInteractionDialog = () => {
   const dialog = useLogDialog();
-  const development = useQuery({
-    ...queryOptions('development', 'mine', undefined),
-    enabled: dialog.open,
-  });
-  const activities = (development.data?.plan?.activities ?? []).filter(
-    (a) => a.status === 'planned' || a.status === 'underway',
-  );
-  const [activityId, setActivityId] = useState<string>('');
-  const [when, setWhen] = useState<When>('today');
-  const [pickedDate, setPickedDate] = useState(todayIso());
-  const [kind, setKind] = useState<InteractionKind>('client_meeting');
-  const [reflection, setReflection] = useState('');
-  const [adHocTitle, setAdHocTitle] = useState('');
-  const selectedActivity = activityId || dialog.activityId || activities[0]?.id || '';
-  const adHoc = selectedActivity === '' || selectedActivity === 'ad_hoc';
-
-  const [thenRequest, setThenRequest] = useState(false);
   const [requestFor, setRequestFor] = useState<string | null>(null);
-  const log = useApiMutation('development', 'logInteraction', {
-    onSuccess: (interaction) => {
-      setReflection('');
-      setAdHocTitle('');
-      dialog.hide();
-      if (interaction.evidence?.status === 'held') {
-        toast.info(
-          'Held for privacy. It appears to include client details, so it hasn’t been shared. Revise it from your plan.',
-        );
-      } else if (thenRequest) {
-        setRequestFor(interaction.id);
-      } else {
-        toast.success('Logged. Credit comes when someone who saw it signs.');
-      }
-    },
-  });
-
-  const occurredOn = { today: todayIso(), yesterday: daysAgoIso(1), pick: pickedDate }[when];
-  const canSave = reflection.trim().length >= 10 && (!adHoc || adHocTitle.trim().length >= 3);
-  const save = (request: boolean) => {
-    setThenRequest(request);
-    log.mutate({
-      payload: {
-        activityId: adHoc ? null : (selectedActivity as never),
-        adHocTitle: adHoc ? adHocTitle.trim() : null,
-        adHocSkillIds: [],
-        occurredOn: occurredOn as never,
-        kind,
-        clientRef: null,
-        reflection: reflection.trim(),
-      },
-    });
-  };
-
   return (
     <>
       <RequestObservationDialog interactionId={requestFor} onClose={() => setRequestFor(null)} />
@@ -142,78 +91,133 @@ export const LogInteractionDialog = () => {
         title="Log work I did"
         description="Logging adds this to your plan. Credit comes when someone who saw it signs."
       >
-        <form
-          className="grid gap-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (canSave) save(true);
-          }}
-        >
-          <Field>
-            <Label htmlFor="log-activity">Which work</Label>
-            <NativeSelect
-              id="log-activity"
-              value={selectedActivity}
-              onChange={(e) => setActivityId(e.target.value)}
-            >
-              {activities.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.title}
-                </option>
-              ))}
-              <option value="ad_hoc">Something not in my plan</option>
-            </NativeSelect>
-            {adHoc ? (
-              <Input
-                aria-label="What was the work?"
-                placeholder="What was the work? e.g. Annual review with a long-standing client"
-                value={adHocTitle}
-                onChange={(e) => setAdHocTitle(e.target.value)}
-              />
-            ) : null}
-          </Field>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <WhenField
-              when={when}
-              onWhen={setWhen}
-              pickedDate={pickedDate}
-              onPickedDate={setPickedDate}
-            />
-            <KindField kind={kind} onKind={setKind} />
-          </div>
-          <Field>
-            <Label htmlFor="log-reflection">What happened</Label>
-            <Textarea
-              id="log-reflection"
-              rows={3}
-              value={reflection}
-              onChange={(e) => setReflection(e.target.value)}
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSave) save(true);
-              }}
-            />
-            <FieldHint>
-              Describe what you did, not who the client was. No client names or account details.
-            </FieldHint>
-          </Field>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => dialog.hide()}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={!canSave || log.isPending}
-              onClick={() => save(false)}
-            >
-              Save
-            </Button>
-            <Button type="submit" variant="primary" disabled={!canSave || log.isPending}>
-              {log.isPending ? 'Saving…' : 'Save and ask someone who saw it'}
-            </Button>
-          </div>
-        </form>
+        {/* A fresh form for every opening: the work it was opened for, nothing left over. */}
+        <LogForm key={dialog.session} onRequest={setRequestFor} />
       </ResponsiveDialog>
     </>
+  );
+};
+
+const LogForm = ({ onRequest }: { readonly onRequest: (interactionId: string) => void }) => {
+  const dialog = useLogDialog();
+  const development = useQuery(queryOptions('development', 'mine', undefined));
+  // Only work the server says can take a log.
+  const activities = (development.data?.plan?.activities ?? []).filter((a) =>
+    a.actions.includes('LOG_INTERACTION'),
+  );
+  const [activityId, setActivityId] = useState<string>(dialog.activityId ?? '');
+  const [when, setWhen] = useState<When>('today');
+  const [pickedDate, setPickedDate] = useState(todayIso());
+  const [kind, setKind] = useState<InteractionKind>('client_meeting');
+  const [reflection, setReflection] = useState('');
+  const [adHocTitle, setAdHocTitle] = useState('');
+  const selectedActivity = activityId || activities[0]?.id || '';
+  const adHoc = selectedActivity === '' || selectedActivity === 'ad_hoc';
+  const log = useApiMutation('development', 'logInteraction');
+
+  const occurredOn = { today: todayIso(), yesterday: daysAgoIso(1), pick: pickedDate }[when];
+  const canSave = reflection.trim().length >= 10 && (!adHoc || adHocTitle.trim().length >= 3);
+  const save = (thenRequest: boolean) =>
+    log.mutate(
+      {
+        payload: {
+          activityId: adHoc ? null : (selectedActivity as never),
+          adHocTitle: adHoc ? adHocTitle.trim() : null,
+          adHocSkillIds: [],
+          occurredOn: occurredOn as never,
+          kind,
+          clientRef: null,
+          reflection: reflection.trim(),
+        },
+      },
+      {
+        // Closing the dialog discards this form; the next opening starts fresh.
+        onSuccess: (interaction) => {
+          dialog.hide();
+          if (interaction.evidence?.status === 'held') {
+            toast.info(
+              'Held for privacy. It appears to include client details, so it hasn’t been shared. Revise it from your plan.',
+            );
+          } else if (thenRequest) {
+            onRequest(interaction.id);
+          } else {
+            toast.success('Logged. Credit comes when someone who saw it signs.');
+          }
+        },
+      },
+    );
+
+  return (
+    <form
+      className="grid gap-5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (canSave) save(true);
+      }}
+    >
+      <Field>
+        <Label htmlFor="log-activity">Which work</Label>
+        <NativeSelect
+          id="log-activity"
+          value={selectedActivity}
+          onChange={(e) => setActivityId(e.target.value)}
+        >
+          {activities.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.title}
+            </option>
+          ))}
+          <option value="ad_hoc">Something not in my plan</option>
+        </NativeSelect>
+        {adHoc ? (
+          <Input
+            aria-label="What was the work?"
+            placeholder="What was the work? e.g. Annual review with a long-standing client"
+            value={adHocTitle}
+            onChange={(e) => setAdHocTitle(e.target.value)}
+          />
+        ) : null}
+      </Field>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <WhenField
+          when={when}
+          onWhen={setWhen}
+          pickedDate={pickedDate}
+          onPickedDate={setPickedDate}
+        />
+        <KindField kind={kind} onKind={setKind} />
+      </div>
+      <Field>
+        <Label htmlFor="log-reflection">What happened</Label>
+        <Textarea
+          id="log-reflection"
+          rows={3}
+          value={reflection}
+          onChange={(e) => setReflection(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSave) save(true);
+          }}
+        />
+        <FieldHint>
+          Describe what you did, not who the client was. No client names or account details.
+        </FieldHint>
+      </Field>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={() => dialog.hide()}>
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={!canSave || log.isPending}
+          onClick={() => save(false)}
+        >
+          Save
+        </Button>
+        <Button type="submit" variant="primary" disabled={!canSave || log.isPending}>
+          {log.isPending ? 'Saving…' : 'Save and ask someone who saw it'}
+        </Button>
+      </div>
+    </form>
   );
 };

@@ -4,11 +4,11 @@ import {
   canReadNarrative,
   checkObserverEligibility,
   developmentAccess,
-  hasCoachGrantOn,
+  proposableDirections,
   type BadgeAwardId,
   type Level,
-  type ObservationMode,
   type PersonId,
+  type PointsSource,
   type SkillId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
@@ -19,9 +19,10 @@ import { loadPlanSkills } from '../shared/catalog-reads.ts';
 import { relationLabel } from '../shared/directory.ts';
 import { loadPeople, personFrom, toPersonSummary } from '../shared/people.ts';
 import { currentPlanOf } from '../shared/plans.ts';
-import { netCreditsBySkill, progressFor } from '../shared/recognition.ts';
+import { netCreditsBySkill, progressFor, toCreditFact } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { loadSkills, toSkillRef } from '../shared/skills.ts';
+import { assembleBadgeReceipt } from './receipt.ts';
 
 /** `GET /people` query: free text, optionally narrowed to holders of a badge. */
 interface PeopleQuery {
@@ -29,8 +30,6 @@ interface PeopleQuery {
   readonly skillId?: SkillId | undefined;
   readonly minLevel?: number | undefined;
 }
-
-const weeks = (days: number) => Math.max(1, Math.round(days / 7));
 
 /** The directory search: active people in the tenant, with badges and relation. */
 export const searchPeople = Effect.fn('people.search')(function* (query: PeopleQuery) {
@@ -144,8 +143,8 @@ export const buildProfile = Effect.fn('people.profile')(function* (id: PersonId)
     : [];
   const credited = visible ? [...(yield* netCreditsBySkill(actor.tenantId, person.id)).keys()] : [];
   const relation = relationLabel(facts, actor.personId, person.id, on);
-  const openEngagement = yield* db
-    .select({ id: schema.engagement.id })
+  const live = yield* db
+    .select({ coachId: schema.engagement.coachId, coacheeId: schema.engagement.coacheeId })
     .from(schema.engagement)
     .where(
       and(
@@ -163,8 +162,6 @@ export const buildProfile = Effect.fn('people.profile')(function* (id: PersonId)
         ),
       ),
     );
-  const iCoach = hasCoachGrantOn(facts, actor.personId, on);
-  const theyCoach = hasCoachGrantOn(facts, person.id, on);
   return {
     person: toPersonSummary(person),
     email: person.email,
@@ -196,12 +193,24 @@ export const buildProfile = Effect.fn('people.profile')(function* (id: PersonId)
       subjectId: person.id,
       on,
     }).eligible,
-    canProposeEngagement:
-      person.id !== actor.personId && openEngagement.length === 0 && (iCoach || theyCoach),
+    coachingDirections:
+      person.status === 'active'
+        ? proposableDirections(facts, {
+            viewerId: actor.personId,
+            otherId: person.id,
+            on,
+            live,
+          })
+        : [],
   };
 });
 
-/** The credits behind a badge; narratives only where the viewer may read them. */
+/**
+ * "How this was earned" for one badge: loads the award, its credits (with any
+ * reversed since), the people, and who may read what, then assembles the
+ * receipt purely (`assembleBadgeReceipt`). The badge is tenant-wide; the
+ * per-credit detail goes only to the holder's development viewers.
+ */
 export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
   personId: PersonId,
   badgeId: BadgeAwardId,
@@ -222,47 +231,51 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
   const skills = yield* loadSkills(actor.tenantId, [badge.skillId]);
   const skill = skills.get(badge.skillId);
   if (!skill) return yield* Effect.die('invariant: badge skill missing');
-  const credits = yield* db
-    .select({ credit: schema.creditEntry })
+  const rows = yield* db
+    .select({ credit: schema.creditEntry, reversalId: schema.creditReversal.id })
     .from(schema.badgeAwardCredit)
     .innerJoin(schema.creditEntry, eq(schema.creditEntry.id, schema.badgeAwardCredit.creditEntryId))
-    .where(eq(schema.badgeAwardCredit.badgeAwardId, badge.id))
-    .orderBy(schema.creditEntry.demonstratedOn)
-    .pipe(Effect.map((rows) => rows.map((r) => r.credit)));
-  const observations = credits.length
-    ? yield* db
-        .select()
-        .from(schema.observation)
-        .where(
-          inArray(
-            schema.observation.id,
-            credits.map((c) => c.observationId),
-          ),
-        )
-    : [];
+    .leftJoin(
+      schema.creditReversal,
+      and(
+        eq(schema.creditReversal.tenantId, schema.creditEntry.tenantId),
+        eq(schema.creditReversal.creditEntryId, schema.creditEntry.id),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.badgeAwardCredit.tenantId, actor.tenantId),
+        eq(schema.badgeAwardCredit.badgeAwardId, badge.id),
+      ),
+    )
+    .orderBy(schema.creditEntry.demonstratedOn);
+  const credits = rows.map((r) => r.credit);
+  const facts = yield* loadRelationshipFacts(actor.tenantId);
+  const on = yield* today;
+  const detailVisible =
+    developmentAccess(facts, { viewerId: actor.personId, subjectId: badge.personId, on }) !==
+    'none';
+  // Narratives are read only for a viewer who may see the detail at all.
+  const observations =
+    detailVisible && credits.length
+      ? yield* db
+          .select({ id: schema.observation.id, narrativeSaw: schema.observation.narrativeSaw })
+          .from(schema.observation)
+          .where(
+            and(
+              eq(schema.observation.tenantId, actor.tenantId),
+              inArray(
+                schema.observation.id,
+                credits.map((c) => c.observationId),
+              ),
+            ),
+          )
+      : [];
   const people = yield* loadPeople(actor.tenantId, [
     badge.personId,
     ...credits.map((c) => c.observerId),
   ]);
-  const facts = yield* loadRelationshipFacts(actor.tenantId);
-  const on = yield* today;
-  const criteria = badge.criteria;
-  const span = Math.round(
-    (Date.parse(criteria.lastDemonstratedOn) - Date.parse(criteria.firstDemonstratedOn)) /
-      86_400_000,
-  );
-  const observers = new Set(credits.map((x) => x.observerId)).size;
-  const firstHand = new Set(credits.filter((x) => x.isFirstHand).map((x) => x.interactionId)).size;
-  const demonstrations = new Set(credits.map((x) => x.interactionId)).size;
-  const visibleCount = credits.filter((c) =>
-    canReadNarrative(facts, {
-      viewerId: actor.personId,
-      subjectId: badge.personId,
-      observerId: c.observerId,
-      on,
-    }),
-  ).length;
-  return {
+  return assembleBadgeReceipt({
     badge: {
       id: badge.id,
       skill: toSkillRef(skill),
@@ -271,25 +284,23 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
       awardedAt: badge.awardedAt.toISOString(),
     },
     holder: personFrom(people, badge.personId),
-    facts: `Observed ${demonstrations} ${demonstrations === 1 ? 'time' : 'times'} · ${observers} observers · ${firstHand} seen first-hand · over ${weeks(span)} weeks`,
-    narrativesVisible: visibleCount > 0,
-    observations: credits.map((c) => {
-      const obs = observations.find((o) => o.id === c.observationId);
-      const readable = canReadNarrative(facts, {
+    snapshot: badge.criteria,
+    credits: credits.map((c) => ({
+      ...toCreditFact(c),
+      observationId: c.observationId,
+      pointsSource: c.pointsSource as PointsSource,
+    })),
+    reversed: new Set(rows.flatMap((r) => (r.reversalId ? [r.credit.id] : []))),
+    detailVisible,
+    observer: (id) => personFrom(people, id),
+    narrative: (c) =>
+      canReadNarrative(facts, {
         viewerId: actor.personId,
         subjectId: badge.personId,
         observerId: c.observerId,
         on,
-      });
-      return {
-        id: c.observationId,
-        observer: personFrom(people, c.observerId),
-        occurredOn: c.demonstratedOn,
-        level: c.level,
-        levelName: LEVEL_NAMES[c.level as Level],
-        mode: c.mode as ObservationMode,
-        narrativeSaw: readable ? (obs?.narrativeSaw ?? null) : null,
-      };
-    }),
-  };
+      })
+        ? (observations.find((o) => o.id === c.observationId)?.narrativeSaw ?? null)
+        : null,
+  });
 });

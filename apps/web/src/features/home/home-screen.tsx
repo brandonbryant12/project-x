@@ -187,51 +187,78 @@ const WaitingOnYou = ({
   );
 };
 
-/** Your plan, the next step toward a badge, and who supports you. */
+/**
+ * What to practise, first: the latest signed "What next" in the observer's words.
+ * Under it, one quiet line about progress toward the next badge.
+ */
+const TryNextTime = ({ home }: { readonly home: HomeView }) => {
+  const { tryNextTime: next, nextStep } = home;
+  if (!next && !nextStep) return null;
+  return (
+    <div className="grid gap-3">
+      {next ? (
+        <figure className="grid gap-1.5 border-l-2 border-brass pl-4">
+          <figcaption className="text-meta text-ink-3">Try next time</figcaption>
+          <blockquote className="narrative text-ink">{next.sentence}</blockquote>
+          <Link
+            to="/observations/$id"
+            params={{ id: next.observationId }}
+            className="justify-self-start text-meta text-ink-3 underline-offset-2 hover:underline"
+          >
+            {next.observer.displayName}, {formatDate(next.signedAt)}
+          </Link>
+        </figure>
+      ) : null}
+      {nextStep ? (
+        <p className="text-ui text-ink-2">
+          {nextStep.sentence}{' '}
+          <Link
+            to="/catalog/skills/$slug"
+            params={{ slug: nextStep.skill.slug }}
+            className="whitespace-nowrap text-primary-ink hover:underline"
+          >
+            What {nextStep.skill.name.toLowerCase()} looks like
+          </Link>
+        </p>
+      ) : null}
+      {!next ? (
+        <p className="text-meta text-ink-3">
+          When someone signs an observation of your work, what they suggest you try next time shows
+          here.
+        </p>
+      ) : null}
+    </div>
+  );
+};
+
+/** Your plan: what to try next time and the progress line, the plan, and who supports you. */
 const YourPlan = ({ home }: { readonly home: HomeView }) => {
   const support = home.coaches.length > 0 || home.leader;
   return (
     <section className="grid gap-3" aria-labelledby="your-plan">
       <SectionLabel id="your-plan">Your plan</SectionLabel>
+      <TryNextTime home={home} />
       {home.plan ? (
-        <Card className="grid gap-4 p-5">
-          <div className="grid gap-2">
-            <div className="flex items-start justify-between gap-3">
-              <Link
-                to="/development"
-                className="font-serif text-h2 font-medium text-ink hover:underline md:text-h1"
-              >
-                {home.plan.title}
-              </Link>
-              <StatusPill {...PLAN_STATUS[home.plan.status]} />
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {home.plan.focusSkills.map((s) => (
-                <SkillChip key={s.id} name={s.name} />
-              ))}
-            </div>
-            <p className="text-meta text-ink-3">
-              {home.plan.activityCount} {plural(home.plan.activityCount, 'piece', 'pieces')} of work
-              · {home.plan.observedCount} {plural(home.plan.observedCount, 'time', 'times')}{' '}
-              observed · runs to {formatDate(home.plan.periodEnd)}
-            </p>
+        <Card className="grid gap-2 p-5">
+          <div className="flex items-start justify-between gap-3">
+            <Link
+              to="/development"
+              className="font-serif text-h2 font-medium text-ink hover:underline md:text-h1"
+            >
+              {home.plan.title}
+            </Link>
+            <StatusPill {...PLAN_STATUS[home.plan.status]} />
           </div>
-          {home.nextStep ? (
-            <div className="flex items-center gap-4 border-t border-line pt-4">
-              <BadgeSeal level={0} domain={home.nextStep.skill.domain} size={40} />
-              <div className="grid gap-1">
-                <p className="text-meta text-ink-3">Next step</p>
-                <p className="text-body text-ink">{home.nextStep.sentence}</p>
-                <Link
-                  to="/catalog/skills/$slug"
-                  params={{ slug: home.nextStep.skill.slug }}
-                  className="text-meta text-primary-ink hover:underline"
-                >
-                  What {home.nextStep.skill.name.toLowerCase()} looks like
-                </Link>
-              </div>
-            </div>
-          ) : null}
+          <div className="flex flex-wrap gap-1.5">
+            {home.plan.focusSkills.map((s) => (
+              <SkillChip key={s.id} name={s.name} />
+            ))}
+          </div>
+          <p className="text-meta text-ink-3">
+            {home.plan.activityCount} {plural(home.plan.activityCount, 'piece', 'pieces')} of work ·{' '}
+            {home.plan.observedCount} {plural(home.plan.observedCount, 'time', 'times')} observed ·
+            runs to {formatDate(home.plan.periodEnd)}
+          </p>
         </Card>
       ) : (
         <EmptyState
@@ -278,7 +305,7 @@ const FirstStep = ({ home, observer }: { readonly home: HomeView; readonly obser
   return <FirstRunStep leader={home.leader} coaches={home.coaches} />;
 };
 
-/** Home: waiting on you, your plan (with the next step), and what happened recently. */
+/** Home: waiting on you, your plan (led by what to try next time), and what happened recently. */
 export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
   const [requesting, setRequesting] = useState<string | null>(null);
   const session = useSession();
@@ -286,7 +313,11 @@ export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
   const observer = session.relations.canObserve;
   // First run: no plan, nothing waiting or worth observing, nothing yet. One next step, at the top.
   const firstRun =
-    !home.plan && waiting === 0 && home.toObserve.length === 0 && home.recently.length === 0;
+    !home.plan &&
+    !home.tryNextTime &&
+    waiting === 0 &&
+    home.toObserve.length === 0 &&
+    home.recently.length === 0;
   return (
     <Page width="reading">
       <div className="grid content-start gap-10">

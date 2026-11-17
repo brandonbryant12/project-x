@@ -1,7 +1,8 @@
 import { Context, Effect, FiberSet, Layer } from 'effect';
 
 /**
- * Runs work after the request's transaction commits (advisory checks). In the
+ * Runs work outside the request (advisory checks). Use it through
+ * `afterCommit`, which waits for the surrounding transaction to commit. In the
  * server it forks into a scoped FiberSet so shutdown interrupts cleanly; tests
  * and the seed script use `layerInline` to make results deterministic.
  */

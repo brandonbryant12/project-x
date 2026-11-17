@@ -10,6 +10,7 @@ import {
   type ReportingLineId,
   type RoleGrantId,
   type SessionId,
+  type StoredCreditPolicy,
   type TenantId,
 } from '@repo/domain';
 import { sql } from 'drizzle-orm';
@@ -27,6 +28,14 @@ import {
 import { createdAt, instant, isoDate, oneOf, tenantIdColumn, updatedAt } from './columns.ts';
 
 export interface TenantSettings {
+  /**
+   * Points and badge rules. Stored complete (the migration, every new tenant
+   * and every save write all fields) and read exactly as stored through
+   * `readStoredCreditPolicy`: a missing or invalid field is a configuration
+   * error, never filled from defaults (ADR 0007).
+   */
+  readonly creditPolicy?: StoredCreditPolicy;
+  /** @deprecated Converted to `creditPolicy` by migration; kept, unused, for one release. */
   readonly badgeCriteria?: {
     readonly minDemonstrations?: number;
     readonly minObservers?: number;

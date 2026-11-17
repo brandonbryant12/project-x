@@ -4,6 +4,7 @@ import {
   OBSERVATION_MODES,
   type ObservationMode,
   type SkillId,
+  type SkillRole,
 } from '@repo/domain';
 import {
   Button,
@@ -37,8 +38,10 @@ import { ReviewAndSignDialog } from './review-dialog.tsx';
 import {
   describeSave,
   missingToSign,
+  signingAdds,
   toPayload,
   useObservationDraft,
+  withRole,
   type Draft,
   type DraftRating,
 } from './use-observation-draft.ts';
@@ -223,6 +226,81 @@ const SignBar = ({
   </div>
 );
 
+/** A skill the observer adds: primary only when nothing else is. */
+const added = (skillId: SkillId, ratings: ReadonlyArray<DraftRating>): DraftRating => ({
+  skillId,
+  level: null,
+  indicatorIds: [],
+  credit: true,
+  role: ratings.some((x) => x.role === 'primary') ? 'secondary' : 'primary',
+});
+
+/**
+ * The rated skills: level, indicators and, for the observer, each skill's role
+ * (they own it; at most one primary). Up to the tenant's limit, from the view.
+ */
+const RatingsEditor = ({
+  view,
+  draft,
+  update,
+  skillName,
+  compact,
+}: {
+  readonly view: ObservationView;
+  readonly draft: Draft;
+  readonly update: (change: (d: Draft) => Draft) => void;
+  readonly skillName: (id: string) => string;
+  readonly compact: boolean;
+}) => {
+  const canChooseRoles = view.ratings.some((r) => r.roleChoosable);
+  const maxSkills = view.maxSkills ?? draft.ratings.length;
+  // A skill added in this session has no pinned ladder until the draft saves.
+  const levelsOf = (id: string) => view.ratings.find((r) => r.skill.id === id)?.levels ?? [];
+  const setRating = (skillId: SkillId, next: DraftRating) =>
+    update((d) => ({ ...d, ratings: d.ratings.map((r) => (r.skillId === skillId ? next : r)) }));
+  return (
+    <>
+      {draft.ratings.map((r) => (
+        <RatingEditor
+          key={r.skillId}
+          skillName={skillName(r.skillId)}
+          levels={levelsOf(r.skillId)}
+          idPrefix={view.id}
+          draft={r}
+          compact={compact}
+          canRemove={draft.ratings.length > 1}
+          onChange={(next) => setRating(r.skillId, next)}
+          {...(canChooseRoles
+            ? {
+                onRole: (role: SkillRole) =>
+                  update((d) => ({ ...d, ratings: withRole(d.ratings, r.skillId, role) })),
+              }
+            : {})}
+          onRemove={() =>
+            update((d) => ({ ...d, ratings: d.ratings.filter((x) => x.skillId !== r.skillId) }))
+          }
+        />
+      ))}
+      {canChooseRoles && !draft.ratings.some((r) => r.credit && r.role === 'primary') ? (
+        <p role="status" className="text-meta text-ink-3">
+          No credited skill is primary, so each counts as secondary work. Make one primary if the
+          work was mainly about it.
+        </p>
+      ) : null}
+      {draft.ratings.length < maxSkills ? (
+        <AddSkill
+          exclude={draft.ratings.map((r) => r.skillId)}
+          onAdd={(skill) =>
+            update((d) => ({ ...d, ratings: [...d.ratings, added(skill.id, d.ratings)] }))
+          }
+        />
+      ) : (
+        <p className="text-meta text-ink-3">An observation rates up to {maxSkills} skills.</p>
+      )}
+    </>
+  );
+};
+
 /** The observer's editing surface (ux-brief §2.5). */
 const Editor = ({ view }: { readonly view: ObservationView }) => {
   const desktop = useIsDesktop();
@@ -242,13 +320,17 @@ const Editor = ({ view }: { readonly view: ObservationView }) => {
     view.ratings.find((r) => r.skill.id === id)?.skill.name ??
     skills.data?.find((s) => s.id === id)?.name ??
     'Skill';
-  // A skill added in this session has no pinned ladder until the draft saves.
-  const levelsOf = (id: string) => view.ratings.find((r) => r.skill.id === id)?.levels ?? [];
   const missing = missingToSign(draft);
   const first = view.subject.displayName.split(' ')[0] ?? view.subject.displayName;
-  const setRating = (skillId: SkillId, next: DraftRating) =>
-    update((d) => ({ ...d, ratings: d.ratings.map((r) => (r.skillId === skillId ? next : r)) }));
   const noteActions = view.actions.filter((a): a is NoteEvent => a in NOTE_EVENTS);
+  // The observer owns the roles (design §4); the server says when they may set them.
+  const canChooseRoles = view.ratings.some((r) => r.roleChoosable);
+  const adds = signingAdds(
+    draft.ratings,
+    (id) => view.ratings.find((r) => r.skill.id === id)?.values ?? null,
+    skillName,
+  );
+  const observerStarted = view.requestedBy.id === view.observer.id;
 
   const sign = async () => {
     cancelPendingSave();
@@ -288,43 +370,26 @@ const Editor = ({ view }: { readonly view: ObservationView }) => {
             <div className="grid gap-1">
               <h2 className="font-serif text-h1 font-medium text-ink">What you saw</h2>
               <p className="text-ui text-ink-2">
-                {first} asked you to look at{' '}
-                {view.requestedSkills.map((s) => s.name).join(' and ') || 'this work'}.
+                {observerStarted
+                  ? `Rate the skills you saw ${first} use.`
+                  : `${first} asked you to look at ${view.requestedSkills.map((s) => s.name).join(' and ') || 'this work'}.`}
               </p>
+              {canChooseRoles ? (
+                <p className="text-meta text-ink-3">
+                  Primary is what this work was mainly about; secondary is what it also showed. At
+                  most one skill is primary.
+                </p>
+              ) : null}
             </div>
             <ModeField mode={draft.mode} onChange={(mode) => update((d) => ({ ...d, mode }))} />
-            {draft.ratings.map((r) => (
-              <RatingEditor
-                key={r.skillId}
-                skillName={skillName(r.skillId)}
-                levels={levelsOf(r.skillId)}
-                idPrefix={view.id}
-                draft={r}
-                compact={!desktop}
-                canRemove={draft.ratings.length > 1}
-                onChange={(next) => setRating(r.skillId, next)}
-                onRemove={() =>
-                  update((d) => ({
-                    ...d,
-                    ratings: d.ratings.filter((x) => x.skillId !== r.skillId),
-                  }))
-                }
-              />
-            ))}
-            {draft.ratings.length < 3 ? (
-              <AddSkill
-                exclude={draft.ratings.map((r) => r.skillId)}
-                onAdd={(skill) =>
-                  update((d) => ({
-                    ...d,
-                    ratings: [
-                      ...d.ratings,
-                      { skillId: skill.id, level: null, indicatorIds: [], credit: true },
-                    ],
-                  }))
-                }
-              />
-            ) : null}
+            <RatingsEditor
+              view={view}
+              draft={draft}
+              update={update}
+              skillName={skillName}
+              compact={!desktop}
+            />
+            {adds ? <p className="text-meta text-ink-3">{adds}</p> : null}
             <NarrativeEditor
               saw={draft.narrativeSaw}
               next={draft.narrativeNext}

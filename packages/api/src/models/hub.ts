@@ -35,13 +35,16 @@ export type NotificationPreferences = typeof NotificationPreferences.Type;
 
 /* ---------- Adoption (ADR 0021): four numbers, aggregates only, no names ---------- */
 
-/** Every nullable figure is null when drawn from fewer than `minimumCell` (shown as "fewer than 5"). */
+/**
+ * A figure is null (withheld) when it draws on fewer than `minimumCell`
+ * distinct people, or when it would reveal such a group by subtraction.
+ */
 export const AdoptionView = Schema.Struct({
   asOf: IsoDate,
   minimumCell: Schema.Number,
   /** People with an active or paused plan. */
-  withPlan: Schema.Number,
-  /** Of those, people observed for work in the last six weeks. */
+  withPlan: Schema.NullOr(Schema.Number),
+  /** Of those, people observed for work in the last six weeks (signatures that stand). */
   observedRecently: Schema.NullOr(Schema.Number),
   /** Over the last four complete weeks: days from logging the work to the signature. */
   medianDaysToSign: Schema.NullOr(Schema.Number),

@@ -93,10 +93,12 @@ const SkillPicker = ({
   skills,
   chosen,
   onToggle,
+  max,
 }: {
   readonly skills: ReadonlyArray<SkillRef>;
   readonly chosen: ReadonlyArray<SkillId>;
   readonly onToggle: (id: SkillId) => void;
+  readonly max: number;
 }) => (
   <Field>
     <Label>Skills to look at</Label>
@@ -121,7 +123,9 @@ const SkillPicker = ({
         );
       })}
     </div>
-    <FieldHint>Up to three.</FieldHint>
+    <FieldHint>
+      Up to {max}. The work’s own skills come first; your observer confirms which was primary.
+    </FieldHint>
   </Field>
 );
 
@@ -136,18 +140,34 @@ export const RequestObservationDialog = ({
 }: {
   readonly interactionId: string | null;
   readonly onClose: () => void;
+}) => (
+  <ResponsiveDialog
+    open={interactionId !== null}
+    onOpenChange={(o) => !o && onClose()}
+    title="Ask someone to observe"
+    description="Only someone who saw it, or reviews it with you, can sign. Credit comes when they do."
+  >
+    {/* Keyed by the work: choices never carry over from another piece of work. */}
+    {interactionId ? (
+      <RequestForm key={interactionId} interactionId={interactionId} onClose={onClose} />
+    ) : null}
+  </ResponsiveDialog>
+);
+
+const RequestForm = ({
+  interactionId,
+  onClose,
+}: {
+  readonly interactionId: string;
+  readonly onClose: () => void;
 }) => {
   const navigate = useNavigate();
   const interaction = useQuery({
     ...queryOptions('development', 'interaction', {
-      params: { id: (interactionId ?? '') as never },
+      params: { id: interactionId as never },
     }),
-    enabled: interactionId !== null,
   });
-  const catalog = useQuery({
-    ...queryOptions('catalog', 'skills', { query: {} }),
-    enabled: interactionId !== null,
-  });
+  const catalog = useQuery(queryOptions('catalog', 'skills', { query: {} }));
   const [observerId, setObserverId] = useState<PersonId | null>(null);
   const [mode, setMode] = useState<ObservationMode>('saw_it');
   const [skillIds, setSkillIds] = useState<ReadonlyArray<SkillId> | null>(null);
@@ -162,23 +182,27 @@ export const RequestObservationDialog = ({
     },
   });
   const data = interaction.data;
-  const chosenSkills = skillIds ?? [];
+  const max = data?.maxSkills ?? 0;
+  // Until the coachee changes them: the work's own skills, primary first.
+  const chosenSkills = skillIds ?? (data?.skills ?? []).map((s) => s.skill.id).slice(0, max);
   const toggleSkill = (id: SkillId) =>
     setSkillIds(
       chosenSkills.includes(id)
         ? chosenSkills.filter((x) => x !== id)
-        : [...chosenSkills, id].slice(0, 3),
+        : [...chosenSkills, id].slice(0, max),
     );
+  const workSkills = (data?.skills ?? []).map((s) => s.skill);
+  const offered = [
+    ...workSkills,
+    ...(catalog.data ?? [])
+      .filter((s) => !workSkills.some((w) => w.id === s.id))
+      .map((s) => ({ id: s.id, slug: s.slug, name: s.name, domain: s.domain })),
+  ];
   const available = (data?.eligibleObservers ?? []).filter((o) => !o.alreadyAsked);
   const observer = observerId ?? available[0]?.person.id ?? null;
 
   return (
-    <ResponsiveDialog
-      open={interactionId !== null}
-      onOpenChange={(o) => !o && onClose()}
-      title="Ask someone to observe"
-      description="Only someone who saw it, or reviews it with you, can sign. Credit comes when they do."
-    >
+    <>
       {!data ? (
         <div className="grid gap-3" aria-busy="true">
           <Skeleton className="h-14" />
@@ -222,7 +246,7 @@ export const RequestObservationDialog = ({
               ))}
             </SegmentedControl>
           </Field>
-          <SkillPicker skills={catalog.data ?? []} chosen={chosenSkills} onToggle={toggleSkill} />
+          <SkillPicker skills={offered} chosen={chosenSkills} onToggle={toggleSkill} max={max} />
           <Field>
             <Label htmlFor="request-note">Note to them · optional</Label>
             <Textarea
@@ -250,6 +274,6 @@ export const RequestObservationDialog = ({
           </div>
         </form>
       ) : null}
-    </ResponsiveDialog>
+    </>
   );
 };

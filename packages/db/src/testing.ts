@@ -29,13 +29,15 @@ const POOL_SIZE = 4;
 const RealClock = Layer.succeed(Clock.Clock, Clock.Clock.defaultValue());
 
 /**
- * The Postgres lane (docs/testing/strategy.md, `pnpm test:pg`): a throwaway
- * database on a real PostgreSQL server per layer build. `adminUrl` points at
- * any database the role can connect to; the scratch database is created next
- * to it, migrated, and dropped (WITH FORCE) when the layer's scope closes. The
- * database named in `adminUrl` is never written.
+ * A throwaway, EMPTY database on a real PostgreSQL server per layer build:
+ * `adminUrl` points at any database the role can connect to; the scratch
+ * database is created next to it and dropped (WITH FORCE) when the layer's
+ * scope closes. The database named in `adminUrl` is never written. Nothing is
+ * migrated, so a test can apply migrations itself (`migration-compat.test.ts`).
  */
-export const layerPostgresScratch = (adminUrl: string): Layer.Layer<Db | SqlClient.SqlClient> =>
+export const layerPostgresScratchClient = (
+  adminUrl: string,
+): Layer.Layer<PgClient.PgClient | SqlClient.SqlClient> =>
   Layer.unwrap(
     Effect.gen(function* () {
       const name = `test_${randomBytes(6).toString('hex')}`;
@@ -56,26 +58,32 @@ export const layerPostgresScratch = (adminUrl: string): Layer.Layer<Db | SqlClie
       // which would expire every idle connection; a reconnect then runs under
       // TestClock or the seed's fixed clock, where the connect timeout never
       // fires (TestClock) or fires at once (a clock whose sleep returns).
-      return Layer.effect(
-        Db,
-        Effect.gen(function* () {
-          const db = yield* PgDrizzle.makeWithDefaults();
-          yield* migrate(db, { migrationsFolder: defaultMigrationsFolder });
-          return db;
-        }),
-      ).pipe(
-        Layer.provideMerge(
-          PgClient.layer({
-            url: Redacted.make(url.toString()),
-            minConnections: POOL_SIZE,
-            maxConnections: POOL_SIZE,
-            idleTimeout: '1 hour',
-          }),
-        ),
-        Layer.provide(RealClock),
-      );
+      return PgClient.layer({
+        url: Redacted.make(url.toString()),
+        minConnections: POOL_SIZE,
+        maxConnections: POOL_SIZE,
+        idleTimeout: '1 hour',
+      }).pipe(Layer.provide(RealClock));
     }),
   ).pipe(Layer.orDie);
+
+/**
+ * The Postgres lane (docs/testing/strategy.md, `pnpm test:pg`): a throwaway
+ * database on a real PostgreSQL server per layer build, migrated.
+ */
+export const layerPostgresScratch = (adminUrl: string): Layer.Layer<Db | SqlClient.SqlClient> =>
+  Layer.effect(
+    Db,
+    Effect.gen(function* () {
+      const db = yield* PgDrizzle.makeWithDefaults();
+      yield* migrate(db, { migrationsFolder: defaultMigrationsFolder });
+      return db;
+    }),
+  ).pipe(
+    Layer.provideMerge(layerPostgresScratchClient(adminUrl)),
+    Layer.provide(RealClock),
+    Layer.orDie,
+  );
 
 /**
  * The database every integrity and scenario suite runs on: PGlite by default

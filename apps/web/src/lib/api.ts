@@ -53,7 +53,7 @@ export class RequestFailed extends Error {
   }
 }
 
-const isApiError = (e: unknown): e is ApiError =>
+export const isApiError = (e: unknown): e is ApiError =>
   typeof e === 'object' &&
   e !== null &&
   '_tag' in e &&
@@ -108,7 +108,12 @@ export const queryClient = new QueryClient({
   mutationCache: new MutationCache({
     onError: (error, _v, _c, mutation) => {
       redirectToSignIn(error);
-      if (!mutation.options.onError) toast.error(describeError(error));
+      // A screen with its own error handling keeps its state (and its unsaved edits).
+      if (mutation.options.onError) return;
+      toast.error(describeError(error));
+      // A write named a version that is no longer current: show the latest at once,
+      // so the person decides again on what is there now (the toast says why).
+      if (isApiError(error) && error._tag === 'Conflict') void queryClient.invalidateQueries();
     },
   }),
   defaultOptions: {

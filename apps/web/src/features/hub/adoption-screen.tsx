@@ -5,10 +5,11 @@ import { formatDate } from '@/lib/format.ts';
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
-/** A suppressed figure: fewer people than the minimum, so no number is shown (ADR 0021). */
-const Suppressed = ({ min }: { readonly min: number }) => (
-  <span className="text-meta text-ink-3">fewer than {min}</span>
-);
+/**
+ * A withheld figure (ADR 0021): it draws on fewer people than the minimum, or
+ * would reveal such a group beside another figure, so no number is shown.
+ */
+const Withheld = () => <span className="text-meta text-ink-3">withheld</span>;
 
 const Measure = ({
   label,
@@ -30,7 +31,8 @@ const Measure = ({
 
 /**
  * Adoption for program owners (ADR 0021): four numbers, never names, and
- * nothing drawn from fewer than the minimum cell size. No ranks, no targets.
+ * nothing drawn from fewer than the minimum number of people. No ranks, no
+ * targets.
  */
 export const AdoptionScreen = ({ data }: { readonly data: AdoptionView }) => {
   const min = data.minimumCell;
@@ -39,19 +41,19 @@ export const AdoptionScreen = ({ data }: { readonly data: AdoptionView }) => {
       <PageHeader
         eyebrow="Program"
         title="Adoption"
-        description={`The whole firm as of ${formatDate(data.asOf, { year: 'numeric' })}. Any figure drawn from fewer than ${min} people is withheld. Nothing here names anyone.`}
+        description={`The whole firm as of ${formatDate(data.asOf, { year: 'numeric' })}. A figure is withheld when it draws on fewer than ${min} people, or when it would let you work out a smaller group. Nothing here names anyone.`}
       />
       <Card className="px-5">
         <dl className="divide-y divide-line">
           <Measure label="People with a plan" hint="An active or paused plan">
-            {data.withPlan}
+            {data.withPlan === null ? <Withheld /> : data.withPlan}
           </Measure>
           <Measure
             label="Observed in the last 6 weeks"
             hint="People with a plan whose work someone observed and signed"
           >
-            {data.observedRecently === null ? (
-              <Suppressed min={min} />
+            {data.observedRecently === null || data.withPlan === null ? (
+              <Withheld />
             ) : (
               <>
                 {data.observedRecently}
@@ -68,13 +70,13 @@ export const AdoptionScreen = ({ data }: { readonly data: AdoptionView }) => {
             label="Median days to sign"
             hint="From logging the work to the signature, over the last four weeks"
           >
-            {data.medianDaysToSign === null ? <Suppressed min={min} /> : data.medianDaysToSign}
+            {data.medianDaysToSign === null ? <Withheld /> : data.medianDaysToSign}
           </Measure>
           <Measure
             label="Requests that expired"
             hint="Closed without a signature, over the last four weeks"
           >
-            {data.expiryRate === null ? <Suppressed min={min} /> : pct(data.expiryRate)}
+            {data.expiryRate === null ? <Withheld /> : pct(data.expiryRate)}
           </Measure>
         </dl>
       </Card>

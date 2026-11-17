@@ -7,9 +7,9 @@ import {
   ReportingLineId,
   RoleGrantId,
   SkillId,
-  SkillIndicatorId,
-  SkillVersionId,
   TenantId,
+  defaultSkillRole,
+  initialCreditPolicy,
   type ActivityId,
   type GrantRole,
   type InteractionKind,
@@ -30,6 +30,7 @@ import {
 } from '../features/development/use-cases.ts';
 import { requestObservation, startObservation } from '../features/observations/use-cases/create.ts';
 import { signObservation } from '../features/observations/use-cases/sign.ts';
+import { insertSkillVersion } from '../features/shared/catalog.ts';
 import { transitionObservation } from '../features/observations/use-cases/transition.ts';
 import { addDaysIso, fixedClock, today } from '../platform/time.ts';
 import { SEED_SKILLS, SEED_TEMPLATES } from './seed-catalog.ts';
@@ -189,6 +190,8 @@ const seedDirectoryAndCatalog = Effect.gen(function* () {
     name: 'Northwind Wealth Partners',
     slug: TENANT_SLUG,
     timeZone: 'America/New_York',
+    // Every new tenant stores the complete working defaults as version 1 (design §2).
+    settings: { creditPolicy: initialCreditPolicy() },
   });
   const functions = new Map<string, BusinessFunctionId>();
   for (const name of new Set(PEOPLE.map((p) => p.fn))) {
@@ -262,7 +265,6 @@ const seedDirectoryAndCatalog = Effect.gen(function* () {
   const skills = new Map<string, SkillId>();
   for (const s of SEED_SKILLS) {
     const skillId = SkillId.generate();
-    const versionId = SkillVersionId.generate();
     skills.set(s.slug, skillId);
     yield* db.insert(schema.skill).values({
       id: skillId,
@@ -275,36 +277,19 @@ const seedDirectoryAndCatalog = Effect.gen(function* () {
       tags: [...s.tags],
       status: 'published',
     });
-    yield* db.insert(schema.skillVersion).values({
-      id: versionId,
+    const versionId = yield* insertSkillVersion({
       tenantId,
       skillId,
       number: 1,
+      levels: s.levels.map((l, i) => ({
+        level: (i + 1) as Level,
+        summary: l.summary,
+        indicators: l.indicators.map(([lineageKey, text]) => ({ lineageKey, text })),
+      })),
       publishedById: id('elena'),
       publishedAt: new Date(),
       changeNote: 'Starter catalog',
     });
-    yield* db.insert(schema.skillLevel).values(
-      s.levels.map((l, i) => ({
-        tenantId,
-        skillVersionId: versionId,
-        level: i + 1,
-        summary: l.summary,
-      })),
-    );
-    yield* db.insert(schema.skillIndicator).values(
-      s.levels.flatMap((l, i) =>
-        l.indicators.map(([lineageKey, text], position) => ({
-          id: SkillIndicatorId.generate(),
-          tenantId,
-          skillVersionId: versionId,
-          level: i + 1,
-          lineageKey,
-          text,
-          position,
-        })),
-      ),
-    );
     yield* db
       .update(schema.skill)
       .set({ currentVersionId: versionId })
@@ -331,6 +316,7 @@ const seedDirectoryAndCatalog = Effect.gen(function* () {
         templateId,
         skillId: skills.get(slug) as SkillId,
         position,
+        role: defaultSkillRole(position),
       })),
     );
   }
@@ -399,7 +385,10 @@ const scenario = (world: Effect.Success<typeof seedDirectoryAndCatalog>) =>
                 templateId: template(slug),
                 title: title$,
                 description: t?.description ?? '',
-                targetSkillIds: (t?.skills ?? []).slice(0, 2).map(skill),
+                skills: (t?.skills ?? []).slice(0, 2).map((skillSlug, position) => ({
+                  skillId: skill(skillSlug),
+                  role: defaultSkillRole(position),
+                })),
                 dueOn: addDaysIso(on, 60),
                 intendedObserverId: world.id(coach),
                 intendedMode: 'saw_it',
@@ -515,7 +504,12 @@ const scenario = (world: Effect.Success<typeof seedDirectoryAndCatalog>) =>
       'sam',
       i1,
       'saw_it',
-      [['client-discovery', 3]],
+      // Explaining simply is a supporting (secondary) skill of discovery work:
+      // Maya is part-way to that badge through secondary credit alone.
+      [
+        ['client-discovery', 3],
+        ['explaining-simply', 2],
+      ],
       'Maya asked what a good Tuesday in retirement would look like, then summarized their three priorities back before showing any numbers. The couple visibly relaxed.',
       'Next time, ask each partner separately about trade-offs; one of them deferred a lot.',
       56,
@@ -532,7 +526,10 @@ const scenario = (world: Effect.Success<typeof seedDirectoryAndCatalog>) =>
       'leo',
       i2,
       'reviewed_work',
-      [['client-discovery', 3]],
+      [
+        ['client-discovery', 3],
+        ['explaining-simply', 2],
+      ],
       'In the recording Maya surfaced the owner’s worry about staff after the sale, which he had not raised. She held off on the liquidity discussion until he had finished.',
       'Bring that staff concern into the plan explicitly at the next meeting.',
       30,

@@ -1,19 +1,24 @@
 import type {
   Actor,
+  ActivitySkillView,
   ActivityView,
   DevelopmentView,
+  FocusSkillView,
   InteractionSummary,
   InteractionView,
   PlanView,
   PersonSummary,
+  WorkTemplate,
 } from '@repo/api';
 import {
   ActivityLifecycle,
+  BADGE_LEVELS,
   CURRENT_PLAN_STATES,
   LEVEL_NAMES,
   OPEN_OBSERVATION_STATES,
   PlanLifecycle,
-  canReadNarrative,
+  isEvidenceHeld,
+  resolveCreditValue,
   coachesOf,
   developmentAccess,
   eligibleObserversOf,
@@ -27,25 +32,69 @@ import {
   type ObservationMode,
   type ObservationStatus,
   type PersonId,
+  type CreditPolicy,
   type PlanEventType,
   type PlanId,
+  type PlanOutcome,
   type PlanStatus,
   type RelationshipFacts,
   type SkillId,
+  type SkillRole,
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
-import { and, desc, eq, inArray, isNotNull, ne, notInArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
 import { Effect } from 'effect';
-import { today } from '../../platform/time.ts';
+import { BusinessTimeZone, today } from '../../platform/time.ts';
 import { loadPeople, personFrom } from '../shared/people.ts';
-import { netCreditsBySkill, progressFor } from '../shared/recognition.ts';
+import { netCreditsBySkill, progressFor, tenantCreditPolicy } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
-import { loadActivitySkills, loadPlanSkills } from '../shared/catalog-reads.ts';
+import {
+  activitySkillValue,
+  loadActivitySkillRows,
+  loadPlanSkills,
+  type ActivitySkillRow,
+  type PlanSkillRow,
+} from '../shared/catalog-reads.ts';
 import { currentPlanOf, planAgreers } from '../shared/plans.ts';
-import { loadSkills, refsFor, toSkillRef } from '../shared/skills.ts';
+import { loadSkills, toSkillRef } from '../shared/skills.ts';
+import { latestTryNextTime } from '../shared/try-next-time.ts';
+import {
+  editWorkRefusal,
+  planCapabilities,
+  planRelation,
+  setValueRefusal,
+  type PlanRelation,
+} from './permissions.ts';
+import { observedActivityIds } from './use-cases.ts';
 
 type PlanRow = typeof schema.plan.$inferSelect;
+
+/**
+ * What the viewer may do with one piece of work: lifecycle events (the owner
+ * only), and the flags from the same refusal functions the use cases call.
+ */
+const workCapabilities = (
+  who: PlanRelation,
+  plan: PlanRow,
+  activity: typeof schema.activity.$inferSelect,
+  policy: CreditPolicy,
+  observed: boolean,
+): Pick<ActivityView, 'actions' | 'canEdit' | 'canSetValue'> => ({
+  actions: who.isOwner
+    ? ActivityLifecycle.allowed(activity.status as ActivityStatus, {}, [
+        { type: 'LOG_INTERACTION' },
+        { type: 'COMPLETE' },
+        { type: 'CANCEL' },
+      ])
+    : [],
+  canEdit: editWorkRefusal(who, plan, activity) === null,
+  canSetValue:
+    setValueRefusal(who, policy.activityOverrides, plan, { ...activity, observed }) === null,
+});
+type SkillRow = typeof schema.skill.$inferSelect;
+type CreditRow = typeof schema.creditEntry.$inferSelect;
+type People = ReadonlyMap<PersonId, PersonSummary>;
 
 /** Plan events the viewer may send, from lifecycle (can) ∩ policy (who). */
 const planActions = (
@@ -63,6 +112,7 @@ const planActions = (
     focusSkillCount,
     activityCount,
     endorsed: plan.endorsedById !== null,
+    reviewConfirmed: plan.reviewConfirmedAt !== null,
   };
   const allowedByPolicy: Record<PlanEventType, boolean> = {
     PROPOSE: isOwner,
@@ -134,49 +184,94 @@ const interactionSummaries = Effect.fn('development.interactions')(function* (
       })),
       canRequestObservation:
         interaction.ownerId === viewerId &&
-        ev?.status !== 'held' &&
+        !isEvidenceHeld(ev?.status as EvidenceStatus | undefined) &&
         eligible.some((e) => !live.has(e.personId)),
+      canReviseEvidence: ev?.authorId === viewerId && ev.status === 'held',
     });
   }
   return result;
 });
 
-/** "Try next time": the latest signed "What next", for those who may read narratives (I13). */
-const latestTryNext = Effect.fn('development.tryNext')(function* (
-  actor: Actor,
-  facts: RelationshipFacts,
-  ownerId: PersonId,
-  on: IsoDate,
-) {
-  const db = yield* Db;
-  const [row] = yield* db
-    .select({
-      id: schema.observation.id,
-      observerId: schema.observation.observerId,
-      narrativeNext: schema.observation.narrativeNext,
-      signedAt: schema.observation.signedAt,
-    })
-    .from(schema.observation)
-    .where(
-      and(
-        eq(schema.observation.tenantId, actor.tenantId),
-        eq(schema.observation.subjectId, ownerId),
-        inArray(schema.observation.status, ['signed', 'under_review']),
-        isNotNull(schema.observation.narrativeNext),
-        ne(schema.observation.narrativeNext, ''),
-      ),
-    )
-    .orderBy(desc(schema.observation.signedAt))
-    .limit(1);
-  if (!row?.narrativeNext || !row.signedAt) return null;
-  const readable = canReadNarrative(facts, {
-    viewerId: actor.personId,
-    subjectId: ownerId,
-    observerId: row.observerId,
-    on,
+/** Focus skills with their target, how far observation has reached and the review's outcome. */
+const focusSkillViews = (
+  focus: ReadonlyArray<PlanSkillRow>,
+  skills: ReadonlyMap<SkillId, SkillRow>,
+  credits: ReadonlyMap<SkillId, ReadonlyArray<CreditRow>>,
+): Array<FocusSkillView> =>
+  focus.flatMap((f) => {
+    const row = skills.get(f.skillId);
+    if (!row) return [];
+    const mine = credits.get(f.skillId) ?? [];
+    const atTarget = mine.filter((c) => c.level >= f.targetLevel);
+    return [
+      {
+        skill: toSkillRef(row),
+        targetLevel: f.targetLevel,
+        targetLevelName: LEVEL_NAMES[f.targetLevel],
+        targetHasBadge: (BADGE_LEVELS as ReadonlyArray<number>).includes(f.targetLevel),
+        highestObservedLevel: mine.length > 0 ? Math.max(...mine.map((c) => c.level)) : null,
+        observedAtTarget: new Set(atTarget.map((c) => c.interactionId)).size,
+        outcome: f.outcome as PlanOutcome | null,
+      },
+    ];
   });
-  return readable ? { ...row, narrativeNext: row.narrativeNext, signedAt: row.signedAt } : null;
-});
+
+const reviewView = (plan: PlanRow, people: People): PlanView['review'] =>
+  plan.reviewRecordedById && plan.reviewRecordedAt
+    ? {
+        recordedBy: personFrom(people, plan.reviewRecordedById),
+        recordedAt: plan.reviewRecordedAt.toISOString(),
+        confirmedBy: plan.reviewConfirmedById ? personFrom(people, plan.reviewConfirmedById) : null,
+        confirmedAt: plan.reviewConfirmedAt?.toISOString() ?? null,
+      }
+    : null;
+
+const reviewPeople = (plan: PlanRow): Array<PersonId> => [
+  ...(plan.reviewRecordedById ? [plan.reviewRecordedById] : []),
+  ...(plan.reviewConfirmedById ? [plan.reviewConfirmedById] : []),
+];
+
+/**
+ * Each skill of a piece of work with what one signed observation of work done
+ * today would add, resolved with the same domain function signing uses. An
+ * individual value shows the date of the work it applies from.
+ */
+const activitySkillViews = (
+  rows: ReadonlyArray<ActivitySkillRow>,
+  skills: ReadonlyMap<SkillId, SkillRow>,
+  policy: CreditPolicy,
+  people: People,
+  context: { readonly on: IsoDate; readonly timeZone: string },
+): Array<ActivitySkillView> =>
+  rows.flatMap((row) => {
+    const skill = skills.get(row.skillId);
+    if (!skill) return [];
+    const role = row.role as SkillRole;
+    const activity = activitySkillValue(row, context.timeZone);
+    const workOn = context.on;
+    return [
+      {
+        skill: toSkillRef(skill),
+        role,
+        value: resolveCreditValue({ role, policy, workOn, activity, skill }),
+        override:
+          row.pointsOverride !== null && row.pointsOverrideById && activity.pointsOverrideFrom
+            ? {
+                points: row.pointsOverride,
+                setBy: personFrom(people, row.pointsOverrideById),
+                appliesFrom: activity.pointsOverrideFrom,
+              }
+            : null,
+        valueWithoutOverride: resolveCreditValue({
+          role,
+          policy,
+          workOn,
+          activity: { ...activity, pointsOverride: null, pointsOverrideFrom: null },
+          skill,
+        }),
+      },
+    ];
+  });
 
 export const buildPlanView = Effect.fn('development.planView')(function* (
   actor: Actor,
@@ -217,13 +312,23 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     facts,
   );
   const focus = (yield* loadPlanSkills(actor.tenantId, [plan.id])).get(plan.id) ?? [];
-  const activitySkills = yield* loadActivitySkills(
+  const activitySkills = yield* loadActivitySkillRows(
     actor.tenantId,
     activities.map((a) => a.id),
   );
+  const policy = yield* tenantCreditPolicy(actor.tenantId);
+  const observed = yield* observedActivityIds(
+    actor.tenantId,
+    activities.map((a) => a.id),
+  );
+  const focusCredits = yield* netCreditsBySkill(
+    actor.tenantId,
+    plan.ownerId,
+    focus.map((f) => f.skillId),
+  );
   const coachId = coachesOf(facts, plan.ownerId, on)[0];
   const leaderId = leaderOf(facts, plan.ownerId, on);
-  const tryNext = yield* latestTryNext(actor, facts, plan.ownerId, on);
+  const tryNext = yield* latestTryNextTime(actor, facts, plan.ownerId, on);
   const people = yield* loadPeople(actor.tenantId, [
     plan.ownerId,
     ...(tryNext ? [tryNext.observerId] : []),
@@ -231,17 +336,22 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     ...(leaderId ? [leaderId] : []),
     ...(plan.agreedById ? [plan.agreedById] : []),
     ...(plan.endorsedById ? [plan.endorsedById] : []),
+    ...reviewPeople(plan),
     ...activities.flatMap((a) => (a.intendedObserverId ? [a.intendedObserverId] : [])),
+    ...[...activitySkills.values()]
+      .flat()
+      .flatMap((r) => (r.pointsOverrideById ? [r.pointsOverrideById] : [])),
   ]);
   const skills = yield* loadSkills(actor.tenantId, [
     ...focus.map((f) => f.skillId),
-    ...[...activitySkills.values()].flat(),
+    ...[...activitySkills.values()].flat().map((r) => r.skillId),
   ]);
   const templates = yield* loadTemplates(
     actor.tenantId,
     activities.flatMap((a) => (a.templateId ? [a.templateId] : [])),
   );
-  const isOwner = plan.ownerId === actor.personId;
+  const who: PlanRelation = planRelation(actor, plan.ownerId, facts, on);
+  const values = { on, timeZone: yield* BusinessTimeZone };
 
   const activityViews = activities.map((a): ActivityView => ({
     id: a.id,
@@ -253,19 +363,15 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     template: a.templateId
       ? { id: a.templateId, name: templates.get(a.templateId) ?? 'Template' }
       : null,
-    targetSkills: refsFor(skills, activitySkills.get(a.id) ?? []),
+    skills: activitySkillViews(activitySkills.get(a.id) ?? [], skills, policy, people, values),
     intendedObserver: a.intendedObserverId ? (people.get(a.intendedObserverId) ?? null) : null,
     intendedMode: (a.intendedMode as ObservationMode | null) ?? null,
     interactions: interactions.flatMap((i) => {
       const summary = i.activityId === a.id ? summaries.get(i.id) : undefined;
       return summary ? [summary] : [];
     }),
-    actions: isOwner
-      ? ActivityLifecycle.allowed(a.status as ActivityStatus, {}, [
-          { type: 'COMPLETE' },
-          { type: 'CANCEL' },
-        ])
-      : [],
+    ...workCapabilities(who, plan, a, policy, observed.has(a.id)),
+    version: a.version,
   }));
   const optional = (id: PersonId | null | undefined): PersonSummary | null =>
     id ? (people.get(id) ?? null) : null;
@@ -280,29 +386,18 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     owner: personFrom(people, plan.ownerId),
     coach: optional(coachId),
     leader: optional(leaderId),
-    focusSkills: focus.flatMap((f) => {
-      const row = skills.get(f.skillId);
-      return row
-        ? [
-            {
-              skill: toSkillRef(row),
-              targetLevel: f.targetLevel,
-              targetLevelName: LEVEL_NAMES[f.targetLevel],
-              outcome: f.outcome,
-            },
-          ]
-        : [];
-    }),
+    focusSkills: focusSkillViews(focus, skills, focusCredits),
     agreedBy: optional(plan.agreedById),
     agreedAt: plan.agreedAt?.toISOString() ?? null,
     endorsedBy: optional(plan.endorsedById),
     closingSummary: plan.closingSummary,
+    review: reviewView(plan, people),
     tryNextTime: tryNext
       ? {
-          sentence: tryNext.narrativeNext,
+          sentence: tryNext.sentence,
           observer: personFrom(people, tryNext.observerId),
           signedAt: tryNext.signedAt.toISOString(),
-          observationId: tryNext.id,
+          observationId: tryNext.observationId,
         }
       : null,
     activities: activityViews,
@@ -312,6 +407,11 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
       focus.map((f) => f.skillId),
     ),
     actions: planActions(plan, focus.length, activities.length, actor.personId, facts, on),
+    ...planCapabilities(who, plan),
+    valueRange: policy.activityOverrides.enabled
+      ? { min: policy.activityOverrides.minPoints, max: policy.activityOverrides.maxPoints }
+      : null,
+    version: plan.version,
   } satisfies PlanView;
 });
 
@@ -333,6 +433,63 @@ const loadTemplates = Effect.fn('development.templates')(function* (
   return new Map<string, string>(rows.map((r) => [r.id, r.name]));
 });
 
+/**
+ * Published templates with their own published skills, roles and values, for
+ * planning work. Adding work copies these; signing never reads the template.
+ */
+export const buildWorkTemplates = Effect.fn('development.workTemplates')(function* (
+  tenantId: TenantId,
+) {
+  const db = yield* Db;
+  const templates = yield* db
+    .select()
+    .from(schema.activityTemplate)
+    .where(
+      and(
+        eq(schema.activityTemplate.tenantId, tenantId),
+        eq(schema.activityTemplate.status, 'published'),
+      ),
+    )
+    .orderBy(schema.activityTemplate.name);
+  const rows = templates.length
+    ? yield* db
+        .select({ link: schema.activityTemplateSkill, skill: schema.skill })
+        .from(schema.activityTemplateSkill)
+        .innerJoin(
+          schema.skill,
+          and(
+            eq(schema.skill.tenantId, schema.activityTemplateSkill.tenantId),
+            eq(schema.skill.id, schema.activityTemplateSkill.skillId),
+          ),
+        )
+        .where(
+          and(
+            eq(schema.activityTemplateSkill.tenantId, tenantId),
+            inArray(
+              schema.activityTemplateSkill.templateId,
+              templates.map((t) => t.id),
+            ),
+            eq(schema.skill.status, 'published'),
+          ),
+        )
+        .orderBy(schema.activityTemplateSkill.position)
+    : [];
+  return templates.map((t): WorkTemplate => ({
+    id: t.id,
+    name: t.name,
+    description: t.description,
+    kind: t.kind as InteractionKind,
+    observationTip: t.observationTip,
+    skills: rows
+      .filter((r) => r.link.templateId === t.id)
+      .map((r) => ({
+        skill: toSkillRef(r.skill),
+        role: r.link.role as SkillRole,
+        points: r.link.points,
+      })),
+  }));
+});
+
 export const buildDevelopmentView = Effect.fn('development.view')(function* (
   actor: Actor,
   personId: PersonId,
@@ -350,8 +507,22 @@ export const buildDevelopmentView = Effect.fn('development.view')(function* (
       ),
     )
     .orderBy(desc(schema.plan.periodEnd));
-  const people = yield* loadPeople(actor.tenantId, [personId]);
+  const people = yield* loadPeople(actor.tenantId, [personId, ...past.flatMap(reviewPeople)]);
   const credits = yield* netCreditsBySkill(actor.tenantId, personId);
+  const pastFocus = yield* loadPlanSkills(
+    actor.tenantId,
+    past.map((p) => p.id),
+  );
+  const pastSkills = yield* loadSkills(
+    actor.tenantId,
+    [...pastFocus.values()].flat().map((f) => f.skillId),
+  );
+  const who = planRelation(
+    actor,
+    personId,
+    yield* loadRelationshipFacts(actor.tenantId),
+    yield* today,
+  );
   const focus = new Set<SkillId>(
     current
       ? ((yield* loadPlanSkills(actor.tenantId, [current.id])).get(current.id) ?? []).map(
@@ -363,12 +534,21 @@ export const buildDevelopmentView = Effect.fn('development.view')(function* (
   return {
     person: personFrom(people, personId),
     plan: current ? yield* buildPlanView(actor, current.id) : null,
-    pastPlans: past.map((p) => ({
-      id: p.id,
-      title: p.title,
-      status: p.status as PlanStatus,
-      periodEnd: p.periodEnd,
-    })),
+    pastPlans: past.map((p) => {
+      const { canRecordReview, canConfirmReview } = planCapabilities(who, p);
+      return {
+        id: p.id,
+        title: p.title,
+        status: p.status as PlanStatus,
+        periodEnd: p.periodEnd,
+        focusSkills: focusSkillViews(pastFocus.get(p.id) ?? [], pastSkills, credits),
+        closingSummary: p.closingSummary,
+        review: reviewView(p, people),
+        canRecordReview,
+        canConfirmReview,
+        version: p.version,
+      };
+    }),
     otherProgress: yield* progressFor(actor.tenantId, personId, other),
   } satisfies DevelopmentView;
 });
@@ -423,6 +603,14 @@ export const buildInteractionView = Effect.fn('development.interactionView')(fun
     ...eligible.map((e) => e.personId),
   ]);
   const isAuthor = evidence?.authorId === actor.personId;
+  const listed = (yield* loadActivitySkillRows(actor.tenantId, [interaction.activityId])).get(
+    interaction.activityId,
+  );
+  const listedSkills = yield* loadSkills(
+    actor.tenantId,
+    (listed ?? []).map((r) => r.skillId),
+  );
+  const policy = yield* tenantCreditPolicy(actor.tenantId);
   return {
     id: interaction.id,
     activityId: interaction.activityId,
@@ -451,5 +639,13 @@ export const buildInteractionView = Effect.fn('development.interactionView')(fun
           [...OPEN_OBSERVATION_STATES, 'signed'].includes(o.status as never),
       ),
     })),
+    // Primary first: the defaults a request starts from.
+    skills: (listed ?? [])
+      .toSorted((a, b) => Number(b.role === 'primary') - Number(a.role === 'primary'))
+      .flatMap((r) => {
+        const skill = listedSkills.get(r.skillId);
+        return skill ? [{ skill: toSkillRef(skill), role: r.role as SkillRole }] : [];
+      }),
+    maxSkills: policy.maxSkillsPerObservation,
   } satisfies InteractionView;
 });

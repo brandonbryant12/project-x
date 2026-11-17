@@ -14,7 +14,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:5400',
+    baseURL: process.env['E2E_BASE_URL'] ?? 'http://localhost:5400',
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
     isMobile: true,

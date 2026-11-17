@@ -42,6 +42,7 @@ describe('observation', () => {
     narrativeLength: MIN_NARRATIVE_LENGTH,
     privacyHold: false,
     acknowledged: false,
+    reflectionHeld: false,
   };
   const L = ObservationLifecycle;
 
@@ -85,6 +86,15 @@ describe('observation', () => {
     expect(L.next('signed', acknowledged, { type: 'REQUEST_REVIEW' })).toBeNull();
   });
 
+  it('resends a returned request only while the reflection is not held for privacy', () => {
+    const held = { ...ready, reflectionHeld: true };
+    expect(L.next('returned', held, { type: 'RESUBMIT' })).toBeNull();
+    // The requester can still withdraw it.
+    expect(L.next('returned', held, { type: 'WITHDRAW' })).toBe('withdrawn');
+    // The hold never blocks the observer: signing is judged by the observer's own words.
+    expect(L.next('drafting', held, { type: 'SIGN' })).toBe('signed');
+  });
+
   it('lists only the events allowed in a state', () => {
     const candidates = L.events.map((type) => ({ type }));
     expect(L.allowed('returned', ready, candidates)).toEqual(['RESUBMIT', 'WITHDRAW', 'EXPIRE']);
@@ -93,7 +103,7 @@ describe('observation', () => {
 
 describe('plan', () => {
   it('can be proposed only with 1-3 focus skills and at least one activity', () => {
-    const facts = { focusSkillCount: 2, activityCount: 1, endorsed: false };
+    const facts = { focusSkillCount: 2, activityCount: 1, endorsed: false, reviewConfirmed: false };
     expect(PlanLifecycle.next('draft', facts, { type: 'PROPOSE' })).toBe('proposed');
     expect(
       PlanLifecycle.next('draft', { ...facts, activityCount: 0 }, { type: 'PROPOSE' }),
@@ -106,8 +116,27 @@ describe('plan', () => {
     ).toBeNull();
   });
 
+  it('can be revised back to a draft until its closing review is confirmed', () => {
+    const open = { focusSkillCount: 1, activityCount: 1, endorsed: true, reviewConfirmed: false };
+    const fixed = { ...open, reviewConfirmed: true };
+    for (const from of ['proposed', 'active'] as const) {
+      expect(PlanLifecycle.next(from, open, { type: 'REVISE' })).toBe('draft');
+      expect(PlanLifecycle.next(from, fixed, { type: 'REVISE' })).toBeNull();
+    }
+    for (const from of ['draft', 'paused', 'completed', 'canceled', 'expired'] as const) {
+      expect(PlanLifecycle.next(from, open, { type: 'REVISE' })).toBeNull();
+    }
+  });
+
+  it('expires from every unfinished state, drafts included', () => {
+    const facts = { focusSkillCount: 0, activityCount: 0, endorsed: false, reviewConfirmed: false };
+    for (const from of ['draft', 'proposed', 'active', 'paused'] as const) {
+      expect(PlanLifecycle.next(from, facts, { type: 'EXPIRE' })).toBe('expired');
+    }
+  });
+
   it('accepts one endorsement', () => {
-    const facts = { focusSkillCount: 1, activityCount: 1, endorsed: false };
+    const facts = { focusSkillCount: 1, activityCount: 1, endorsed: false, reviewConfirmed: false };
     expect(PlanLifecycle.next('active', facts, { type: 'ENDORSE' })).toBe('active');
     expect(
       PlanLifecycle.next('active', { ...facts, endorsed: true }, { type: 'ENDORSE' }),

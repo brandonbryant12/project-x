@@ -1,5 +1,6 @@
 import {
   DesignationId,
+  EngagementId,
   NotificationId,
   PersonId,
   PositionId,
@@ -103,6 +104,33 @@ layer(layerTestDb)('hub integrity', (it) => {
             .where(byId),
         ),
       );
+    }),
+  );
+
+  it.effect('I45: one live coaching engagement per pair of people, in either direction', () =>
+    Effect.gen(function* () {
+      const db = yield* Db;
+      const { tenantId, ada, kim, sam } = yield* people;
+      const engagement = (coachId: PersonId, coacheeId: PersonId, status: string) =>
+        db.insert(schema.engagement).values({
+          id: EngagementId.generate(),
+          tenantId,
+          coachId,
+          coacheeId,
+          proposedById: coacheeId,
+          status,
+          acceptedOn: status === 'proposed' ? null : d('2026-01-01'),
+          endedOn: status === 'ended' ? d('2026-02-01') : null,
+        });
+      yield* engagement(kim, ada, 'active');
+      // The same pair is refused live again, in either direction.
+      assert.isTrue(yield* rejected(engagement(kim, ada, 'proposed')));
+      assert.isTrue(yield* rejected(engagement(ada, kim, 'proposed')));
+      assert.isTrue(yield* rejected(engagement(ada, kim, 'paused')));
+      // Ended engagements, and other pairs, are fine.
+      yield* engagement(ada, kim, 'ended');
+      yield* engagement(sam, ada, 'proposed');
+      yield* engagement(kim, sam, 'active');
     }),
   );
 
