@@ -16,6 +16,7 @@ product's skill catalog.
 ```sh
 pnpm verify list                                   # all features and their state
 pnpm verify list --state built --persona "Maya Chen"
+pnpm verify list --search "badge"                  # words in id, name, summary, states, code
 pnpm verify show returned-request                  # everything about one, with its commands
 ```
 
@@ -37,15 +38,31 @@ belong to no feature are listed; if one changes behavior, map it.
 ## Update the map with your feature work (required)
 
 Do this in the same change as the code. `pnpm verify check` runs in
-`pnpm check` and CI and fails when the map falls behind, but it only checks
-that what the map cites exists and is claimed: it cannot tell that a rule,
-a payload or a refusal changed. That part is yours.
+`pnpm check` and CI. What it can and cannot catch:
+
+- **It proves** that everything the map cites exists (paths, tests,
+  `group.endpoint` names, tables, personas, playbook anchors, journey names,
+  browser routes, the `pnpm` commands in the map, the README and these
+  skills), that coverage is complete (every web route, API endpoint, product
+  source file under an app's or package's `src`, migration, test file,
+  playbook and journey check is claimed by some feature), and that the
+  README matches `features.json`.
+- **It cannot tell** that the words are still true: a changed rule,
+  permission, refusal, state, payload or gap passes as long as the files
+  exist. A journey that sends an old payload fails only when it runs.
+
+So, by hand, for every feature the change touches: reread its `permissions`,
+`states` and `gaps` and its playbook section against the new behavior, and
+run its API journeys against a freshly seeded QA server (step 8).
 
 1. **Find every entry the change touches.** `pnpm verify which --changed`
    (add `--base <ref>` for a range of commits) lists the features owning each
-   changed file. Files under `packages/api/src/models/` map to no feature:
-   find the endpoints that use a changed model and treat their features as
-   touched. A changed request shape breaks the API journeys that send it.
+   changed file. An API model file routes to the features whose endpoints
+   carry its schemas, a migration to the features that claim its tables, and
+   shared plumbing to `shared-platform`. Documentation, agent instructions and
+   the tool itself are named as such; any other file with no feature is
+   unmapped code, and `pnpm verify check` fails on it. A changed request
+   shape breaks the API journeys that send it.
 2. **New or changed behavior.** Edit each touched entry in `features.json`:
    `code` (web routes and folders, server modules, `group.endpoint` names,
    domain modules, tables), `personas`, `permissions`, `states`, `tests` (by
@@ -55,10 +72,9 @@ a payload or a refusal changed. That part is yours.
    edit, write it back compact (`JSON.stringify(map)`) and run
    `pnpm exec oxfmt docs/feature-map/features.json`, so untouched entries keep
    their layout.
-3. **New route, endpoint or test file.** Claim it in some feature;
-   `pnpm verify check` names any route, endpoint, test file (`*.test.ts` or
-   `*.test.tsx` under an app or package `src`), playbook or journey check that
-   no feature claims.
+3. **New route, endpoint, server module, web module, migration or test
+   file.** Claim it in some feature's `code` or `tests` (a whole folder can be
+   claimed). `pnpm verify check` names anything no feature claims.
 4. **Playbook.** Add or update the section under `.claude/skills/qa/journeys/`
    that the entry's `qa` points to (personas, steps in the UI, what to look at
    in the screenshots, refusals to try, commands). Anchors are the heading in
@@ -95,5 +111,6 @@ to be re-runnable:
 pnpm verify env seed
 pnpm verify env start
 pnpm verify run <id...> --kind api
+pnpm verify run --all --kind api   # after a change to shared code or the seed
 pnpm verify env stop
 ```

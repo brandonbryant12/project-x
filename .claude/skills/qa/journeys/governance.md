@@ -111,3 +111,28 @@ pnpm verify run scheduler-sweeps --kind tests
 ```sh
 pnpm verify run tenancy-and-roles --kind tests
 ```
+
+## Shared platform
+
+A change to shared code (server runtime, configuration, business time, HTTP
+error mapping, the seed, the web shell, the API client, the design system)
+can move every screen and journey, so its checks are the union of the
+features it affects.
+
+- **Personas:** Maya Chen for the broad screens; then the personas of each
+  feature `pnpm verify which` names.
+- **Steps:** `pnpm verify which --changed` to see what else the diff touches.
+  Run every API journey on a freshly seeded QA database, and the browser
+  checks of the screens the change can reach. For a client change
+  (`apps/web/src/lib/api.ts`), provoke a stale write (two windows, save in
+  both) and an error, and check the toast and the reload.
+- **Look at:** loading, empty and error states; light and dark at 1280 and 390
+  wide; dialogs on a phone (they become drawers).
+- **Refusals:** an undeclared error is a 500 with no cause in the body; a
+  stale write is `Conflict` and is never applied.
+- **Commands:**
+
+```sh
+pnpm verify run shared-platform --kind tests
+pnpm verify run shared-platform --kind browser
+```
