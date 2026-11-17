@@ -107,15 +107,6 @@ const MATRIX: Readonly<Record<string, Readonly<Record<Persona, Outcome>>>> = {
     compliance_reviewer: 'Forbidden',
     program_owner: A,
   },
-  'read the outbox': {
-    advisor: 'Forbidden',
-    coach: 'Forbidden',
-    leader: 'Forbidden',
-    catalog_keeper: 'Forbidden',
-    tenant_admin: A,
-    compliance_reviewer: 'Forbidden',
-    program_owner: 'Forbidden',
-  },
   'run the directory import': {
     advisor: 'Forbidden',
     coach: 'Forbidden',
@@ -241,7 +232,6 @@ layer(ScenarioLayer, { timeout: 120_000 })('role-by-action matrix', (it) => {
         'read the audit trail': outcome(api.admin.auditTrail({ query: {} })),
         'read AI usage': outcome(api.admin.aiUsage({ query: {} })),
         'read the adoption view': outcome(api.hub.adoption()),
-        'read the outbox': outcome(api.hub.outbox({ query: {} })),
         'run the directory import': outcome(
           api.directory.importDirectory({
             payload: {

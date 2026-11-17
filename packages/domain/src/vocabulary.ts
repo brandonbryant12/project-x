@@ -172,11 +172,8 @@ export type NotificationKind = typeof NotificationKind.Type;
 
 export const NOTIFICATION_ENTITY_TYPES = ['observation', 'plan', 'engagement', 'digest'] as const;
 export const NOTIFICATION_STATUSES = ['pending', 'sent', 'skipped', 'failed'] as const;
+/** Stored channel. The app offers email on or off; `teams` is a legacy value delivered by email. */
 export const NOTIFICATION_CHANNELS = ['email', 'teams', 'off'] as const;
-export const NotificationChannel = Schema.Literals(NOTIFICATION_CHANNELS);
-export type NotificationChannel = typeof NotificationChannel.Type;
-/** How many people an observer is happy to observe in a week (who-to-observe). */
-export const DEFAULT_OBSERVE_CAPACITY = 2;
 
 /** Who hosts a conversation: an engaged coach or the coachee's leader (ADR 0019). */
 export const CONVERSATION_BASES = ['coach', 'leader'] as const;

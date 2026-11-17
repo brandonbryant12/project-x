@@ -12,7 +12,6 @@ import {
   MessagesSquareIcon,
   ScanSearchIcon,
   ScrollTextIcon,
-  SendIcon,
   type LucideIcon,
   SproutIcon,
   UserIcon,
@@ -107,9 +106,6 @@ export const navFor = (session: SessionView): ReadonlyArray<NavGroup> => {
           },
           { key: 'audit', label: 'Audit trail', to: '/admin/audit', icon: ScrollTextIcon },
         ]
-      : []),
-    ...(admin
-      ? [{ key: 'outbox', label: 'Notifications sent', to: '/admin/outbox', icon: SendIcon }]
       : []),
   ];
   if (oversight.length > 0) groups.push({ label: 'Governance', items: oversight });

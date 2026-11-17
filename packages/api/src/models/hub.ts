@@ -8,8 +8,6 @@ import {
   InteractionId,
   InteractionKind,
   IsoDate,
-  NotificationChannel,
-  NotificationKind,
   ObservationId,
   PersonId,
 } from '@repo/domain';
@@ -134,29 +132,12 @@ export const DesignateInput = Schema.Struct({
 
 /* ---------- Notifications (ADR 0018) ---------- */
 
+/** Two switches: email when something waits on you, and the Monday digest. */
 export const NotificationPreferences = Schema.Struct({
-  channel: NotificationChannel,
+  sendEmail: Schema.Boolean,
   weeklyDigest: Schema.Boolean,
-  observeCapacity: Schema.Number.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 10 }))),
 });
 export type NotificationPreferences = typeof NotificationPreferences.Type;
-
-/** The outbox as an admin sees it: there is no content to show (I20). */
-export const OutboxRow = Schema.Struct({
-  kind: NotificationKind,
-  recipient: PersonSummary,
-  status: Schema.Literals(['pending', 'sent', 'skipped', 'failed']),
-  channel: Schema.NullOr(Schema.String),
-  /** The exact message as rendered from the template. */
-  rendered: Schema.Struct({
-    subject: Schema.String,
-    lines: Schema.Array(Schema.String),
-    link: Schema.String,
-  }),
-  createdAt: Instant,
-  sentAt: Schema.NullOr(Instant),
-});
-export type OutboxRow = typeof OutboxRow.Type;
 
 /* ---------- Adoption (ADR 0021): aggregates only, no names ---------- */
 

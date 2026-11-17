@@ -20,7 +20,6 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTimelineRouteImport } from './routes/_app/timeline'
 import { Route as AppAdminAiUsageRouteImport } from './routes/_app/admin/ai-usage'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
-import { Route as AppAdminOutboxRouteImport } from './routes/_app/admin/outbox'
 import { Route as AppCatalogActivitiesRouteImport } from './routes/_app/catalog/activities'
 import { Route as AppConversationsIndexRouteImport } from './routes/_app/conversations/index'
 import { Route as AppConversationsIdRouteImport } from './routes/_app/conversations/$id'
@@ -86,11 +85,6 @@ const AppAdminAiUsageRoute = AppAdminAiUsageRouteImport.update({
 const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   id: '/admin/audit',
   path: '/admin/audit',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminOutboxRoute = AppAdminOutboxRouteImport.update({
-  id: '/admin/outbox',
-  path: '/admin/outbox',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCatalogActivitiesRoute = AppCatalogActivitiesRouteImport.update({
@@ -166,7 +160,6 @@ export interface FileRoutesByFullPath {
   '/timeline': typeof AppTimelineRoute
   '/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/admin/audit': typeof AppAdminAuditRoute
-  '/admin/outbox': typeof AppAdminOutboxRoute
   '/catalog/activities': typeof AppCatalogActivitiesRoute
   '/conversations/$id': typeof AppConversationsIdRoute
   '/observations/$id': typeof AppObservationsIdRoute
@@ -191,7 +184,6 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/admin/audit': typeof AppAdminAuditRoute
-  '/admin/outbox': typeof AppAdminOutboxRoute
   '/catalog/activities': typeof AppCatalogActivitiesRoute
   '/conversations/$id': typeof AppConversationsIdRoute
   '/observations/$id': typeof AppObservationsIdRoute
@@ -218,7 +210,6 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
-  '/_app/admin/outbox': typeof AppAdminOutboxRoute
   '/_app/catalog/activities': typeof AppCatalogActivitiesRoute
   '/_app/conversations/$id': typeof AppConversationsIdRoute
   '/_app/observations/$id': typeof AppObservationsIdRoute
@@ -245,7 +236,6 @@ export interface FileRouteTypes {
     | '/timeline'
     | '/admin/ai-usage'
     | '/admin/audit'
-    | '/admin/outbox'
     | '/catalog/activities'
     | '/conversations/$id'
     | '/observations/$id'
@@ -270,7 +260,6 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/ai-usage'
     | '/admin/audit'
-    | '/admin/outbox'
     | '/catalog/activities'
     | '/conversations/$id'
     | '/observations/$id'
@@ -296,7 +285,6 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/admin/ai-usage'
     | '/_app/admin/audit'
-    | '/_app/admin/outbox'
     | '/_app/catalog/activities'
     | '/_app/conversations/$id'
     | '/_app/observations/$id'
@@ -393,13 +381,6 @@ declare module '@tanstack/react-router' {
       path: '/admin/audit'
       fullPath: '/admin/audit'
       preLoaderRoute: typeof AppAdminAuditRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/outbox': {
-      id: '/_app/admin/outbox'
-      path: '/admin/outbox'
-      fullPath: '/admin/outbox'
-      preLoaderRoute: typeof AppAdminOutboxRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/catalog/activities': {
@@ -499,7 +480,6 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppAdminAiUsageRoute: typeof AppAdminAiUsageRoute
   AppAdminAuditRoute: typeof AppAdminAuditRoute
-  AppAdminOutboxRoute: typeof AppAdminOutboxRoute
   AppCatalogActivitiesRoute: typeof AppCatalogActivitiesRoute
   AppConversationsIdRoute: typeof AppConversationsIdRoute
   AppObservationsIdRoute: typeof AppObservationsIdRoute
@@ -524,7 +504,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppAdminAiUsageRoute: AppAdminAiUsageRoute,
   AppAdminAuditRoute: AppAdminAuditRoute,
-  AppAdminOutboxRoute: AppAdminOutboxRoute,
   AppCatalogActivitiesRoute: AppCatalogActivitiesRoute,
   AppConversationsIdRoute: AppConversationsIdRoute,
   AppObservationsIdRoute: AppObservationsIdRoute,

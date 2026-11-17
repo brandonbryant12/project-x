@@ -77,10 +77,10 @@ const dispatchOne = Effect.fn('notifications.dispatchOne')(function* (at: Date) 
         .select()
         .from(schema.notificationPreference)
         .where(eq(schema.notificationPreference.personId, row.recipientId));
-      const channel = (pref?.channel ?? DEFAULT_PREFERENCES.channel) as 'email' | 'teams' | 'off';
+      const sendEmail = pref ? pref.channel !== 'off' : DEFAULT_PREFERENCES.sendEmail;
       const finish = (set: Partial<typeof schema.notification.$inferInsert>) =>
         db.update(schema.notification).set(set).where(eq(schema.notification.id, row.id));
-      if (channel === 'off') {
+      if (!sendEmail) {
         yield* finish({ status: 'skipped' });
         return true;
       }
@@ -94,7 +94,7 @@ const dispatchOne = Effect.fn('notifications.dispatchOne')(function* (at: Date) 
         yield* finish({ status: 'skipped' });
         return true;
       }
-      // Teams is planned; until it exists a Teams preference is delivered by email.
+      // Email is the only channel; an old Teams choice is delivered by email too.
       const transport = notifier.transport === 'log' ? 'log' : 'email';
       const sent = yield* notifier
         .send({

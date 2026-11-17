@@ -8,7 +8,6 @@ import {
   DesignateInput,
   DesignationView,
   NotificationPreferences,
-  OutboxRow,
 } from '../models/index.ts';
 
 /** Designated observers (ADR 0020), preferences (ADR 0018), adoption (ADR 0021). */
@@ -36,11 +35,5 @@ export class HubGroup extends HttpApiGroup.make('hub')
     }),
     /** Program owners and tenant admins. Aggregates only, minimum cell size five. */
     HttpApiEndpoint.get('adoption', '/adoption', { success: AdoptionView, error: Forbidden }),
-    /** Tenant admins: what the outbox sent, rendered exactly as delivered. */
-    HttpApiEndpoint.get('outbox', '/admin/outbox', {
-      query: { limit: Schema.optional(Schema.NumberFromString) },
-      success: Schema.Array(OutboxRow),
-      error: Forbidden,
-    }),
   )
   .middleware(Authenticated) {}
