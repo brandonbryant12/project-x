@@ -1,4 +1,11 @@
-import { BadgeAwardId, GrantRole, IsoDate, ObservationId, ObservationMode } from '@repo/domain';
+import {
+  BadgeAwardId,
+  COACHING_DIRECTIONS,
+  GrantRole,
+  IsoDate,
+  ObservationId,
+  ObservationMode,
+} from '@repo/domain';
 import { Schema } from 'effect';
 import { Instant, PersonSummary, ProgressView, SkillRef } from './common.ts';
 
@@ -32,7 +39,12 @@ export const ProfileView = Schema.Struct({
   developmentVisible: Schema.Boolean,
   progress: Schema.Array(ProgressView),
   canObserve: Schema.Boolean,
-  canProposeEngagement: Schema.Boolean,
+  /**
+   * The coaching proposals the viewer may make with this person, from the
+   * viewer's side: `coach_them` (the viewer coaches) and `coach_me` (this person
+   * coaches the viewer). Empty when neither is possible (`proposableDirections`).
+   */
+  coachingDirections: Schema.Array(Schema.Literals(COACHING_DIRECTIONS)),
 });
 export type ProfileView = typeof ProfileView.Type;
 
