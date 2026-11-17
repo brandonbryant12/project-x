@@ -24,7 +24,7 @@ Every product feature, who can use it, where its code lives, the agent instructi
 | Feature                                                 | Name                                                     | State                  | Checks              |
 | ------------------------------------------------------- | -------------------------------------------------------- | ---------------------- | ------------------- |
 | [sign-in-session](#sign-in-session)                     | Sign-in and session                                      | built                  | tests, api          |
-| [home](#home)                                           | Home                                                     | built                  | tests, browser      |
+| [home](#home)                                           | Home                                                     | built                  | tests, api, browser |
 | [my-plan](#my-plan)                                     | My plan: plans, revision and the closing review          | built                  | tests, api, browser |
 | [work-roles-values](#work-roles-values)                 | Work on a plan: roles and individual values              | built                  | tests, api, browser |
 | [log-work](#log-work)                                   | Logging work and reflections, with the privacy hold      | built                  | tests, api, browser |
@@ -35,7 +35,7 @@ Every product feature, who can use it, where its code lives, the agent instructi
 | [acknowledge-review](#acknowledge-review)               | Acknowledge and request review                           | built                  | tests               |
 | [void-reversal](#void-reversal)                         | Void and reversal                                        | built                  | tests               |
 | [weighted-credit](#weighted-credit)                     | Weighted credit: roles, points and sources               | built                  | tests, api, browser |
-| [badges-receipts](#badges-receipts)                     | Badges and "How this was earned"                         | built                  | tests, browser      |
+| [badges-receipts](#badges-receipts)                     | Badges and "How this was earned"                         | built                  | tests, api, browser |
 | [credit-rules](#credit-rules)                           | Credit rules (program administration)                    | built                  | tests, api, browser |
 | [skill-catalog](#skill-catalog)                         | Skill catalog administration                             | built                  | tests, api, browser |
 | [activity-templates](#activity-templates)               | Activity templates                                       | built                  | tests, api, browser |
@@ -43,7 +43,7 @@ Every product feature, who can use it, where its code lives, the agent instructi
 | [my-team](#my-team)                                     | My team                                                  | built                  | tests, browser      |
 | [coaching](#coaching)                                   | People I coach and coaching proposals                    | built                  | tests, api, browser |
 | [people-profiles](#people-profiles)                     | People and profiles                                      | built                  | tests, api, browser |
-| [designated-observers](#designated-observers)           | Designated observers ("Asked to observe")                | built, behind a switch | tests               |
+| [designated-observers](#designated-observers)           | Designated observers ("Asked to observe")                | built, behind a switch | tests, api          |
 | [adoption](#adoption)                                   | Adoption view                                            | built                  | tests, api, browser |
 | [assistant-checks](#assistant-checks)                   | Assistant checks (automated privacy check)               | built                  | tests, browser      |
 | [audit-trail](#audit-trail)                             | Audit trail                                              | built                  | tests, api, browser |
@@ -99,10 +99,10 @@ Gaps:
 **Home.** Home leads with "Try next time" (the latest signed "What next"), then the points sentence, "Waiting on you" and up to three people worth observing this week.
 
 - State: built
-- Personas: Maya Chen, Leo Okonkwo, Sam Rivera, Grace Liu
+- Personas: Maya Chen, Leo Okonkwo, Sam Rivera, Grace Liu, Priya Raman
 - May: every signed-in person sees their own Home
 - Refused: no one sees another person's Home
-- States to check: a coachee with a signed observation (Try next time shown), an observer with requests waiting, a person with nothing yet (Grace: empty states)
+- States to check: a coachee with a signed observation (Try next time shown), an observer with requests waiting, a person with nothing yet (Grace: empty states), an agreer with a closing review to confirm ("Read and confirm" in Waiting on you), the plan card counts each piece of work once, however many focus skills it built
 - Web: `apps/web/src/routes/_app/index.tsx`, `apps/web/src/features/home`
 - Server: `apps/server/src/features/support/home.ts`, `apps/server/src/features/support/brief.ts`, `apps/server/src/features/shared/try-next-time.ts`
 - API: `support.home` (`GET /api/home`)
@@ -110,19 +110,20 @@ Gaps:
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
 - QA playbook: [.claude/skills/qa/journeys/people-and-coaching.md#home](../../.claude/skills/qa/journeys/people-and-coaching.md#home)
 - Tests (domain): `packages/domain/src/policy/who-to-observe.test.ts`
-- Tests (scenario): `apps/server/src/journeys/home-leads-with-try-next-time.scenario.test.ts`
+- Tests (scenario): `apps/server/src/journeys/home-leads-with-try-next-time.scenario.test.ts`, `apps/server/src/journeys/plan-revise-and-review.scenario.test.ts`
 - Browser check: routes home as "Maya Chen", "Leo Okonkwo"
 
 Verify:
 
 ```sh
 pnpm verify run home --kind tests
+pnpm verify run home --kind api
 pnpm verify run home --kind browser
 ```
 
 Gaps:
 
-- No API journey check: Home only reads, and its scenario test covers the ordering.
+- The API journey checks only the confirm_review item (through plan-review); the ordering and the other items are covered by the scenario tests.
 
 ### my-plan
 
@@ -130,9 +131,9 @@ Gaps:
 
 - State: built
 - Personas: Maya Chen, Sam Rivera, Marcus Hill, Priya Raman, Daniel Okafor
-- May: the owner edits title, intent and end date of a non-terminal plan, focus skills only in draft, the agreer (engaged coach, or the leader when there is no coach) agrees, revises and confirms the review, the owner records the closing review
-- Refused: anyone but the owner editing the plan (Forbidden), the owner confirming their own review, a skip-level leader confirming (Forbidden), editing a closed plan (Unprocessable), REVISE after a confirmed review (InvalidTransition), another tenant (NotFound)
-- States to check: draft, proposed, active, paused, completed, canceled, expired (drafts too, by the sweep), review recorded, not confirmed, review confirmed (fixed)
+- May: the owner edits title, intent and end date of a non-terminal plan, focus skills only in draft, the agreer (engaged coach, or the leader when there is no coach) agrees, revises and confirms the review, the owner records the closing review; it then waits on the agreer's Home until confirmed
+- Refused: anyone but the owner editing the plan (Forbidden), the owner confirming their own review, a skip-level leader confirming (Forbidden), editing a closed plan (Unprocessable), REVISE after a confirmed review (InvalidTransition), any plan write (edit, lifecycle event, review, confirmation) sent with a version older than the plan: agreeing to a plan changed since, confirming a review recorded again since (Conflict), another tenant (NotFound)
+- States to check: draft, proposed, active, paused, completed, canceled, expired (drafts too, by the sweep), review recorded, not confirmed, review confirmed (fixed), "Back to draft" dialog: lists what it clears (agreement, endorsement, an unconfirmed review), "Confirm review" dialog: restates outcomes and summary; a Conflict reloads the plan, stale version (Conflict)
 - Web: `apps/web/src/routes/_app/development.tsx`, `apps/web/src/features/development/development-screen.tsx`, `apps/web/src/features/development/plan-dialogs.tsx`, `apps/web/src/features/development/review-dialog.tsx`
 - Server: `apps/server/src/features/development/use-cases.ts`, `apps/server/src/features/development/views.ts`, `apps/server/src/features/development/permissions.ts`, `apps/server/src/features/development/plan-review.ts`, `apps/server/src/features/development/handlers.ts`, `apps/server/src/features/shared/plans.ts`
 - API: `development.mine` (`GET /api/development`), `development.of` (`GET /api/people/:id/development`), `development.createPlan` (`POST /api/plans`), `development.updatePlan` (`PATCH /api/plans/:id`), `development.planEvent` (`POST /api/plans/:id/events`), `development.recordPlanReview` (`POST /api/plans/:id/review`), `development.confirmPlanReview` (`POST /api/plans/:id/review/confirm`)
@@ -156,6 +157,7 @@ Gaps:
 
 - The API journey uses Marcus with his leader as agreer; a coach as agreer is covered by the scenario test and by the individual-value journey (a coach adding work).
 - Expiry is exercised by the scenario test (runSweeps), not against the running server.
+- The two confirmation dialogs are UI only: no browser check opens them; walk them by hand (playbook).
 
 ### work-roles-values
 
@@ -163,9 +165,9 @@ Gaps:
 
 - State: built
 - Personas: Maya Chen, Sam Rivera, Jordan Blake, Tom Whitaker, Elena Brooks
-- May: the owner and an agreer add and edit work, an agreer or a program owner sets an individual value, with a reason, inside the tenant's range
-- Refused: the subject setting a value on their own work, whatever their grants (Forbidden), a skip-level or other leader adding work (Forbidden), two primaries, an unpublished template or a retired skill (Unprocessable), a value out of range, without a reason, on ad hoc work or once an observation is open or signed (Unprocessable)
-- States to check: planned, underway, completed, canceled, value set, then fixed once observed, values switched off by the tenant
+- May: the owner and an agreer add and edit work, an agreer or a program owner sets an individual value, with a reason, inside the tenant's range; it applies to work dated on or after the day it was set
+- Refused: the subject setting a value on their own work, whatever their grants (Forbidden), a skip-level or other leader adding work (Forbidden), two primaries, an unpublished template or a retired skill (Unprocessable), a value out of range, without a reason, on ad hoc work or once an observation is open or signed (Unprocessable), an edit or a value sent with a version older than the work (Conflict)
+- States to check: planned, underway, completed, canceled, value set, then fixed once observed, value set today: work dated before today keeps the value without it ("applies to work from"), values switched off by the tenant, stale version (Conflict)
 - Web: `apps/web/src/features/development/work-dialog.tsx`, `apps/web/src/features/development/value-dialog.tsx`
 - Server: `apps/server/src/features/development/use-cases.ts`, `apps/server/src/features/development/permissions.ts`
 - API: `development.workTemplates` (`GET /api/development/templates`), `development.addActivity` (`POST /api/plans/:id/activities`), `development.updateActivity` (`PATCH /api/activities/:id`), `development.setActivityValue` (`POST /api/activities/:id/value`), `development.activityEvent` (`POST /api/activities/:id/events`)
@@ -196,7 +198,7 @@ Gaps:
 - State: built
 - Personas: Maya Chen, Aisha Bello, Sam Rivera
 - May: the owner logs work and revises their reflection
-- Refused: work dated more than 30 days back (Unprocessable), asking for an observation of held work (Unprocessable), observers reading held words (the body is withheld)
+- Refused: work dated more than 30 days back (Unprocessable), asking for an observation of held work (Unprocessable), observers reading held words (the body is withheld), an observer the reflection is not shared with reading it: the subject did not ask them and they have no development access (evidence null)
 - States to check: evidence available, evidence held, evidence escalated, released by an admin
 - Web: `apps/web/src/features/development/log-interaction-dialog.tsx`, `apps/web/src/features/development/revise-evidence-dialog.tsx`
 - Server: `apps/server/src/features/development/use-cases.ts`, `apps/server/src/features/shared/advisory/evidence-screening.ts`
@@ -206,7 +208,7 @@ Gaps:
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
 - QA playbook: [.claude/skills/qa/journeys/plans-and-work.md#logging-work](../../.claude/skills/qa/journeys/plans-and-work.md#logging-work)
 - Tests (domain): `packages/domain/src/privacy.test.ts`
-- Tests (scenario): `apps/server/src/journeys/backdating-bounds.scenario.test.ts`, `apps/server/src/journeys/assistant-screen-boundary.scenario.test.ts`
+- Tests (scenario): `apps/server/src/journeys/backdating-bounds.scenario.test.ts`, `apps/server/src/journeys/assistant-screen-boundary.scenario.test.ts`, `apps/server/src/journeys/observe-logged-work-privacy.scenario.test.ts`
 - Browser check: routes development as "Aisha Bello"
 
 Verify:
@@ -284,12 +286,12 @@ Gaps:
 **"I saw this" (quick capture).** An observer records what they saw for someone they may observe; it offers the work the coachee already logged in the window and attaches to it instead of recording the same work twice.
 
 - State: built
-- Personas: Sam Rivera, Jordan Blake, Tom Whitaker
-- May: an eligible observer, for work at most 14 days back
-- Refused: someone else's work (NotFound), work this observer already observed (Conflict), work outside the window (Unprocessable)
-- States to check: draft saved to finish later, signed at once
+- Personas: Sam Rivera, Jordan Blake, Tom Whitaker, Priya Raman, Marcus Hill
+- May: an eligible observer records new work they saw, at most 14 days back, a development viewer (coach or leader chain) is offered, and attaches to, the person's logged work dated when they were an eligible observer
+- Refused: someone else's work, or logged work for a viewer without development access, such as a designee (NotFound), logged work dated before the viewer was an eligible observer (Forbidden), work this observer already observed (Conflict), work outside the window (Unprocessable)
+- States to check: draft saved to finish later, signed at once, designee without development access: no logged work offered; the reflection is never shown unless the subject asked them, coach who stops coaching: keeps their observation, no longer reads the reflection
 - Web: `apps/web/src/routes/_app/observations/new.tsx`, `apps/web/src/features/observations/observe-new.tsx`, `apps/web/src/features/observations/use-quick-capture.ts`
-- Server: `apps/server/src/features/observations/use-cases/create.ts`
+- Server: `apps/server/src/features/observations/use-cases/create.ts`, `apps/server/src/features/observations/views.ts`
 - API: `observations.targets` (`GET /api/observations/targets`), `observations.start` (`POST /api/observations/start`)
 - Tables: `interaction`, `observation`
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
@@ -373,7 +375,7 @@ Gaps:
 - Personas: Nina Patel, Maya Chen, Leo Okonkwo
 - May: a compliance reviewer voids, with a reason
 - Refused: anyone else voiding (Forbidden), deleting a credit (the ledger is append-only)
-- States to check: voided, badge revoked, badge re-awarded under the current policy
+- States to check: voided, badge revoked, badge re-awarded under the current policy, a broken stored credit policy: the void and revocations complete, the re-award is skipped and the audit event says so
 - Server: `apps/server/src/features/observations/use-cases/transition.ts`, `apps/server/src/features/shared/recognition.ts`
 - API: `observations.transition` (`POST /api/observations/:id/events`)
 - Domain: `packages/domain/src/lifecycles/badge-award.ts`
@@ -427,15 +429,15 @@ Gaps:
 
 ### badges-receipts
 
-**Badges and "How this was earned".** Levels 2 and 3 are awarded automatically when the criteria hold; the badge receipt lists the work behind it, marks which credit counted, and measures against the thresholds saved on the award.
+**Badges and "How this was earned".** Levels 2 and 3 are awarded automatically when the criteria hold; everyone in the tenant sees the badge, and its holder's development viewers see how it was earned: the work behind it, which credit counted, credit reversed since, and the thresholds saved on the award.
 
 - State: built
-- Personas: Maya Chen, Tom Whitaker, Sam Rivera, Grace Liu
-- May: everyone in the tenant sees earned badges, the subject, their coaches and leader chain read the observers' words
-- Refused: others see levels and work, not narratives (I13)
-- States to check: awarded, revoked, re-awarded, legacy credit labelled as observed before roles
-- Web: `apps/web/src/routes/_app/people/$id/badges.$badgeId.tsx`
-- Server: `apps/server/src/features/people/views.ts`, `apps/server/src/features/shared/recognition.ts`
+- Personas: Maya Chen, Tom Whitaker, Sam Rivera, Grace Liu, Marcus Hill
+- May: everyone in the tenant sees earned badges and the plain facts, the holder, their coaches and leader chain see points, thresholds and each credit (detailVisible), the holder, their coaches and direct leader read the observers' words (I13)
+- Refused: a colleague without development access: no points, thresholds, work or words (detailVisible false), a badge asked for under someone who does not hold it (NotFound)
+- States to check: awarded, revoked, re-awarded, credit reversed since the award (shown, never counted), legacy credit labelled as observed before roles, receipt without detail (badge and plain facts only)
+- Web: `apps/web/src/routes/_app/people/$id/badges.$badgeId.tsx`, `apps/web/src/features/people/profile-screen.tsx`
+- Server: `apps/server/src/features/people/views.ts`, `apps/server/src/features/shared/recognition.ts`, `apps/server/src/features/people/receipt.ts`
 - API: `people.badgeReceipt` (`GET /api/people/:id/badges/:badgeId`)
 - Domain: `packages/domain/src/scoring/badges.ts`, `packages/domain/src/lifecycles/badge-award.ts`
 - Tables: `badge_award`, `badge_award_credit`
@@ -443,18 +445,21 @@ Gaps:
 - QA playbook: [.claude/skills/qa/journeys/credit-and-badges.md#badges-and-receipts](../../.claude/skills/qa/journeys/credit-and-badges.md#badges-and-receipts)
 - Tests (domain): `packages/domain/src/scoring/scoring.test.ts`
 - Tests (scenario): `apps/server/src/journeys/same-work-and-badge-receipt.scenario.test.ts`, `apps/server/src/journeys/void-reverses-and-revokes-badge.scenario.test.ts`
+- Tests (unit): `apps/server/src/features/people/receipt.test.ts`
 - Browser check: routes badge-receipt, profile as "Maya Chen"
 
 Verify:
 
 ```sh
 pnpm verify run badges-receipts --kind tests
+pnpm verify run badges-receipts --kind api
 pnpm verify run badges-receipts --kind browser
 ```
 
 Gaps:
 
-- No API journey check: a badge needs weeks of signed work, which the seed provides but a journey cannot create quickly.
+- The API journey reads the seeded badges only: a badge needs weeks of signed work, which a journey cannot create quickly, and reversal is not exercised against the server (see void-reversal).
+- The browser check captures the receipt as its holder only; the view without detail is not captured.
 
 ### credit-rules
 
@@ -473,7 +478,7 @@ Gaps:
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
 - QA playbook: [.claude/skills/qa/journeys/program.md#credit-rules](../../.claude/skills/qa/journeys/program.md#credit-rules)
 - Tests (domain): `packages/domain/src/scoring/stored-policy.test.ts`
-- Tests (scenario): `apps/server/src/journeys/program-administration.scenario.test.ts`
+- Tests (scenario): `apps/server/src/journeys/program-administration.scenario.test.ts`, `apps/server/src/journeys/role-by-action-matrix.scenario.test.ts`
 - Browser check: routes credit-rules as "Nadia Brooks"
 
 Verify:
@@ -505,7 +510,7 @@ Gaps:
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
 - QA playbook: [.claude/skills/qa/journeys/program.md#skill-catalog](../../.claude/skills/qa/journeys/program.md#skill-catalog)
 - Tests (domain): `packages/domain/src/catalog.test.ts`
-- Tests (scenario): `apps/server/src/journeys/program-administration.scenario.test.ts`
+- Tests (scenario): `apps/server/src/journeys/program-administration.scenario.test.ts`, `apps/server/src/journeys/role-by-action-matrix.scenario.test.ts`
 - Browser check: routes program-skills, program-skill as "Nadia Brooks"
 
 Verify:
@@ -526,9 +531,9 @@ Gaps:
 
 - State: built
 - Personas: Nadia Brooks, Maya Chen
-- May: program_owner, tenant_admin
-- Refused: everyone else (Forbidden), a skill listed twice, two primaries, or an unpublished or retired skill (Unprocessable), a stale edit (Conflict)
-- States to check: draft, published, retired
+- May: program_owner, tenant_admin, a change of words needs no reason
+- Refused: everyone else (Forbidden), a skill listed twice, two primaries, or an unpublished or retired skill (Unprocessable), a change to skills, roles or values without a reason of at least 10 characters (Unprocessable, field reason), a stale edit (Conflict)
+- States to check: draft, published, retired, edited with a reason (kept in its history and on the audit event)
 - Web: `apps/web/src/routes/_app/program/templates.index.tsx`, `apps/web/src/routes/_app/program/templates.$id.tsx`, `apps/web/src/features/program/templates-screens.tsx`
 - Server: `apps/server/src/features/program/templates.ts`
 - API: `program.templates` (`GET /api/program/activity-templates`), `program.createTemplate` (`POST /api/program/activity-templates`), `program.template` (`GET /api/program/activity-templates/:id`), `program.updateTemplate` (`PUT /api/program/activity-templates/:id`), `program.templateTransition` (`POST /api/program/activity-templates/:id/transition`)
@@ -537,7 +542,7 @@ Gaps:
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
 - QA playbook: [.claude/skills/qa/journeys/program.md#activity-templates](../../.claude/skills/qa/journeys/program.md#activity-templates)
 - Tests (domain): `packages/domain/src/catalog.test.ts`
-- Tests (scenario): `apps/server/src/journeys/program-administration.scenario.test.ts`
+- Tests (scenario): `apps/server/src/journeys/program-administration.scenario.test.ts`, `apps/server/src/journeys/role-by-action-matrix.scenario.test.ts`
 - Browser check: routes program-templates, program-template as "Nadia Brooks"
 
 Verify:
@@ -612,7 +617,7 @@ Gaps:
 - State: built
 - Personas: Sam Rivera, Jordan Blake, Marcus Hill, Maya Chen
 - May: a coach proposes to coach someone; anyone proposes being coached by a coach, the other party accepts or declines; the proposer withdraws
-- Refused: proposing to coach when you are not a coach (Unprocessable), a leader coaching their own report (Unprocessable), a second live engagement between the same two people, either direction (Conflict)
+- Refused: proposing to coach when you are not a coach (Unprocessable), a leader coaching their own report (Unprocessable), a second live engagement between the same two people, either direction (Conflict; also a database rule, I45)
 - States to check: proposed, active, paused, ended, declined, withdrawn, expired
 - Web: `apps/web/src/routes/_app/coaching.tsx`, `apps/web/src/features/support/support-screens.tsx`
 - Server: `apps/server/src/features/support/use-cases.ts`, `apps/server/src/features/support/handlers.ts`
@@ -623,6 +628,7 @@ Gaps:
 - QA playbook: [.claude/skills/qa/journeys/people-and-coaching.md#coaching](../../.claude/skills/qa/journeys/people-and-coaching.md#coaching)
 - Tests (domain): `packages/domain/src/policy/engagement.test.ts`
 - Tests (scenario): `apps/server/src/journeys/coaching-proposals-and-progress-privacy.scenario.test.ts`
+- Tests (integrity): `packages/db/src/integrity-hub.test.ts`
 - Browser check: routes coaching as "Sam Rivera"
 
 Verify:
@@ -672,10 +678,10 @@ pnpm verify run people-profiles --kind browser
 - Switch: `FEATURE_DESIGNATED_OBSERVERS`
 - Why: Off until a tenant asks for it; known gaps are recorded in the backlog.
 - Recorded in: [docs/adr/0020-designated-observers.md](../../docs/adr/0020-designated-observers.md)
-- Personas: Leo Okonkwo, Sam Rivera, Maya Chen
+- Personas: Leo Okonkwo, Sam Rivera, Maya Chen, Priya Raman, Marcus Hill
 - May: the subject's leader or engaged coach designates and ends a designation
 - Refused: anyone else designating (Forbidden), a window over 90 days or an overlapping reciprocal designation (Unprocessable or Conflict)
-- States to check: active, ended, expired
+- States to check: active, ended, expired, a designee without development access sees none of the person's logged work and never their reflection, unless the subject asks them
 - Web: `apps/web/src/features/people/designations.tsx`
 - Server: `apps/server/src/features/hub/designations.ts`, `apps/server/src/features/hub/handlers.ts`
 - API: `hub.designations` (`GET /api/people/:id/designations`), `hub.designate` (`POST /api/designations`), `hub.endDesignation` (`POST /api/designations/:id/end`)
@@ -683,18 +689,19 @@ pnpm verify run people-profiles --kind browser
 - Tables: `observer_designation`
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
 - QA playbook: [.claude/skills/qa/journeys/people-and-coaching.md#designated-observers](../../.claude/skills/qa/journeys/people-and-coaching.md#designated-observers)
-- Tests (scenario): `apps/server/src/journeys/designated-observer-signs.scenario.test.ts`
+- Tests (scenario): `apps/server/src/journeys/designated-observer-signs.scenario.test.ts`, `apps/server/src/journeys/observe-logged-work-privacy.scenario.test.ts`
 - Tests (integrity): `packages/db/src/integrity-hub.test.ts`
 
 Verify:
 
 ```sh
 pnpm verify run designated-observers --kind tests
+pnpm verify run designated-observers --kind api
 ```
 
 Gaps:
 
-- The designate endpoint is not gated by the switch (only the web button is).
+- The designate endpoint is not gated by the switch (only the web button is); the saw-this journey uses it to designate and end.
 - Three-person rings are allowed; a designee's drafts can be orphaned; designations by a departed leader stay active (backlog).
 - The QA environment runs with the switch off, so no browser check.
 
@@ -738,7 +745,7 @@ Gaps:
 - Personas: Rhea Castillo, Nina Patel, Aisha Bello
 - May: tenant_admin releases a privacy hold, compliance_reviewer resolves an escalation
 - Refused: everyone else (Forbidden), a model never clears held text
-- States to check: check completed, check skipped (held text never sent), check failed (retried, never a pass), released, resolved
+- States to check: check completed, check skipped (held text never sent), check failed (retried, never a pass), released, resolved, released by a person: never sent to the assistant again
 - Web: `apps/web/src/routes/_app/admin/ai-usage.tsx`
 - Server: `apps/server/src/features/admin`, `apps/server/src/features/shared/advisory`, `apps/server/src/scheduler/screening.ts`
 - API: `admin.aiUsage` (`GET /api/admin/ai-usage`), `admin.resolveEvidence` (`POST /api/admin/evidence/:id/resolve`)

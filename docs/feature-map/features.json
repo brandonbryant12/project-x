@@ -55,7 +55,7 @@
       "name": "Home",
       "summary": "Home leads with \"Try next time\" (the latest signed \"What next\"), then the points sentence, \"Waiting on you\" and up to three people worth observing this week.",
       "state": "built",
-      "personas": ["Maya Chen", "Leo Okonkwo", "Sam Rivera", "Grace Liu"],
+      "personas": ["Maya Chen", "Leo Okonkwo", "Sam Rivera", "Grace Liu", "Priya Raman"],
       "permissions": {
         "may": ["every signed-in person sees their own Home"],
         "refused": ["no one sees another person's Home"]
@@ -63,7 +63,9 @@
       "states": [
         "a coachee with a signed observation (Try next time shown)",
         "an observer with requests waiting",
-        "a person with nothing yet (Grace: empty states)"
+        "a person with nothing yet (Grace: empty states)",
+        "an agreer with a closing review to confirm (\"Read and confirm\" in Waiting on you)",
+        "the plan card counts each piece of work once, however many focus skills it built"
       ],
       "code": {
         "web": ["apps/web/src/routes/_app/index.tsx", "apps/web/src/features/home"],
@@ -78,11 +80,19 @@
       "skills": [".claude/skills/qa/SKILL.md"],
       "qa": ".claude/skills/qa/journeys/people-and-coaching.md#home",
       "tests": {
-        "scenario": ["apps/server/src/journeys/home-leads-with-try-next-time.scenario.test.ts"],
+        "scenario": [
+          "apps/server/src/journeys/home-leads-with-try-next-time.scenario.test.ts",
+          "apps/server/src/journeys/plan-revise-and-review.scenario.test.ts"
+        ],
         "domain": ["packages/domain/src/policy/who-to-observe.test.ts"]
       },
-      "verify": { "browser": { "personas": ["Maya Chen", "Leo Okonkwo"], "routes": ["home"] } },
-      "gaps": ["No API journey check: Home only reads, and its scenario test covers the ordering."]
+      "verify": {
+        "api": ["plan-review"],
+        "browser": { "personas": ["Maya Chen", "Leo Okonkwo"], "routes": ["home"] }
+      },
+      "gaps": [
+        "The API journey checks only the confirm_review item (through plan-review); the ordering and the other items are covered by the scenario tests."
+      ]
     },
     {
       "id": "my-plan",
@@ -94,13 +104,14 @@
         "may": [
           "the owner edits title, intent and end date of a non-terminal plan, focus skills only in draft",
           "the agreer (engaged coach, or the leader when there is no coach) agrees, revises and confirms the review",
-          "the owner records the closing review"
+          "the owner records the closing review; it then waits on the agreer's Home until confirmed"
         ],
         "refused": [
           "anyone but the owner editing the plan (Forbidden)",
           "the owner confirming their own review, a skip-level leader confirming (Forbidden)",
           "editing a closed plan (Unprocessable)",
           "REVISE after a confirmed review (InvalidTransition)",
+          "any plan write (edit, lifecycle event, review, confirmation) sent with a version older than the plan: agreeing to a plan changed since, confirming a review recorded again since (Conflict)",
           "another tenant (NotFound)"
         ]
       },
@@ -113,7 +124,10 @@
         "canceled",
         "expired (drafts too, by the sweep)",
         "review recorded, not confirmed",
-        "review confirmed (fixed)"
+        "review confirmed (fixed)",
+        "\"Back to draft\" dialog: lists what it clears (agreement, endorsement, an unconfirmed review)",
+        "\"Confirm review\" dialog: restates outcomes and summary; a Conflict reloads the plan",
+        "stale version (Conflict)"
       ],
       "code": {
         "web": [
@@ -154,7 +168,8 @@
       },
       "gaps": [
         "The API journey uses Marcus with his leader as agreer; a coach as agreer is covered by the scenario test and by the individual-value journey (a coach adding work).",
-        "Expiry is exercised by the scenario test (runSweeps), not against the running server."
+        "Expiry is exercised by the scenario test (runSweeps), not against the running server.",
+        "The two confirmation dialogs are UI only: no browser check opens them; walk them by hand (playbook)."
       ]
     },
     {
@@ -166,13 +181,14 @@
       "permissions": {
         "may": [
           "the owner and an agreer add and edit work",
-          "an agreer or a program owner sets an individual value, with a reason, inside the tenant's range"
+          "an agreer or a program owner sets an individual value, with a reason, inside the tenant's range; it applies to work dated on or after the day it was set"
         ],
         "refused": [
           "the subject setting a value on their own work, whatever their grants (Forbidden)",
           "a skip-level or other leader adding work (Forbidden)",
           "two primaries, an unpublished template or a retired skill (Unprocessable)",
-          "a value out of range, without a reason, on ad hoc work or once an observation is open or signed (Unprocessable)"
+          "a value out of range, without a reason, on ad hoc work or once an observation is open or signed (Unprocessable)",
+          "an edit or a value sent with a version older than the work (Conflict)"
         ]
       },
       "states": [
@@ -181,7 +197,9 @@
         "completed",
         "canceled",
         "value set, then fixed once observed",
-        "values switched off by the tenant"
+        "value set today: work dated before today keeps the value without it (\"applies to work from\")",
+        "values switched off by the tenant",
+        "stale version (Conflict)"
       ],
       "code": {
         "web": [
@@ -230,7 +248,8 @@
         "refused": [
           "work dated more than 30 days back (Unprocessable)",
           "asking for an observation of held work (Unprocessable)",
-          "observers reading held words (the body is withheld)"
+          "observers reading held words (the body is withheld)",
+          "an observer the reflection is not shared with reading it: the subject did not ask them and they have no development access (evidence null)"
         ]
       },
       "states": [
@@ -261,7 +280,8 @@
       "tests": {
         "scenario": [
           "apps/server/src/journeys/backdating-bounds.scenario.test.ts",
-          "apps/server/src/journeys/assistant-screen-boundary.scenario.test.ts"
+          "apps/server/src/journeys/assistant-screen-boundary.scenario.test.ts",
+          "apps/server/src/journeys/observe-logged-work-privacy.scenario.test.ts"
         ],
         "domain": ["packages/domain/src/privacy.test.ts"]
       },
@@ -380,23 +400,35 @@
       "name": "\"I saw this\" (quick capture)",
       "summary": "An observer records what they saw for someone they may observe; it offers the work the coachee already logged in the window and attaches to it instead of recording the same work twice.",
       "state": "built",
-      "personas": ["Sam Rivera", "Jordan Blake", "Tom Whitaker"],
+      "personas": ["Sam Rivera", "Jordan Blake", "Tom Whitaker", "Priya Raman", "Marcus Hill"],
       "permissions": {
-        "may": ["an eligible observer, for work at most 14 days back"],
+        "may": [
+          "an eligible observer records new work they saw, at most 14 days back",
+          "a development viewer (coach or leader chain) is offered, and attaches to, the person's logged work dated when they were an eligible observer"
+        ],
         "refused": [
-          "someone else's work (NotFound)",
+          "someone else's work, or logged work for a viewer without development access, such as a designee (NotFound)",
+          "logged work dated before the viewer was an eligible observer (Forbidden)",
           "work this observer already observed (Conflict)",
           "work outside the window (Unprocessable)"
         ]
       },
-      "states": ["draft saved to finish later", "signed at once"],
+      "states": [
+        "draft saved to finish later",
+        "signed at once",
+        "designee without development access: no logged work offered; the reflection is never shown unless the subject asked them",
+        "coach who stops coaching: keeps their observation, no longer reads the reflection"
+      ],
       "code": {
         "web": [
           "apps/web/src/routes/_app/observations/new.tsx",
           "apps/web/src/features/observations/observe-new.tsx",
           "apps/web/src/features/observations/use-quick-capture.ts"
         ],
-        "server": ["apps/server/src/features/observations/use-cases/create.ts"],
+        "server": [
+          "apps/server/src/features/observations/use-cases/create.ts",
+          "apps/server/src/features/observations/views.ts"
+        ],
         "api": ["observations.targets", "observations.start"],
         "tables": ["interaction", "observation"]
       },
@@ -501,7 +533,12 @@
           "deleting a credit (the ledger is append-only)"
         ]
       },
-      "states": ["voided", "badge revoked", "badge re-awarded under the current policy"],
+      "states": [
+        "voided",
+        "badge revoked",
+        "badge re-awarded under the current policy",
+        "a broken stored credit policy: the void and revocations complete, the re-award is skipped and the audit event says so"
+      ],
       "code": {
         "server": [
           "apps/server/src/features/observations/use-cases/transition.ts",
@@ -578,27 +615,37 @@
     {
       "id": "badges-receipts",
       "name": "Badges and \"How this was earned\"",
-      "summary": "Levels 2 and 3 are awarded automatically when the criteria hold; the badge receipt lists the work behind it, marks which credit counted, and measures against the thresholds saved on the award.",
+      "summary": "Levels 2 and 3 are awarded automatically when the criteria hold; everyone in the tenant sees the badge, and its holder's development viewers see how it was earned: the work behind it, which credit counted, credit reversed since, and the thresholds saved on the award.",
       "state": "built",
-      "personas": ["Maya Chen", "Tom Whitaker", "Sam Rivera", "Grace Liu"],
+      "personas": ["Maya Chen", "Tom Whitaker", "Sam Rivera", "Grace Liu", "Marcus Hill"],
       "permissions": {
         "may": [
-          "everyone in the tenant sees earned badges",
-          "the subject, their coaches and leader chain read the observers' words"
+          "everyone in the tenant sees earned badges and the plain facts",
+          "the holder, their coaches and leader chain see points, thresholds and each credit (detailVisible)",
+          "the holder, their coaches and direct leader read the observers' words (I13)"
         ],
-        "refused": ["others see levels and work, not narratives (I13)"]
+        "refused": [
+          "a colleague without development access: no points, thresholds, work or words (detailVisible false)",
+          "a badge asked for under someone who does not hold it (NotFound)"
+        ]
       },
       "states": [
         "awarded",
         "revoked",
         "re-awarded",
-        "legacy credit labelled as observed before roles"
+        "credit reversed since the award (shown, never counted)",
+        "legacy credit labelled as observed before roles",
+        "receipt without detail (badge and plain facts only)"
       ],
       "code": {
-        "web": ["apps/web/src/routes/_app/people/$id/badges.$badgeId.tsx"],
+        "web": [
+          "apps/web/src/routes/_app/people/$id/badges.$badgeId.tsx",
+          "apps/web/src/features/people/profile-screen.tsx"
+        ],
         "server": [
           "apps/server/src/features/people/views.ts",
-          "apps/server/src/features/shared/recognition.ts"
+          "apps/server/src/features/shared/recognition.ts",
+          "apps/server/src/features/people/receipt.ts"
         ],
         "api": ["people.badgeReceipt"],
         "domain": [
@@ -614,13 +661,16 @@
           "apps/server/src/journeys/same-work-and-badge-receipt.scenario.test.ts",
           "apps/server/src/journeys/void-reverses-and-revokes-badge.scenario.test.ts"
         ],
-        "domain": ["packages/domain/src/scoring/scoring.test.ts"]
+        "domain": ["packages/domain/src/scoring/scoring.test.ts"],
+        "unit": ["apps/server/src/features/people/receipt.test.ts"]
       },
       "verify": {
+        "api": ["badge-receipt"],
         "browser": { "personas": ["Maya Chen"], "routes": ["badge-receipt", "profile"] }
       },
       "gaps": [
-        "No API journey check: a badge needs weeks of signed work, which the seed provides but a journey cannot create quickly."
+        "The API journey reads the seeded badges only: a badge needs weeks of signed work, which a journey cannot create quickly, and reversal is not exercised against the server (see void-reversal).",
+        "The browser check captures the receipt as its holder only; the view without detail is not captured."
       ]
     },
     {
@@ -662,7 +712,10 @@
       "skills": [".claude/skills/qa/SKILL.md"],
       "qa": ".claude/skills/qa/journeys/program.md#credit-rules",
       "tests": {
-        "scenario": ["apps/server/src/journeys/program-administration.scenario.test.ts"],
+        "scenario": [
+          "apps/server/src/journeys/program-administration.scenario.test.ts",
+          "apps/server/src/journeys/role-by-action-matrix.scenario.test.ts"
+        ],
         "domain": ["packages/domain/src/scoring/stored-policy.test.ts"]
       },
       "verify": {
@@ -717,7 +770,10 @@
       "skills": [".claude/skills/qa/SKILL.md"],
       "qa": ".claude/skills/qa/journeys/program.md#skill-catalog",
       "tests": {
-        "scenario": ["apps/server/src/journeys/program-administration.scenario.test.ts"],
+        "scenario": [
+          "apps/server/src/journeys/program-administration.scenario.test.ts",
+          "apps/server/src/journeys/role-by-action-matrix.scenario.test.ts"
+        ],
         "domain": ["packages/domain/src/catalog.test.ts"]
       },
       "verify": {
@@ -735,14 +791,20 @@
       "state": "built",
       "personas": ["Nadia Brooks", "Maya Chen"],
       "permissions": {
-        "may": ["program_owner", "tenant_admin"],
+        "may": ["program_owner", "tenant_admin", "a change of words needs no reason"],
         "refused": [
           "everyone else (Forbidden)",
           "a skill listed twice, two primaries, or an unpublished or retired skill (Unprocessable)",
+          "a change to skills, roles or values without a reason of at least 10 characters (Unprocessable, field reason)",
           "a stale edit (Conflict)"
         ]
       },
-      "states": ["draft", "published", "retired"],
+      "states": [
+        "draft",
+        "published",
+        "retired",
+        "edited with a reason (kept in its history and on the audit event)"
+      ],
       "code": {
         "web": [
           "apps/web/src/routes/_app/program/templates.index.tsx",
@@ -763,7 +825,10 @@
       "skills": [".claude/skills/qa/SKILL.md"],
       "qa": ".claude/skills/qa/journeys/program.md#activity-templates",
       "tests": {
-        "scenario": ["apps/server/src/journeys/program-administration.scenario.test.ts"],
+        "scenario": [
+          "apps/server/src/journeys/program-administration.scenario.test.ts",
+          "apps/server/src/journeys/role-by-action-matrix.scenario.test.ts"
+        ],
         "domain": ["packages/domain/src/catalog.test.ts"]
       },
       "verify": {
@@ -801,9 +866,7 @@
       },
       "skills": [".claude/skills/qa/SKILL.md"],
       "qa": ".claude/skills/qa/journeys/program.md#skills-browsing",
-      "tests": {
-        "scenario": ["apps/server/src/journeys/program-administration.scenario.test.ts"]
-      },
+      "tests": { "scenario": ["apps/server/src/journeys/program-administration.scenario.test.ts"] },
       "verify": {
         "api": ["catalog"],
         "browser": { "personas": ["Maya Chen"], "routes": ["skills", "skill"] }
@@ -862,7 +925,7 @@
         "refused": [
           "proposing to coach when you are not a coach (Unprocessable)",
           "a leader coaching their own report (Unprocessable)",
-          "a second live engagement between the same two people, either direction (Conflict)"
+          "a second live engagement between the same two people, either direction (Conflict; also a database rule, I45)"
         ]
       },
       "states": ["proposed", "active", "paused", "ended", "declined", "withdrawn", "expired"],
@@ -888,7 +951,8 @@
         "scenario": [
           "apps/server/src/journeys/coaching-proposals-and-progress-privacy.scenario.test.ts"
         ],
-        "domain": ["packages/domain/src/policy/engagement.test.ts"]
+        "domain": ["packages/domain/src/policy/engagement.test.ts"],
+        "integrity": ["packages/db/src/integrity-hub.test.ts"]
       },
       "verify": {
         "api": ["coaching-proposal"],
@@ -946,7 +1010,7 @@
       "switch": "FEATURE_DESIGNATED_OBSERVERS",
       "reason": "Off until a tenant asks for it; known gaps are recorded in the backlog.",
       "recordedIn": "docs/adr/0020-designated-observers.md",
-      "personas": ["Leo Okonkwo", "Sam Rivera", "Maya Chen"],
+      "personas": ["Leo Okonkwo", "Sam Rivera", "Maya Chen", "Priya Raman", "Marcus Hill"],
       "permissions": {
         "may": ["the subject's leader or engaged coach designates and ends a designation"],
         "refused": [
@@ -954,7 +1018,12 @@
           "a window over 90 days or an overlapping reciprocal designation (Unprocessable or Conflict)"
         ]
       },
-      "states": ["active", "ended", "expired"],
+      "states": [
+        "active",
+        "ended",
+        "expired",
+        "a designee without development access sees none of the person's logged work and never their reflection, unless the subject asks them"
+      ],
       "code": {
         "web": ["apps/web/src/features/people/designations.tsx"],
         "server": [
@@ -968,12 +1037,15 @@
       "skills": [".claude/skills/qa/SKILL.md"],
       "qa": ".claude/skills/qa/journeys/people-and-coaching.md#designated-observers",
       "tests": {
-        "scenario": ["apps/server/src/journeys/designated-observer-signs.scenario.test.ts"],
+        "scenario": [
+          "apps/server/src/journeys/designated-observer-signs.scenario.test.ts",
+          "apps/server/src/journeys/observe-logged-work-privacy.scenario.test.ts"
+        ],
         "integrity": ["packages/db/src/integrity-hub.test.ts"]
       },
-      "verify": {},
+      "verify": { "api": ["saw-this"] },
       "gaps": [
-        "The designate endpoint is not gated by the switch (only the web button is).",
+        "The designate endpoint is not gated by the switch (only the web button is); the saw-this journey uses it to designate and end.",
         "Three-person rings are allowed; a designee's drafts can be orphaned; designations by a departed leader stay active (backlog).",
         "The QA environment runs with the switch off, so no browser check."
       ]
@@ -1038,7 +1110,8 @@
         "check skipped (held text never sent)",
         "check failed (retried, never a pass)",
         "released",
-        "resolved"
+        "resolved",
+        "released by a person: never sent to the assistant again"
       ],
       "code": {
         "web": ["apps/web/src/routes/_app/admin/ai-usage.tsx"],
@@ -1147,10 +1220,7 @@
       "reason": "No admin screens yet; both run through the API.",
       "recordedIn": "docs/backlog.md",
       "personas": ["Rhea Castillo"],
-      "permissions": {
-        "may": ["tenant_admin"],
-        "refused": ["everyone else (Forbidden)"]
-      },
+      "permissions": { "may": ["tenant_admin"], "refused": ["everyone else (Forbidden)"] },
       "states": ["import applied", "import with exceptions", "leaver departed"],
       "code": {
         "server": [

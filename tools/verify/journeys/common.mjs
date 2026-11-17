@@ -14,14 +14,18 @@ export const planOf = async (t, client, personId) => {
   return view;
 };
 
-/** One piece of work logged on an activity (or ad hoc when activityId is null). */
-export const logWork = async (t, client, { activityId, reflection, adHocTitle, adHocSkillIds }) =>
+/** One piece of work logged on an activity (or ad hoc when activityId is null), today unless dated. */
+export const logWork = async (
+  t,
+  client,
+  { activityId, reflection, adHocTitle, adHocSkillIds, occurredOn },
+) =>
   t.ok(
     await client.post('/interactions', {
       activityId: activityId ?? null,
       adHocTitle: adHocTitle ?? null,
       adHocSkillIds: adHocSkillIds ?? [],
-      occurredOn: today(),
+      occurredOn: occurredOn ?? today(),
       kind: 'client_meeting',
       clientRef: null,
       reflection,
