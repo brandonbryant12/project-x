@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // `pnpm verify`: the feature map's command line (docs/feature-map/README.md).
 //
-//   list [--state <s>] [--persona <name>]     features and their state
+//   list [--state <s>] [--persona <name>] [--search <words>]  features and their state
 //   show <id>                                 everything about one feature
 //   which <path...> | --changed [--base <ref>] features that own changed files
 //   check                                     the map's staleness check
 //   readme                                    regenerate docs/feature-map/README.md
-//   run <id...> [--kind tests|api|browser] [--out <dir>] [--strict] [--workers 1]
+//   run <id...> | --all [--kind tests|api|browser] [--out <dir>] [--strict] [--workers 1]
 //   env <build|seed|start|stop|status>        the task-owned QA environment
 //
 // Every command takes --json for agents. Plain Node, no dependencies, so the
@@ -20,19 +20,22 @@ import { runCommand } from './lib/run.mjs';
 const USAGE = `usage: pnpm verify <command> [options]
 
   list [--state built|behind_switch|api_only|deferred|not_built] [--persona "Maya Chen"]
+       [--search "badge receipt"]   words matched in id, name, summary, states and code
   show <feature-id>
   which <path...>          or  which --changed [--base main]
   check                    staleness check (runs in pnpm check and CI)
   readme                   regenerate docs/feature-map/README.md from features.json
   run <feature-id...> [--kind tests|api|browser] [--out <dir>] [--strict] [--workers 1]
+  run --all --kind api     every feature that has a check of the given kind(s)
                            (Vitest and Playwright use at most 2 workers; --workers 1 for one)
+                           exit 1 failed, 2 refused to start, 3 nothing verified
   env <build|seed|start|stop|status>
 
   --json                   structured output for agents
 `;
 
 /** Splits argv into positionals and --flags (a flag takes the next word unless it is boolean). */
-const BOOLEAN = new Set(['json', 'changed', 'strict', 'help']);
+const BOOLEAN = new Set(['json', 'changed', 'strict', 'help', 'all']);
 const parse = (argv) => {
   const positional = [];
   const flags = { kind: [] };
