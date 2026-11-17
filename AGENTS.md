@@ -40,10 +40,11 @@ The database enforces most of them, and so do tests.
 
 1. **Credit only from SIGN.** Only `signObservation` writes `credit_entry`. The
    ledger, the audit trail, labels and published catalog versions are
-   append-only (enforced by triggers). A credit's role and points are
-   resolved only at signing, from the tenant's credit policy
-   (`packages/domain/src/scoring/policy.ts`, read exactly as stored), and
-   never change afterwards (ADR 0007).
+   append-only (enforced by triggers). A credit's role is the one the
+   observer signed on the rating; its points come from the activity's own
+   value, then the template value copied onto the work, then the skill's,
+   then the tenant's credit policy (read exactly as stored). Both are fixed at
+   signing and never change (`resolveCreditValue`, ADR 0007).
 2. **Lifecycles are XState machines** in `packages/domain/src/lifecycles`.
    Change state only through `decide()`, which combines policy (_who_) with
    the machine (_whether_), and write an audit event in the same transaction.

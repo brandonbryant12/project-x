@@ -24,7 +24,6 @@ is done, delete its line; when it needs a decision, follow the
 - **Designated observers, known gaps** (behind `FEATURE_DESIGNATED_OBSERVERS`, off by default): three-person rings are allowed; a designee's drafts can be left orphaned; designations made by a departed leader stay active; the designate endpoint is not gated by the switch (only the web button is). [ADR 0020](adr/0020-designated-observers.md), `apps/server/src/features/hub/designations.ts`, [re-review](archive/reviews/2026-11-17-re-review.md) finding 11
 - **The same event logged as two pieces of work on purpose**: "I saw this" now attaches to work already logged, but two people can still each log one event separately, and each counts. [Domain model](product/domain-model.md#from-work-to-credit)
 - **Program owners set individual values through the API only**: the web app offers "Set value" to plan agreers; a program owner cannot open other people's plans (ADR 0021). [ADR 0023](adr/0023-program-owners-administer-credit-rules-and-catalog.md)
-- **Home does not show a closing review waiting for the coach to confirm**: the coach sees it only on the plan. `apps/server/src/features/support/home.ts`
 - **Expiry rate population**: it still counts an observer's own "I saw this" drafts and withdrawn or declined requests. [ADR 0021](adr/0021-program-owner-and-adoption-view.md), `apps/server/src/features/hub/adoption.ts`
 - **Drop `paused` and the `ENDORSE` ceremony** from the plan and engagement lifecycles: considered, not done. [Lifecycles](architecture/lifecycles.md)
 - **Participant one-pager and pilot plan**: blocked on answers only the client can give (open questions 2, 3, 12, 15, 20, 25; domain-expert questions D1, D4, F5). [Open questions](product/open-questions.md), [domain-expert questions](product/domain-expert-questions.md)
@@ -33,14 +32,8 @@ is done, delete its line; when it needs a decision, follow the
 
 - **Purge jobs** and the legal-hold record they would honour: retention classes are written, purging is not built. [ADR 0012](adr/0012-privacy-and-audit-by-design.md)
 - **Graph directory sync**: waits for IT (open question 24). [Identity and access](architecture/identity-and-access.md)
-- **One live engagement per pair in the database**: the rule is checked in the use case; two simultaneous reciprocal proposals could both pass. A partial unique index on the unordered pair would close it. `apps/server/src/features/support/use-cases.ts`
-- **Stale edits of plans and work**: the edit forms do not send the version they loaded, so a save can overwrite a change made in another window. `apps/server/src/features/development/use-cases.ts`
-- **Repairing a policy that lost its `version`** saves it as version 1, so a `policy_version` string on credits could repeat with different values. `apps/server/src/features/shared/recognition.ts`
 - **A purged reason for an individual value leaves no trace of why**: store an audit reference to the reason's digest. [ADR 0007](adr/0007-credit-only-from-signed-observations.md)
-- **Home's "times observed" on the plan card** adds the pieces of work of each focus skill, so work that built two focus skills counts twice. `apps/server/src/features/support/home.ts`
-- **A test that a released reflection is never re-sent by the screening sweep**: the rule is in the sweep's query (latest audit event SUBMIT or REVISE) but has no dedicated test. `apps/server/src/scheduler/screening.ts`
 - **Program entries in the command palette**: none yet.
-- **Stale comment on `TenantSettings.creditPolicy`**: it says the policy is read through `resolveCreditPolicy`, which merges defensively; the code reads it exactly as stored. `packages/db/src/schema/directory.ts`
 - **QA of the screens changed on 2026-11-17** (Home, My plan, Credit rules, Skill catalog, Activity templates, profile, sign screen, "I saw this", "How this was earned"): no QA report covers them yet. [QA reports](qa/reports/)
 - **I14 on real Postgres**: concurrent signatures are covered by an advisory lock but only tested on PGlite. [Invariants](testing/invariants.md)
 - **Axe accessibility scan** in the screenshot run. [DESIGN.md](../apps/web/DESIGN.md)
