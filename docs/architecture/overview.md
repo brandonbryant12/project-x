@@ -36,9 +36,9 @@ flowchart TB
   subgraph server["App server (Node 24, Effect 4) — one process (ADR 0011)"]
     edge["HTTP edge<br/>security headers · CSRF · request id · static SPA"]
     api["HttpApi handlers<br/>one use case or view per endpoint"]
-    feat["Features<br/>catalog · development · observations · people · directory · support · hub · notifications · admin"]
+    feat["Features<br/>catalog · development · observations · people · directory · support · hub · notifications · admin · program"]
     adv["Advisory runner<br/>runs after commit"]
-    sched["Scheduler (advisory-locked)<br/>expiry sweeps · expiry reminders · weekly digest"]
+    sched["Scheduler<br/>expiry sweeps (advisory-locked) · expiry reminders · weekly digest · screening sweep"]
     disp["Notification dispatcher"]
   end
   pg[("PostgreSQL 18<br/>schema · integrity triggers · exclusion constraints<br/>notification outbox")]
@@ -47,7 +47,7 @@ flowchart TB
   feat -->|afterCommit| adv --> pg
   sched --> pg
   sched --> disp
-  disp -->|claim pending rows, mark sent| pg
+  disp -->|claim and lease a row, then acknowledge| pg
   disp --> smtp
 ```
 
@@ -104,8 +104,9 @@ sequenceDiagram
   S->>DB: BEGIN
   S->>DB: lock this person's ledger (advisory xact lock)
   S->>DB: status = signed, content_digest
-  S->>DB: credit_entry per credited skill (FKs pin it to the observation)
-  S->>DB: badge_award + receipt rows when criteria are met
+  S->>DB: read the tenant's credit policy (exactly as stored; a broken one stops here)
+  S->>DB: credit_entry per credited skill: the rating's role, points resolved now, their source, the subject's position
+  S->>DB: badge_award (with the criteria it was judged by) + receipt rows when criteria are met
   S->>DB: audit_event
   S->>DB: COMMIT
   S-->>W: receipt (credits, badges earned)
@@ -117,7 +118,10 @@ sequenceDiagram
 flowchart LR
   text["Text<br/>a coachee's reflection"] --> local{"Local screen<br/>(deterministic, fails closed)"}
   local -- PII pattern --> held["Evidence: held"]
-  local -- clear --> check["Assistant check<br/>privacy-screen vN"]
+  local -- clear --> avail0["Evidence: available"]
+  avail0 -- after commit, or the screening sweep --> boundary{"Local screen again<br/>at the provider boundary"}
+  boundary -- PII pattern --> skip["Check skipped (provider local)<br/>evidence held by the local rule"]
+  boundary -- clear --> check["Assistant check<br/>privacy-screen vN"]
   check --> effect{"Effect"}
   effect -- hold --> held
   effect -- escalate --> esc["Evidence: escalated → compliance"]
@@ -145,17 +149,19 @@ sequenceDiagram
   S->>DB: observation (requested) · audit_event
   S->>DB: notification (observation_requested, dedupe_key) — no free text
   S->>DB: COMMIT
-  loop every minute; each row claimed with FOR UPDATE SKIP LOCKED
-    D->>DB: pending rows past send_after
-    D->>DB: recipient's preference (email on or off)
-    D->>M: template(first name, display name, verb, date, link)
-    D->>DB: status = sent (or skipped / failed, attempts + 1)
+  loop every minute, one row at a time
+    D->>DB: BEGIN · claim a due pending row (FOR UPDATE SKIP LOCKED)
+    D->>DB: preference and staleness check (else skipped) · attempts + 1 · lease 10 minutes · COMMIT
+    D->>M: template(first name, display name, verb, date, link), no transaction open, 60-second timeout
+    D->>DB: acknowledge: sent, or back off, or failed, only if still pending at the claimed attempt
   end
   M-->>O: "Maya asked you to observe … open until Mon 30 Nov" + link
 ```
 
 - A row exists if and only if the transition committed. Delivery is at least
-  once.
+  once: if the process stops, or the acknowledgement is lost, after the relay
+  accepted a message, the row is sent again when its lease ends. A row
+  claimed five times without an acknowledgement is marked failed.
 - The weekly digest and the 48-hour expiry reminder are written by the
   scheduler, with dedupe keys, so a second replica or a rerun writes nothing
   new. The digest's numbers are computed when it is sent.
@@ -215,9 +221,11 @@ flowchart LR
 - **One image**, built from `apps/server/Dockerfile`, serves the API and the
   SPA. It runs read-only, as a non-root user, under tini, with a readiness
   check.
-- Replicas are stateless. Sessions live in Postgres. The scheduler takes a
+- Replicas are stateless. Sessions live in Postgres. The expiry sweeps take a
   transaction-scoped advisory lock, so only one replica sweeps at a time. The
-  notification dispatcher claims rows with `FOR UPDATE SKIP LOCKED` instead.
+  notification dispatcher claims and leases rows with `FOR UPDATE SKIP LOCKED`
+  instead. The screening sweep takes no lock; two replicas may occasionally
+  screen the same reflection version twice, which changes nothing.
 - Operations: [incident response](../runbooks/incident-response.md),
   [deprovisioning](../runbooks/deprovisioning.md),
   [backup and restore](../runbooks/backup-and-restore.md).
@@ -232,11 +240,12 @@ flowchart LR
 | State                | XState machines, enforced server-side with pure transitions                                 | 0005             |
 | Data                 | Postgres 18 + Drizzle's Effect driver; PGlite runs the same migrations in tests             | 0004             |
 | Identity             | Entra OIDC; app roles mirrored to dated grants; relationships carry authority               | 0006, 0014       |
-| Credit               | Only from SIGN; append-only demonstrations; badges by criteria                              | 0007             |
+| Credit | Only from SIGN; append-only demonstrations, each with a frozen role and points; badges by a points total and corroboration criteria | 0007 |
+| Program administration | Program owners change the credit rules, skills and templates at run time, audited | 0023 |
 | AI                   | Advisory only; privacy screen only; explainable records; learning loop deferred             | 0008, 0015, 0016 |
 | Privacy and audit    | No client PII; purgeable notes; append-only audit with `seq`                                | 0012, 0015       |
 | Observability        | Effect native OTLP to Datadog                                                               | 0013             |
 | Notifications        | Transactional outbox, dispatcher in the scheduler, no content in messages                   | 0018             |
 | Coaching rhythm      | Deferred until pilot feedback: meetings stay in Outlook, next steps stay on the observation | 0019             |
 | Observer supply      | Designated observers, bounded and anti-collusion                                            | 0020             |
-| Adoption             | Program owner sees aggregates only, cells under five hidden                                 | 0021             |
+| Adoption | Program owner sees aggregates only; a figure is withheld under five distinct people or when it would reveal a smaller group | 0021 |
