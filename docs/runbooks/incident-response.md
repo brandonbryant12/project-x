@@ -1,5 +1,8 @@
 # Runbook: incident response
 
+> **Draft — nothing is deployed yet.** Check every step against the real
+> environment before relying on it.
+
 Use this when something has gone wrong that affects people's data, access or
 trust: suspected client PII in the app, an account used by the wrong person,
 a misbehaving AI check, a message sent to the wrong person, or an outage.

@@ -1,8 +1,16 @@
 # ADR 0021: A program owner sees adoption in aggregate only
 
-- Status: Accepted
+- Status: Accepted (amended)
 - Date: 2026-11-16
 - Builds on: [ADR 0006](./0006-identity-entra-roles-and-relationships.md), [ADR 0012](./0012-privacy-and-audit-by-design.md)
+
+> **Amended, 2026-11-17.** The view shows four numbers: people with an active
+> plan, how many were observed in the last 42 days, the median days from
+> logging to signature, and the expiry rate (over the last four complete
+> weeks). The other metrics below are not built, and second-read agreement
+> was dropped with the unwritten `second_read` table. Suppressing complements
+> is in the [backlog](../backlog.md). The text below is the original
+> decision.
 
 ## Context
 

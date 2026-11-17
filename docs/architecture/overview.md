@@ -12,7 +12,6 @@ flowchart LR
     adv["Advisors / coachees"]
     coach["Professional coaches"]
     lead["Leaders"]
-    keep["Catalog keepers"]
     gov["Tenant admins & compliance"]
     po["Program owners"]
   end
@@ -20,15 +19,13 @@ flowchart LR
   entra["Microsoft Entra ID<br/>SSO · app roles via AD groups · manager"]
   gemini["Google Gemini Decisions API<br/>closed-set judgments (advisory)"]
   dd["Datadog<br/>traces · metrics · logs"]
-  mail["Firm SMTP relay<br/>email notifications (planned)"]
-  teams["Teams activity feed<br/>(later, behind config)"]
+  mail["Firm SMTP relay<br/>email notifications"]
 
-  adv & coach & lead & keep & gov & po -->|browser| app
+  adv & coach & lead & gov & po -->|browser| app
   app -->|OIDC sign-in, roles claim| entra
   app -->|text-only checks, no client identifiers| gemini
   app -->|OTLP| dd
   app -->|names, counts, dates, link — no content| mail
-  app -.-> teams
 ```
 
 ## 2. Containers
@@ -39,13 +36,13 @@ flowchart TB
   subgraph server["App server (Node 24, Effect 4) — one process (ADR 0011)"]
     edge["HTTP edge<br/>security headers · CSRF · request id · static SPA"]
     api["HttpApi handlers<br/>one use case or view per endpoint"]
-    feat["Features<br/>catalog · development · observations · support · hub · rhythm · admin"]
+    feat["Features<br/>catalog · development · observations · people · directory · support · hub · notifications · admin"]
     adv["Advisory runner<br/>runs after commit"]
     sched["Scheduler (advisory-locked)<br/>expiry sweeps · expiry reminders · weekly digest"]
     disp["Notification dispatcher"]
   end
   pg[("PostgreSQL 18<br/>schema · integrity triggers · exclusion constraints<br/>notification outbox")]
-  smtp["SMTP relay (planned)"]
+  smtp["SMTP relay<br/>(log transport in development)"]
   browser -->|same origin /api, session cookie| edge --> api --> feat --> pg
   feat -->|afterCommit| adv --> pg
   sched --> pg
@@ -131,9 +128,9 @@ flowchart LR
 
 ## 5a. Notifications: the outbox
 
-_Being built in this round_ ([ADR 0018](../adr/0018-notifications-outbox-and-content-policy.md)).
-The table and the preferences exist; writing rows and the dispatcher are in
-progress. The only transport built is `log`; email is planned.
+Built ([ADR 0018](../adr/0018-notifications-outbox-and-content-policy.md)).
+Email is the only channel. `NOTIFY_TRANSPORT` picks `smtp` or `log` (the
+default in development).
 
 ```mermaid
 sequenceDiagram
@@ -141,7 +138,7 @@ sequenceDiagram
   participant S as Server (use case)
   participant DB as PostgreSQL
   participant D as Dispatcher (scheduler fiber)
-  participant M as SMTP relay (planned; log today)
+  participant M as SMTP relay (or log)
   actor O as Observer
   A->>S: ask Leo to observe
   S->>DB: BEGIN
@@ -150,7 +147,7 @@ sequenceDiagram
   S->>DB: COMMIT
   loop every minute; each row claimed with FOR UPDATE SKIP LOCKED
     D->>DB: pending rows past send_after
-    D->>DB: recipient's preference (email · teams · off)
+    D->>DB: recipient's preference (email on or off)
     D->>M: template(first name, display name, verb, date, link)
     D->>DB: status = sent (or skipped / failed, attempts + 1)
   end

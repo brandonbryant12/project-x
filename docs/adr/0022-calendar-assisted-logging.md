@@ -1,7 +1,8 @@
 # ADR 0022: Calendar-assisted logging reads the calendar on demand and never stores it
 
-- Status: **Proposed.** Needs token storage design, admin consent and an
-  infosec review before any build.
+- Status: **Deferred** (2026-11-17). Was proposed; never built. Needs token
+  storage design, admin consent and an infosec review before any build. Listed
+  in the [backlog](../backlog.md).
 - Date: 2026-11-16
 - Builds on: [ADR 0012](./0012-privacy-and-audit-by-design.md), [ADR 0014](./0014-session-auth-with-openid-client.md)
 

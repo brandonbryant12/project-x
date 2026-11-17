@@ -83,3 +83,9 @@ transition and every sensitive read or export writes an append-only
   question D2. Purge jobs are still _planned_.
 - Notifications carry no content at all (ADR 0018), so the outbox is
   `operational`, not `narrative`.
+
+## Amendment (2026-11-17): no `legal_hold` table
+
+The `legal_hold` table was removed unwritten. Until purge jobs exist there is
+nothing for a hold to block, so a legal hold is recorded in the incident or
+deprovisioning ticket (see the runbooks). Model it again with the purge jobs.

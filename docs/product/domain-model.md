@@ -34,7 +34,7 @@ here is our best current design and is open to domain experts (see
 | **Development** | DevelopmentPlan (focus skills with **target levels**), Activity (with an **observation commitment**), Interaction, Evidence | The coachee's workspace. Logging an event is never credit.                                                                                     |
 | **Recognition** | Observation, Rating, CreditEntry, CreditReversal, BadgeAward                                                                | The **only** context that writes credit.                                                                                                       |
 | **Advisory**    | AdvisoryCheck, AdvisoryDisposition                                                                                          | Gemini Decisions wrapper: the privacy screen only. The learning loop is deferred (ADR 0016).                                                   |
-| **Compliance**  | AuditEvent, Note, LegalHold                                                                                                 | Append-only and exportable. Human reasons live in purgeable notes.                                                                             |
+| **Compliance**  | AuditEvent, Note                                                                                                            | Append-only and exportable. Human reasons live in purgeable notes.                                                                             |
 | **Hub**         | Notification, NotificationPreference; the adoption view (a read-only projection)                                            | Tells people what waits on them, and shows the program owner aggregates. Writes nothing in other contexts (ADR 0018, ADR 0021).                |
 
 ## From work to credit
@@ -147,7 +147,7 @@ Further rules:
   Client discovery · Doing independently."
 - **Level 4, "Teaching others"** cannot be shown in a client meeting. It will
   be earned by developing others: signed observations _given_ as a designated
-  observer, plus calibration agreement. This is designed, not built.
+  observer. This is designed, not built.
 - **Waivers** of the observer or first-hand criterion are designed, not built
   (the `badge_waiver` table was removed unused). When built, a waiver is an
   audited row, never a silent override.
@@ -163,7 +163,7 @@ transitions that only a human can make.
 
 | Entity                       | States                                                                                                                                                  | Key events and guards                                                                                                                                                                                                                                                                                                |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Skill / ActivityTemplate** | draft → published → retired · discarded                                                                                                                 | `PUBLISH` (H, keeper), guarded by the definition being complete                                                                                                                                                                                                                                                      |
+| **Skill / ActivityTemplate** | draft → published → retired · discarded                                                                                                                 | `PUBLISH` (H), guarded by the definition being complete; only the seed publishes today                                                                                                                                                                                                                               |
 | **CoachingEngagement**       | proposed → active ⇄ paused → ended · declined · withdrawn · expired                                                                                     | `ACCEPT` / `DECLINE` (H, the other party). Guard: the coach grant is active. Expires after 14 days.                                                                                                                                                                                                                  |
 | **DevelopmentPlan**          | draft → proposed → active ⇄ paused → completed · canceled · expired                                                                                     | `PROPOSE` needs 1–3 focus skills (each with a target level) and at least one activity. `AGREE` (H): the coach, or the leader if the coachee has no coach. `ENDORSE` (H): the leader chain, which can never block the plan. Expires after the period ends plus a grace period.                                        |
 | **Activity**                 | planned → underway → done · canceled · expired                                                                                                          | Becomes underway on its first interaction                                                                                                                                                                                                                                                                            |
@@ -193,27 +193,14 @@ outbox row: `pending → sent · skipped · failed`, set only by the dispatcher)
 
 ## Designed next
 
-- **Coaching conversations and commitments** (ADR 0019, deferred until pilot
-  feedback), with private coach notes once compliance answers retention and
-  access (open question 23).
-- **Program and Cohort**: a template plan plus an enrollment backed by an AD
-  group (for example, new-advisor cohorts).
-- **Directory sync**: a scheduled Microsoft Graph sync of `manager` and app
-  roles, which reports rule violations instead of rejecting HR data. The CSV
-  import, which returns its findings, comes first.
-- **Profiles and expectations by job family** (ADR 0017, deferred until HR
-  agrees). Credits pin the subject's position, so they can follow later.
+Cohorts, Graph directory sync, skill profiles (ADR 0017) and coaching
+conversations (ADR 0019) are designed but deferred. See the
+[backlog](../backlog.md) and the [open questions](open-questions.md).
 
 ## How we will know it works
 
-- **Time to signature:** the median time from logging an interaction to a
-  signed observation. This is the north star, because observer capacity is
-  the constraint.
-- **Coverage:** the share of people with an active plan who have a signed
-  observation of work dated in the last 42 days.
-- **Distinct observers** per person per quarter.
-- **Subject acknowledgement rate**, and how often people ask for a review.
-- **Second-read agreement** between observers.
-
-We do not measure success with the model that nudges people. Exact
-definitions are in [ADR 0021](../adr/0021-program-owner-and-adoption-view.md).
+The adoption view shows four aggregate numbers: people with a plan, coverage
+(observed for work dated in the last 42 days), median days from logging to
+signature, and the expiry rate. See the
+[product overview](overview.md#how-we-will-know-it-works) and
+[ADR 0021](../adr/0021-program-owner-and-adoption-view.md).

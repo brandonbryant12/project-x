@@ -75,7 +75,7 @@ Do not mix kinds. If a workflow entity needs history, the history belongs in
   - Booleans read as facts (`credit`, `is_first_hand`).
   - Index names start with the table name.
 - **Indexes follow access patterns.** Each index is justified by a query such
-  as the inbox (`observer_id`, `status`), a timeline (`subject_id`,
+  as the inbox (`observer_id`, `status`), a person's logged work (`owner_id`,
   `occurred_on`) or the ledger (`person_id`, `skill_id`). `tenant_id` comes
   first in composite indexes.
 
@@ -106,23 +106,20 @@ tenant ─┬─ business_function
         └─ audit_event       (append-only: who, what, from → to, why, under which policy)
 ```
 
-## 4. State of the hub-round tables
+## 4. State of the newer tables
 
-The schema for this round landed before the behavior, so that credits are
-pinned correctly from the first real row.
-
-| Table                                                      | Schema | Behavior                                                                                                                          |
-| ---------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `observer_designation`, `observation.basis_designation_id` | Built  | Designating, ending, and observing on the `designated` basis are built; the journey test `designated-observer-signs` is _planned_ |
-| `notification_preference`                                  | Built  | Built                                                                                                                             |
-| `notification`                                             | Built  | Rows written in the transition's transaction; dispatcher with staleness check (`notification-carries-no-content`)                 |
-| `job_family`, `person_position`, `subject_position_id`     | Built  | Positions are pinned on credit; skill profiles and expectations are deferred (ADR 0017)                                           |
+| Table                                                      | Schema | Behavior                                                                                                          |
+| ---------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| `observer_designation`, `observation.basis_designation_id` | Built  | Built (`designated-observer-signs`); the web app hides it behind `FEATURE_DESIGNATED_OBSERVERS`, off by default   |
+| `notification_preference`                                  | Built  | Built                                                                                                             |
+| `notification`                                             | Built  | Rows written in the transition's transaction; dispatcher with staleness check (`notification-carries-no-content`) |
+| `job_family`, `person_position`, `subject_position_id`     | Built  | Positions are pinned on credit; skill profiles and expectations are deferred (ADR 0017)                           |
 
 Designed, not built:
 
 | Entity              | Purpose                                                                             | Fits as                        |
 | ------------------- | ----------------------------------------------------------------------------------- | ------------------------------ |
-| `role_expectation`  | The expected level of a skill for a job family (ADR 0017, proposed)                 | Keyed by job family and skill  |
+| `role_expectation`  | The expected level of a skill for a job family (ADR 0017, deferred)                 | Keyed by job family and skill  |
 | `program`, `cohort` | A template plan (skills, templates, cadence) and an enrolment backed by an AD group | Plans can reference a program. |
 
 ## 5. Review checklist for schema changes

@@ -1,7 +1,11 @@
 # ADR 0006: Entra ID sign-in with app roles; leader, coach and coachee are relationships
 
-- Status: Accepted
+- Status: Accepted (amended)
 - Date: 2026-11-16
+
+> **Amended, 2026-11-17.** `CatalogKeeper` was removed (it unlocked nothing
+> while the catalog is seeded) and `ProgramOwner` was added (ADR 0021). The
+> directory exceptions queue is deferred; see the note in the decision.
 
 ## Context
 

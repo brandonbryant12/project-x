@@ -1,7 +1,12 @@
 # ADR 0020: A leader or coach may designate a colleague to observe, for a bounded window
 
-- Status: Accepted
+- Status: Accepted (amended)
 - Date: 2026-11-16
+
+> **Amended, 2026-11-17.** Built, but the web app hides it behind
+> `FEATURE_DESIGNATED_OBSERVERS`, off by default, until the known gaps in the
+> [backlog](../backlog.md) are closed. The UI calls it "Asked to observe".
+
 - Builds on: [ADR 0006](./0006-identity-entra-roles-and-relationships.md), [ADR 0007](./0007-credit-only-from-signed-observations.md)
 
 ## Context

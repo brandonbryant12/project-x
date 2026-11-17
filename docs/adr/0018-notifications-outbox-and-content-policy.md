@@ -1,8 +1,15 @@
 # ADR 0018: Notifications go through a transactional outbox, under a content policy
 
-- Status: Accepted
+- Status: Accepted (amended)
 - Date: 2026-11-16
 - Builds on: [ADR 0011](./0011-single-deployable-with-in-process-scheduler.md), [ADR 0012](./0012-privacy-and-audit-by-design.md)
+
+> **Amended, 2026-11-17.** Email is the only channel: the Teams channel and
+> its preference were dropped (an old Teams choice is delivered by email). A
+> person has two settings, email on or off and the weekly digest on or off.
+> The admin outbox page was removed. The adoption view no longer reports
+> notification-to-action conversion (ADR 0021 amendment). The text below is
+> the original decision.
 
 ## Context
 

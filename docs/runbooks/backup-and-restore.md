@@ -1,5 +1,8 @@
 # Runbook: backup and restore
 
+> **Draft — nothing is deployed yet.** Check every step against the real
+> environment before relying on it.
+
 PostgreSQL holds all of the application's state, including sessions. The app
 containers are stateless and there is no file or blob storage. Backing up the
 database backs up the product.

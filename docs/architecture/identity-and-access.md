@@ -27,10 +27,10 @@ Decisions: [ADR 0006](../adr/0006-identity-entra-roles-and-relationships.md),
 
 There are two different kinds of authority, and we keep them separate:
 
-| Kind                                            | Examples                                                                | Source                                                                      | Stored as                                    |
-| ----------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------- |
-| **Capabilities** (what you are _allowed to be_) | Coach, Catalog keeper, Tenant admin, Compliance reviewer, Program owner | Entra **app roles**, assigned to AD groups                                  | `role_grant` rows (`valid_from`, `valid_to`) |
-| **Relationships** (who you are _to someone_)    | Leader of, coach of, coachee of                                         | Reporting lines from the directory; coaching engagements created in the app | `reporting_line`, `engagement`               |
+| Kind                                            | Examples                                                | Source                                                                      | Stored as                                    |
+| ----------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------- |
+| **Capabilities** (what you are _allowed to be_) | Coach, Tenant admin, Compliance reviewer, Program owner | Entra **app roles**, assigned to AD groups                                  | `role_grant` rows (`valid_from`, `valid_to`) |
+| **Relationships** (who you are _to someone_)    | Leader of, coach of, coachee of                         | Reporting lines from the directory; coaching engagements created in the app | `reporting_line`, `engagement`               |
 
 "Leader", "team" and "coachee" are **never stored as roles**. A person is a
 leader _because_ someone reports to them on a given date. The same person can
@@ -100,7 +100,7 @@ role. **This mode refuses to start under `NODE_ENV=production`** (enforced in
 | `Coach`              | May form coaching engagements and observe coachees                                                                                                                        |
 | `TenantAdmin`        | Releases privacy holds; sees AI usage, the audit trail, and levels but not narratives                                                                                     |
 | `ComplianceReviewer` | Resolves escalated evidence; the only role that voids or upholds observations; may read narratives outside a relationship, and each read is audited; sees the audit trail |
-| `ProgramOwner`       | Sees the adoption view: aggregates only, no names (ADR 0021). _Being built in this round._                                                                                |
+| `ProgramOwner`       | Sees the adoption view: aggregates only, no names (ADR 0021).                                                                                                             |
 
 3. On the **enterprise application**, assign each app role to the AD
    **groups** that should hold it, for example `GRP-Coaching-Coaches` → `Coach`.
@@ -165,14 +165,14 @@ observer eligibility depends on.
 Every check lives in pure functions in `packages/domain/src/policy` and is
 tested as tables:
 
-| Question                                         | Rule                                                                                                                                                                                                | Function                                           |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Can O observe S for work on date D?              | O ≠ S; O was S's **direct** leader on D, or O held the coach grant and an **accepted** engagement with S on D, or O was designated for S for a window covering D (ADR 0020); O does not report to S | `checkObserverEligibility`                         |
-| Who may see S's plan, progress and interactions? | S, S's active coaches, and S's whole leader chain                                                                                                                                                   | `developmentAccess`                                |
-| Who may read observation narratives about S?     | S, the observer who wrote it, S's coaches, S's **direct** leader. The wider chain sees levels only. A draft is visible only to its observer until signed.                                           | `canReadNarrative`                                 |
-| Who may designate an observer for S?             | S's direct leader or an engaged coach, for at most 90 days; never S, never someone who reports to S; no overlapping pair in either direction. _Being built in this round_ (ADR 0020).               | `checkDesignation`                                 |
-| Who agrees S's plan?                             | S's coach, or S's leader if S has no coach. The leader chain may endorse but not block.                                                                                                             | `planAgreers` (server)                             |
-| Who may send a lifecycle event?                  | A per-entity policy table (observer, subject, requester, admin), intersected with the XState machine                                                                                                | `permittedEvents`, `engagementPolicy`, `planEvent` |
+| Question                                         | Rule                                                                                                                                                                                                                        | Function                                           |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Can O observe S for work on date D?              | O ≠ S; O was S's **direct** leader on D, or O held the coach grant and an **accepted** engagement with S on D, or O was designated for S for a window covering D (ADR 0020); O does not report to S                         | `checkObserverEligibility`                         |
+| Who may see S's plan, progress and interactions? | S, S's active coaches, and S's whole leader chain                                                                                                                                                                           | `developmentAccess`                                |
+| Who may read observation narratives about S?     | S, the observer who wrote it, S's coaches, S's **direct** leader. The wider chain sees levels only. A draft is visible only to its observer until signed.                                                                   | `canReadNarrative`                                 |
+| Who may designate an observer for S?             | S's direct leader or an engaged coach, for at most 90 days; never S, never someone who reports to S; no overlapping pair in either direction (ADR 0020). Hidden in the web app unless `FEATURE_DESIGNATED_OBSERVERS` is on. | `checkDesignation`                                 |
+| Who agrees S's plan?                             | S's coach, or S's leader if S has no coach. The leader chain may endorse but not block.                                                                                                                                     | `planAgreers` (server)                             |
+| Who may send a lifecycle event?                  | A per-entity policy table (observer, subject, requester, admin), intersected with the XState machine                                                                                                                        | `permittedEvents`, `engagementPolicy`, `planEvent` |
 
 **Visible to everyone in the tenant:** the skill catalog, activity templates,
 the directory, and earned badges ("who can I learn from").
