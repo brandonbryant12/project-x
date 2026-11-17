@@ -132,37 +132,6 @@ const TemplateRow = ({ template }: { readonly template: TemplateCard }) => (
   </li>
 );
 
-export const ActivitiesScreen = ({
-  templates,
-}: {
-  readonly templates: ReadonlyArray<TemplateCard>;
-}) => {
-  const [q, setQ] = useState('');
-  const visible = templates.filter((t) =>
-    `${t.name} ${t.description}`.toLowerCase().includes(q.toLowerCase()),
-  );
-  return (
-    <Page width="reading">
-      <PageHeader
-        title="Activities"
-        description="Real work worth planning around. Suggested skills are guidance; any activity can show any skill."
-        actions={<Search value={q} onChange={setQ} label="Find an activity" />}
-      />
-      {visible.length > 0 ? (
-        <Card>
-          <ul className="divide-y divide-line">
-            {visible.map((t) => (
-              <TemplateRow key={t.id} template={t} />
-            ))}
-          </ul>
-        </Card>
-      ) : (
-        <EmptyState>No activities match “{q}”.</EmptyState>
-      )}
-    </Page>
-  );
-};
-
 export const SkillScreen = ({ skill }: { readonly skill: SkillDetail }) => {
   const session = useSession();
   // "Who can I learn from" means other people; "Teaching others" first.
@@ -219,7 +188,7 @@ export const SkillScreen = ({ skill }: { readonly skill: SkillDetail }) => {
             </Tabs>
           </section>
           <section className="grid gap-3" aria-labelledby="templates">
-            <SectionLabel id="templates">Activities that build this</SectionLabel>
+            <SectionLabel id="templates">Work that builds this</SectionLabel>
             {skill.templates.length > 0 ? (
               <Card>
                 <ul className="divide-y divide-line">
@@ -229,7 +198,7 @@ export const SkillScreen = ({ skill }: { readonly skill: SkillDetail }) => {
                 </ul>
               </Card>
             ) : (
-              <p className="text-ui text-ink-3">Any real work can show this skill.</p>
+              <p className="text-ui text-ink-3">Any work can show this skill.</p>
             )}
           </section>
         </div>

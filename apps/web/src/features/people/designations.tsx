@@ -127,7 +127,7 @@ const DesignateDialog = ({
     <ResponsiveDialog
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title={`Name an observer for ${firstName(subject)}`}
+      title={`Ask someone to observe ${firstName(subject)}`}
       description={`A colleague who sees ${firstName(subject)}’s work can observe and sign, from today for up to ${MAX_DESIGNATION_DAYS} days. ${firstName(subject)} sees who it is.`}
     >
       <form
@@ -174,7 +174,7 @@ const DesignateDialog = ({
             variant="primary"
             disabled={!observerId || !windowOk || designate.isPending}
           >
-            {designate.isPending ? 'Saving…' : 'Name observer'}
+            {designate.isPending ? 'Saving…' : 'Ask them to observe'}
           </Button>
         </div>
       </form>
@@ -195,7 +195,7 @@ const DesignationRow = ({ d }: { readonly d: DesignationView }) => {
       <div className="min-w-0 flex-1 basis-48">
         <p className="text-ui text-ink">{d.observer.displayName}</p>
         <p className="text-meta text-ink-3">
-          Named by {by} · {formatDate(d.validFrom)} to {formatDate(d.validTo)}
+          Asked by {by} · {formatDate(d.validFrom)} to {formatDate(d.validTo)}
         </p>
       </div>
       {d.active ? null : <StatusPill label="Ended" tone="muted" />}
@@ -234,16 +234,16 @@ export const DesignationsSection = ({
   return (
     <section className="mt-12 grid gap-3" aria-labelledby="designations">
       <div className="flex items-center justify-between gap-3">
-        <SectionLabel id="designations">Named observers</SectionLabel>
+        <SectionLabel id="designations">Asked to observe</SectionLabel>
         {canDesignate ? (
           <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-            <PlusIcon /> Name an observer
+            <PlusIcon /> Ask someone to observe
           </Button>
         ) : null}
       </div>
       <p className="max-w-[60ch] text-ui text-ink-2">
         A colleague who works alongside {firstName(subject)} can observe and sign while they are
-        named here, for up to {MAX_DESIGNATION_DAYS} days.
+        listed here, for up to {MAX_DESIGNATION_DAYS} days.
       </p>
       {rows.length > 0 ? (
         <ul className="divide-y divide-line border-y border-line">
@@ -252,7 +252,7 @@ export const DesignationsSection = ({
           ))}
         </ul>
       ) : (
-        <p className="text-ui text-ink-3">Nobody is named.</p>
+        <p className="text-ui text-ink-3">Nobody else has been asked.</p>
       )}
       {canDesignate ? (
         <DesignateDialog

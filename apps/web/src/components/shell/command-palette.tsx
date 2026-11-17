@@ -17,7 +17,7 @@ import { useState } from 'react';
 import { queryOptions } from '@/lib/api.ts';
 import { useLogDialog } from './log-dialog-context.tsx';
 
-/** ⌘K: people, skills and intent ("Observe Daniel"). */
+/** ⌘K: people (the directory lives here, not in the nav), skills and intent ("I saw this: Daniel"). */
 export const CommandPalette = ({
   open,
   onOpenChange,
@@ -55,17 +55,17 @@ export const CommandPalette = ({
             {q === '' ? (
               <CommandGroup heading="Actions">
                 <CommandItem onSelect={() => go(() => log.show())}>
-                  <NotebookPenIcon /> Log interaction
+                  <NotebookPenIcon /> Log work I did
                 </CommandItem>
                 {canObserve ? (
                   <CommandItem
                     onSelect={() => go(() => void navigate({ to: '/observations/new' }))}
                   >
-                    <EyeIcon /> I saw this — start an observation
+                    <EyeIcon /> I saw this
                   </CommandItem>
                 ) : null}
                 <CommandItem onSelect={() => go(() => void navigate({ to: '/development' }))}>
-                  <SproutIcon /> My development
+                  <SproutIcon /> My plan
                 </CommandItem>
               </CommandGroup>
             ) : null}
@@ -93,7 +93,7 @@ export const CommandPalette = ({
                       )
                     }
                   >
-                    <EyeIcon /> Observe {card.person.displayName.split(' ')[0]}
+                    <EyeIcon /> I saw this: {card.person.displayName.split(' ')[0]}
                   </CommandItem>
                 ) : null}
               </CommandGroup>
@@ -124,10 +124,10 @@ export const CommandPalette = ({
             {q === '' ? (
               <CommandGroup heading="Go to">
                 <CommandItem onSelect={() => go(() => void navigate({ to: '/people' }))}>
-                  <UserIcon /> People directory
+                  <UserIcon /> People
                 </CommandItem>
                 <CommandItem onSelect={() => go(() => void navigate({ to: '/catalog/skills' }))}>
-                  <CompassIcon /> Skill catalog
+                  <CompassIcon /> Skills
                 </CommandItem>
               </CommandGroup>
             ) : null}

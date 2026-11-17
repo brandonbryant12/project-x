@@ -159,10 +159,10 @@ layer(ScenarioLayer.pipe(Layer.provideMerge(NotifierMemory)), { timeout: 60_000 
         const db = yield* Db;
         yield* signInAs('Maya Chen');
         yield* api.hub.updatePreferences({
-          payload: { channel: 'off', weeklyDigest: false },
+          payload: { sendEmail: false, weeklyDigest: false },
         });
-        const me = (yield* api.hub.preferences()).channel;
-        assert.strictEqual(me, 'off');
+        const me = (yield* api.hub.preferences()).sendEmail;
+        assert.isFalse(me);
         const [maya] = yield* db
           .select()
           .from(schema.person)

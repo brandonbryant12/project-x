@@ -67,7 +67,7 @@ describe('badge criteria', () => {
       'Behavioral coaching',
     );
     expect(sentence).toBe(
-      'Three more demonstrations at doing independently or above to earn Behavioral coaching · Doing independently.',
+      'Be observed three more times at doing independently or above to earn Behavioral coaching · Doing independently.',
     );
   });
 

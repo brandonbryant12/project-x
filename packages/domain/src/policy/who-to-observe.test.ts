@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { IsoDate, PersonId } from '../ids.ts';
 import { whoToObserve, type SupportedPerson } from './who-to-observe.ts';
 
-// I25: who-to-observe follows the fixed priority, honours capacity, never
-// suggests the viewer, and never orders people by progress.
+// I25: who-to-observe follows the fixed priority, shows at most three, never
+// suggests the viewer or someone already waiting on them, and never orders
+// people by progress.
 const p = (name: string) => `per_${name.padEnd(16, '0')}` as PersonId;
 const d = (s: string) => s as IsoDate;
 const me = p('sam');
@@ -26,33 +27,19 @@ const base = {
     person('cy', null),
     person('di', '2026-11-12', [p('leo')]),
   ],
-  openRequests: [],
+  alreadyWaiting: [],
   plannedThisWeek: [],
-  capacity: 2,
 };
 
 describe('who to observe this week', () => {
   it.each([
-    ['capacity 0 turns it off', { capacity: 0 }, []],
     [
-      'gaps: never observed, then longest',
+      'gaps (never observed, then longest), then a second observer, at most three',
       {},
       [
         ['cy', 'longest_unobserved'],
         ['bo', 'longest_unobserved'],
-      ],
-    ],
-    [
-      'an open request closing soonest comes first',
-      {
-        openRequests: [
-          { subjectId: p('di'), dueOn: d('2026-11-19') },
-          { subjectId: p('ada'), dueOn: d('2026-11-18') },
-        ],
-      },
-      [
-        ['ada', 'request_closing'],
-        ['di', 'request_closing'],
+        ['di', 'second_observer'],
       ],
     ],
     [
@@ -61,29 +48,16 @@ describe('who to observe this week', () => {
       [
         ['ada', 'planned_this_week'],
         ['cy', 'longest_unobserved'],
-      ],
-    ],
-    [
-      'a second observer is suggested last, and capacity is capped at three',
-      { capacity: 9 },
-      [
-        ['cy', 'longest_unobserved'],
         ['bo', 'longest_unobserved'],
-        ['di', 'second_observer'],
       ],
     ],
     [
-      'the viewer and duplicates never appear',
+      'someone with an open request or draft is not repeated, and neither is the viewer',
       {
-        openRequests: [
-          { subjectId: me, dueOn: d('2026-11-17') },
-          { subjectId: p('cy'), dueOn: d('2026-11-17') },
-        ],
+        alreadyWaiting: [p('cy'), p('di')],
+        plannedThisWeek: [{ subjectId: me, dueOn: d('2026-11-17') }],
       },
-      [
-        ['cy', 'request_closing'],
-        ['bo', 'longest_unobserved'],
-      ],
+      [['bo', 'longest_unobserved']],
     ],
   ] as const)('%s', (_, overrides, expected) => {
     const result = whoToObserve({ ...base, ...overrides });
@@ -91,15 +65,15 @@ describe('who to observe this week', () => {
   });
 
   it('explains each suggestion in a sentence', () => {
-    const [first] = whoToObserve({
+    const [soon] = whoToObserve({
       ...base,
-      openRequests: [{ subjectId: p('ada'), dueOn: d('2026-11-18') }],
+      plannedThisWeek: [{ subjectId: p('ada'), dueOn: d('2026-11-18') }],
     });
-    expect(first?.sentence).toBe('Ada asked you to observe; it closes on Wednesday.');
+    expect(soon?.sentence).toBe('Ada has work planned on Wednesday with you as observer.');
     const [far] = whoToObserve({
       ...base,
-      openRequests: [{ subjectId: p('ada'), dueOn: d('2026-11-30') }],
+      plannedThisWeek: [{ subjectId: p('ada'), dueOn: d('2026-11-30') }],
     });
-    expect(far?.sentence).toBe('Ada asked you to observe; it closes on Mon, Nov 30.');
+    expect(far?.sentence).toBe('Ada has work planned on Mon, Nov 30 with you as observer.');
   });
 });

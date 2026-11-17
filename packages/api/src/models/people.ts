@@ -67,6 +67,8 @@ export const SessionView = Schema.Struct({
     canObserve: Schema.Boolean,
   }),
   authMode: Schema.Literals(['entra', 'dev']),
+  /** Product switches from server config. */
+  features: Schema.Struct({ designatedObservers: Schema.Boolean }),
 });
 export type SessionView = typeof SessionView.Type;
 

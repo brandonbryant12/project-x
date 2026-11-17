@@ -48,7 +48,7 @@ const relationLine = (view: ObservationView) =>
     view.subject.displayName.split(' ')[0] ?? '',
   );
 
-/** What happened: the coachee's account, framed as theirs. */
+/** What happened: the account of the person observed, framed as theirs. */
 export const EvidenceCard = ({
   view,
   showTitle = true,
@@ -109,45 +109,27 @@ export const EvidenceCard = ({
 };
 
 const PRIVACY_LABEL = {
-  hold: 'Privacy: held for client details',
-  escalate: 'Privacy: sent to compliance',
-  nudge: 'Privacy: nothing held',
-  none: 'Privacy: nothing found',
+  hold: 'Held: it may include client details',
+  escalate: 'Sent to compliance',
+  nudge: 'Possible client details, not held',
 } as const;
 
-const preReadState = (findings: number, pending: boolean, failed: boolean) => {
-  if (findings > 0) return 'ready' as const;
-  if (pending) return 'pending' as const;
-  return failed ? ('unavailable' as const) : ('ready' as const);
-};
-
-/** Findings for the pre-read panel, already hedged by the server. */
-export const preReadFindings = (advisory: ReadonlyArray<AdvisoryView>): Array<PreReadFinding> =>
-  advisory.flatMap((a) => {
-    if (a.status !== 'completed') return [];
-    if (a.questionSet === 'privacy-screen') {
-      return [
-        {
-          key: a.id,
-          label: PRIVACY_LABEL[a.effect ?? 'none'],
-          outcome: a.effect === 'none' ? ('yes' as const) : ('unclear' as const),
-        },
-      ];
-    }
-    return a.findings.map((f) => ({ key: `${a.id}-${f.key}`, label: f.label, outcome: f.outcome }));
-  });
-
-export const PreReadPanel = ({ advisory }: { readonly advisory: ReadonlyArray<AdvisoryView> }) => {
-  const findings = preReadFindings(advisory);
-  const anyFailed = advisory.some((a) => a.status === 'failed');
-  const pending = advisory.some((a) => a.status === 'pending');
-  if (advisory.length === 0) return null;
-  return (
-    <AssistantPreRead
-      findings={findings}
-      state={preReadState(findings.length, pending, anyFailed)}
-    />
+/** What the privacy check found, already hedged by the server. Nothing found: nothing to show. */
+const privacyFindings = (advisory: ReadonlyArray<AdvisoryView>): Array<PreReadFinding> =>
+  advisory.flatMap((a) =>
+    a.status === 'completed' &&
+    a.questionSet === 'privacy-screen' &&
+    a.effect !== null &&
+    a.effect !== 'none'
+      ? [{ key: a.id, label: PRIVACY_LABEL[a.effect], outcome: 'unclear' as const }]
+      : [],
   );
+
+/** The automated privacy check, shown only when it found something. */
+export const PreReadPanel = ({ advisory }: { readonly advisory: ReadonlyArray<AdvisoryView> }) => {
+  const findings = privacyFindings(advisory);
+  if (findings.length === 0) return null;
+  return <AssistantPreRead findings={findings} state="ready" />;
 };
 
 export const NarrativeEditor = ({

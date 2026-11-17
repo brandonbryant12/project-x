@@ -186,7 +186,7 @@ const ActivityRow = ({
           {editable && activity.actions.length > 0 ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Activity actions">
+                <Button variant="ghost" size="icon-sm" aria-label="Actions for this work">
                   <EllipsisIcon />
                 </Button>
               </DropdownMenuTrigger>
@@ -308,10 +308,10 @@ const PlanBody = ({ plan, editable }: { readonly plan: PlanView; readonly editab
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="grid content-start gap-3" aria-labelledby="activities">
           <div className="flex items-center justify-between">
-            <SectionLabel id="activities">Activities</SectionLabel>
+            <SectionLabel id="activities">Work</SectionLabel>
             {editable ? (
               <Button variant="ghost" size="sm" onClick={() => setAdding(true)}>
-                <PlusIcon /> Add real work
+                <PlusIcon /> Add work
               </Button>
             ) : null}
           </div>
@@ -329,7 +329,7 @@ const PlanBody = ({ plan, editable }: { readonly plan: PlanView; readonly editab
             </Card>
           ) : (
             <EmptyState>
-              Add the real work that will develop these skills: meetings, reviews, conversations you
+              Add the work that will develop these skills: meetings, reviews, conversations you
               already have.
             </EmptyState>
           )}
@@ -391,7 +391,7 @@ export const DevelopmentScreen = ({
           <Link to="/people/$id" params={{ id: development.person.id }} className="hover:underline">
             {development.person.displayName}
           </Link>{' '}
-          · Development plan
+          · Plan
         </p>
       ) : null}
       {development.plan ? (
@@ -399,7 +399,7 @@ export const DevelopmentScreen = ({
       ) : (
         <div className="grid max-w-2xl gap-6">
           <h1 className="font-serif text-h1 font-medium text-ink md:text-display">
-            {self ? 'Development' : `${first}’s development`}
+            {self ? 'My plan' : `${first}’s plan`}
           </h1>
           {self ? (
             <FirstRunStep

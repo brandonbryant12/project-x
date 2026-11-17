@@ -17,11 +17,8 @@ import { Route as AppCoachingRouteImport } from './routes/_app/coaching'
 import { Route as AppDevelopmentRouteImport } from './routes/_app/development'
 import { Route as AppInboxRouteImport } from './routes/_app/inbox'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
-import { Route as AppTimelineRouteImport } from './routes/_app/timeline'
 import { Route as AppAdminAiUsageRouteImport } from './routes/_app/admin/ai-usage'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
-import { Route as AppAdminOutboxRouteImport } from './routes/_app/admin/outbox'
-import { Route as AppCatalogActivitiesRouteImport } from './routes/_app/catalog/activities'
 import { Route as AppObservationsIdRouteImport } from './routes/_app/observations/$id'
 import { Route as AppObservationsNewRouteImport } from './routes/_app/observations/new'
 import { Route as AppPeopleIndexRouteImport } from './routes/_app/people/index'
@@ -71,11 +68,6 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
-const AppTimelineRoute = AppTimelineRouteImport.update({
-  id: '/timeline',
-  path: '/timeline',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppAdminAiUsageRoute = AppAdminAiUsageRouteImport.update({
   id: '/admin/ai-usage',
   path: '/admin/ai-usage',
@@ -84,16 +76,6 @@ const AppAdminAiUsageRoute = AppAdminAiUsageRouteImport.update({
 const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   id: '/admin/audit',
   path: '/admin/audit',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminOutboxRoute = AppAdminOutboxRouteImport.update({
-  id: '/admin/outbox',
-  path: '/admin/outbox',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCatalogActivitiesRoute = AppCatalogActivitiesRouteImport.update({
-  id: '/catalog/activities',
-  path: '/catalog/activities',
   getParentRoute: () => AppRoute,
 } as any)
 const AppObservationsIdRoute = AppObservationsIdRouteImport.update({
@@ -151,11 +133,8 @@ export interface FileRoutesByFullPath {
   '/development': typeof AppDevelopmentRoute
   '/inbox': typeof AppInboxRoute
   '/settings': typeof AppSettingsRoute
-  '/timeline': typeof AppTimelineRoute
   '/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/admin/audit': typeof AppAdminAuditRoute
-  '/admin/outbox': typeof AppAdminOutboxRoute
-  '/catalog/activities': typeof AppCatalogActivitiesRoute
   '/observations/$id': typeof AppObservationsIdRoute
   '/observations/new': typeof AppObservationsNewRoute
   '/team/$personId': typeof AppTeamPersonIdRoute
@@ -173,12 +152,9 @@ export interface FileRoutesByTo {
   '/development': typeof AppDevelopmentRoute
   '/inbox': typeof AppInboxRoute
   '/settings': typeof AppSettingsRoute
-  '/timeline': typeof AppTimelineRoute
   '/': typeof AppIndexRoute
   '/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/admin/audit': typeof AppAdminAuditRoute
-  '/admin/outbox': typeof AppAdminOutboxRoute
-  '/catalog/activities': typeof AppCatalogActivitiesRoute
   '/observations/$id': typeof AppObservationsIdRoute
   '/observations/new': typeof AppObservationsNewRoute
   '/team/$personId': typeof AppTeamPersonIdRoute
@@ -198,12 +174,9 @@ export interface FileRoutesById {
   '/_app/development': typeof AppDevelopmentRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/settings': typeof AppSettingsRoute
-  '/_app/timeline': typeof AppTimelineRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
-  '/_app/admin/outbox': typeof AppAdminOutboxRoute
-  '/_app/catalog/activities': typeof AppCatalogActivitiesRoute
   '/_app/observations/$id': typeof AppObservationsIdRoute
   '/_app/observations/new': typeof AppObservationsNewRoute
   '/_app/team/$personId': typeof AppTeamPersonIdRoute
@@ -224,11 +197,8 @@ export interface FileRouteTypes {
     | '/development'
     | '/inbox'
     | '/settings'
-    | '/timeline'
     | '/admin/ai-usage'
     | '/admin/audit'
-    | '/admin/outbox'
-    | '/catalog/activities'
     | '/observations/$id'
     | '/observations/new'
     | '/team/$personId'
@@ -246,12 +216,9 @@ export interface FileRouteTypes {
     | '/development'
     | '/inbox'
     | '/settings'
-    | '/timeline'
     | '/'
     | '/admin/ai-usage'
     | '/admin/audit'
-    | '/admin/outbox'
-    | '/catalog/activities'
     | '/observations/$id'
     | '/observations/new'
     | '/team/$personId'
@@ -270,12 +237,9 @@ export interface FileRouteTypes {
     | '/_app/development'
     | '/_app/inbox'
     | '/_app/settings'
-    | '/_app/timeline'
     | '/_app/'
     | '/_app/admin/ai-usage'
     | '/_app/admin/audit'
-    | '/_app/admin/outbox'
-    | '/_app/catalog/activities'
     | '/_app/observations/$id'
     | '/_app/observations/new'
     | '/_app/team/$personId'
@@ -350,13 +314,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/timeline': {
-      id: '/_app/timeline'
-      path: '/timeline'
-      fullPath: '/timeline'
-      preLoaderRoute: typeof AppTimelineRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/admin/ai-usage': {
       id: '/_app/admin/ai-usage'
       path: '/admin/ai-usage'
@@ -369,20 +326,6 @@ declare module '@tanstack/react-router' {
       path: '/admin/audit'
       fullPath: '/admin/audit'
       preLoaderRoute: typeof AppAdminAuditRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/outbox': {
-      id: '/_app/admin/outbox'
-      path: '/admin/outbox'
-      fullPath: '/admin/outbox'
-      preLoaderRoute: typeof AppAdminOutboxRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/catalog/activities': {
-      id: '/_app/catalog/activities'
-      path: '/catalog/activities'
-      fullPath: '/catalog/activities'
-      preLoaderRoute: typeof AppCatalogActivitiesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/observations/$id': {
@@ -457,12 +400,9 @@ interface AppRouteChildren {
   AppDevelopmentRoute: typeof AppDevelopmentRoute
   AppInboxRoute: typeof AppInboxRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppTimelineRoute: typeof AppTimelineRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAdminAiUsageRoute: typeof AppAdminAiUsageRoute
   AppAdminAuditRoute: typeof AppAdminAuditRoute
-  AppAdminOutboxRoute: typeof AppAdminOutboxRoute
-  AppCatalogActivitiesRoute: typeof AppCatalogActivitiesRoute
   AppObservationsIdRoute: typeof AppObservationsIdRoute
   AppObservationsNewRoute: typeof AppObservationsNewRoute
   AppTeamPersonIdRoute: typeof AppTeamPersonIdRoute
@@ -480,12 +420,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppDevelopmentRoute: AppDevelopmentRoute,
   AppInboxRoute: AppInboxRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppTimelineRoute: AppTimelineRoute,
   AppIndexRoute: AppIndexRoute,
   AppAdminAiUsageRoute: AppAdminAiUsageRoute,
   AppAdminAuditRoute: AppAdminAuditRoute,
-  AppAdminOutboxRoute: AppAdminOutboxRoute,
-  AppCatalogActivitiesRoute: AppCatalogActivitiesRoute,
   AppObservationsIdRoute: AppObservationsIdRoute,
   AppObservationsNewRoute: AppObservationsNewRoute,
   AppTeamPersonIdRoute: AppTeamPersonIdRoute,

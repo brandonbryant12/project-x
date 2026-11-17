@@ -63,9 +63,7 @@ const routesFor = async (
     ['profile', `/people/${personId}`],
     ['skills', '/catalog/skills'],
     ['skill', '/catalog/skills/client-discovery'],
-    ['activities', '/catalog/activities'],
     ['people', '/people'],
-    ['timeline', '/timeline'],
     ['team', '/team'],
     ['coaching', '/coaching'],
     ['observe-new', '/observations/new'],
@@ -83,7 +81,6 @@ const routesFor = async (
   if (has('tenant_admin') || has('compliance_reviewer')) {
     routes.push(['admin-ai-usage', '/admin/ai-usage'], ['admin-audit', '/admin/audit']);
   }
-  if (has('tenant_admin')) routes.push(['admin-outbox', '/admin/outbox']);
   if (has('tenant_admin') || has('program_owner')) routes.push(['adoption', '/adoption']);
   return routeFilter ? routes.filter(([name]) => routeFilter.includes(name)) : routes;
 };

@@ -146,12 +146,8 @@ export type NotificationKind = typeof NotificationKind.Type;
 
 export const NOTIFICATION_ENTITY_TYPES = ['observation', 'plan', 'engagement', 'digest'] as const;
 export const NOTIFICATION_STATUSES = ['pending', 'sent', 'skipped', 'failed'] as const;
-/** A person's choice; `off` skips delivery. Teams is not offered (email only for the pilot). */
+/** A person's choice: email on, or `off` to skip delivery. Email is the only channel for the pilot. */
 export const NOTIFICATION_CHANNELS = ['email', 'off'] as const;
-export const NotificationChannel = Schema.Literals(NOTIFICATION_CHANNELS);
-export type NotificationChannel = typeof NotificationChannel.Type;
-/** How many people who-to-observe suggests in a week. Fixed; no longer a preference. */
-export const DEFAULT_OBSERVE_CAPACITY = 2;
 
 /**
  * Directory findings (ADR 0006): HR data that breaks a structural rule or

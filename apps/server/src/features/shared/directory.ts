@@ -53,7 +53,7 @@ export const relationLabel = (
   if (viewerId === subjectId) return 'You';
   if (directReportsOf(facts, viewerId, on).includes(subjectId)) return 'Your report';
   if (directReportsOf(facts, subjectId, on).includes(viewerId)) return 'Your leader';
-  if (coacheesOf(facts, viewerId, on).includes(subjectId)) return 'Your coachee';
+  if (coacheesOf(facts, viewerId, on).includes(subjectId)) return 'You coach them';
   if (coacheesOf(facts, subjectId, on).includes(viewerId)) return 'Your coach';
   return null;
 };

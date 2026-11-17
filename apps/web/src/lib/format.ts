@@ -19,17 +19,6 @@ export const formatDate = (iso: string, opts: Intl.DateTimeFormatOptions = {}) =
 export const humanizeDates = (text: string) =>
   text.replaceAll(/\b(\d{4}-\d{2}-\d{2})\b/g, (iso) => formatDate(iso));
 
-/** "Thu 10:30": a scheduled moment in the viewer's own time zone. */
-export const formatWhen = (iso: string) => {
-  const d = new Date(iso);
-  const day = d.toLocaleDateString(undefined, { weekday: 'short' });
-  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  return `${day} ${time}`;
-};
-
-export const formatTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-
 export const formatLongDate = (iso: string) =>
   formatDate(iso, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 

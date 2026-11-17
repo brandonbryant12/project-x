@@ -14,7 +14,6 @@ export const useInboxCount = (enabled: boolean) => {
 const NavLink = ({ item, count }: { readonly item: NavItem; readonly count: number }) => (
   <Link
     to={item.to}
-    {...(item.params ? { params: item.params as never } : {})}
     activeOptions={{ exact: item.to === '/' }}
     className="group flex h-8 items-center gap-2.5 rounded-control px-2.5 text-ui font-medium text-ink-2 transition-colors duration-120 hover:bg-sunken hover:text-ink data-[status=active]:bg-surface data-[status=active]:text-ink data-[status=active]:shadow-sm"
   >

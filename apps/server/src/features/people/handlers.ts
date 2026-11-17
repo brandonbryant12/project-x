@@ -1,7 +1,7 @@
 import { Api } from '@repo/api';
 import { HttpApiBuilder } from 'effect/http-api';
 import { apiErrorsOnly } from '../../http/api-errors.ts';
-import { buildBadgeReceipt, buildProfile, buildTimeline, searchPeople } from './views.ts';
+import { buildBadgeReceipt, buildProfile, searchPeople } from './views.ts';
 
 export const PeopleHandlers = HttpApiBuilder.group(Api, 'people', (handlers) =>
   handlers
@@ -9,6 +9,5 @@ export const PeopleHandlers = HttpApiBuilder.group(Api, 'people', (handlers) =>
     .handle('profile', ({ params }) => buildProfile(params.id).pipe(apiErrorsOnly))
     .handle('badgeReceipt', ({ params }) =>
       buildBadgeReceipt(params.id, params.badgeId).pipe(apiErrorsOnly),
-    )
-    .handle('timeline', () => buildTimeline().pipe(apiErrorsOnly)),
+    ),
 );

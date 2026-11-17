@@ -56,8 +56,8 @@ export const notify = Effect.fn('notifications.enqueue')(function* (
     .onConflictDoNothing();
 });
 
-/** No preference row means these (ADR 0018): email, weekly digest on. */
+/** No preference row means these (ADR 0018): email on, weekly digest on. */
 export const DEFAULT_PREFERENCES: NotificationPreferences = {
-  channel: 'email',
+  sendEmail: true,
   weeklyDigest: true,
 };

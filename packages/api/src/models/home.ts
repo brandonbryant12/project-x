@@ -1,7 +1,6 @@
 import { EngagementId, EngagementLifecycle, IsoDate, PlanId, PlanLifecycle } from '@repo/domain';
 import { Schema } from 'effect';
 import { Instant, PersonSummary, SkillRef } from './common.ts';
-import { ThisWeek, TodayItem } from './hub.ts';
 
 export const QueueItem = Schema.Struct({
   kind: Schema.Literals([
@@ -43,6 +42,15 @@ export const FeedItem = Schema.Struct({
 });
 export type FeedItem = typeof FeedItem.Type;
 
+/** One person worth observing, and why. Never a ranking, never someone already waiting. */
+export const ObserveSuggestion = Schema.Struct({
+  person: PersonSummary,
+  reason: Schema.Literals(['planned_this_week', 'longest_unobserved', 'second_observer']),
+  sentence: Schema.String,
+  href: Schema.String,
+});
+
+/** Home has three parts: waiting on you, your plan (with the next step), and recently. */
 export const HomeView = Schema.Struct({
   firstName: Schema.String,
   needsYou: Schema.Array(QueueItem),
@@ -62,9 +70,17 @@ export const HomeView = Schema.Struct({
   ),
   coaches: Schema.Array(PersonSummary),
   leader: Schema.NullOr(PersonSummary),
-  /** Path-to-A § 2: the daily brief. */
-  today: Schema.Array(TodayItem),
-  thisWeek: ThisWeek,
+  /** Observers: people worth observing this week, at most three. Part of "Waiting on you". */
+  toObserve: Schema.Array(ObserveSuggestion),
+  /** Program owners: the adoption view's first two numbers (ADR 0021). Null for everyone else. */
+  programHealth: Schema.NullOr(
+    Schema.Struct({
+      withPlan: Schema.Number,
+      /** Null under the minimum cell size. */
+      observedRecently: Schema.NullOr(Schema.Number),
+      minimumCell: Schema.Number,
+    }),
+  ),
 });
 export type HomeView = typeof HomeView.Type;
 

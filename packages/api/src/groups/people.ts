@@ -3,7 +3,7 @@ import { Schema } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import { Authenticated } from '../auth.ts';
 import { NotFound } from '../errors.ts';
-import { BadgeReceiptView, PersonCard, ProfileView, TimelineItem } from '../models/index.ts';
+import { BadgeReceiptView, PersonCard, ProfileView } from '../models/index.ts';
 
 export class PeopleGroup extends HttpApiGroup.make('people')
   .add(
@@ -25,6 +25,5 @@ export class PeopleGroup extends HttpApiGroup.make('people')
       success: BadgeReceiptView,
       error: NotFound,
     }),
-    HttpApiEndpoint.get('timeline', '/timeline', { success: Schema.Array(TimelineItem) }),
   )
   .middleware(Authenticated) {}

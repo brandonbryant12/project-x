@@ -1,4 +1,4 @@
-import { CurrentActor, NotFound, type PersonCard, type TimelineItem } from '@repo/api';
+import { CurrentActor, NotFound, type PersonCard } from '@repo/api';
 import {
   LEVEL_NAMES,
   canReadNarrative,
@@ -271,7 +271,7 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
       awardedAt: badge.awardedAt.toISOString(),
     },
     holder: personFrom(people, badge.personId),
-    facts: `${demonstrations} demonstrations · ${observers} observers · ${firstHand} seen first-hand · over ${weeks(span)} weeks`,
+    facts: `Observed ${demonstrations} ${demonstrations === 1 ? 'time' : 'times'} · ${observers} observers · ${firstHand} seen first-hand · over ${weeks(span)} weeks`,
     narrativesVisible: visibleCount > 0,
     observations: credits.map((c) => {
       const obs = observations.find((o) => o.id === c.observationId);
@@ -292,100 +292,4 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
       };
     }),
   };
-});
-
-/** The caller's own timeline: logged work, observations about them and badges. */
-export const buildTimeline = Effect.fn('people.timeline')(function* () {
-  const actor = yield* CurrentActor;
-  const db = yield* Db;
-  const me: PersonId = actor.personId;
-  const [interactions, observations, badges] = yield* Effect.all([
-    db
-      .select()
-      .from(schema.interaction)
-      .where(eq(schema.interaction.ownerId, me))
-      .orderBy(desc(schema.interaction.createdAt))
-      .limit(30),
-    db
-      .select()
-      .from(schema.observation)
-      .where(eq(schema.observation.subjectId, me))
-      .orderBy(desc(schema.observation.updatedAt))
-      .limit(30),
-    db
-      .select()
-      .from(schema.badgeAward)
-      .where(eq(schema.badgeAward.personId, me))
-      .orderBy(desc(schema.badgeAward.awardedAt)),
-  ]);
-  const activities = interactions.length
-    ? yield* db
-        .select({ id: schema.activity.id, title: schema.activity.title })
-        .from(schema.activity)
-        .where(
-          inArray(
-            schema.activity.id,
-            interactions.map((i) => i.activityId),
-          ),
-        )
-    : [];
-  const people = yield* loadPeople(
-    actor.tenantId,
-    observations.map((o) => o.observerId),
-  );
-  const skills = yield* loadSkills(
-    actor.tenantId,
-    badges.map((b) => b.skillId),
-  );
-  const items: Array<TimelineItem> = [
-    ...interactions.map((i): TimelineItem => ({
-      at: i.createdAt.toISOString(),
-      kind: 'interaction_logged',
-      title: activities.find((a) => a.id === i.activityId)?.title ?? 'Work logged',
-      detail: `Happened ${i.occurredOn}`,
-      href: null,
-      person: null,
-    })),
-    ...observations.flatMap((o): Array<TimelineItem> => {
-      const observer = personFrom(people, o.observerId);
-      if (o.signedAt) {
-        return [
-          {
-            at: o.signedAt.toISOString(),
-            kind: 'observation_signed',
-            title: `${observer.displayName} signed an observation`,
-            detail: null,
-            href: `/observations/${o.id}`,
-            person: observer,
-          },
-        ];
-      }
-      return [
-        {
-          at: o.createdAt.toISOString(),
-          kind: 'observation_requested',
-          title: `Observation requested from ${observer.displayName}`,
-          detail: null,
-          href: `/observations/${o.id}`,
-          person: observer,
-        },
-      ];
-    }),
-    ...badges.flatMap((b): Array<TimelineItem> => {
-      const skill = skills.get(b.skillId);
-      return skill
-        ? [
-            {
-              at: b.awardedAt.toISOString(),
-              kind: 'badge_earned',
-              title: `Earned ${skill.name} · ${LEVEL_NAMES[b.level as Level]}`,
-              detail: null,
-              href: `/people/${me}/badges/${b.id}`,
-              person: null,
-            },
-          ]
-        : [];
-    }),
-  ];
-  return items.toSorted((a, b) => b.at.localeCompare(a.at)).slice(0, 60);
 });

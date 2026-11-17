@@ -8,6 +8,7 @@ import {
   leaderOf,
   type IsoDate,
   type Level,
+  type ObserverBasis,
   type PersonId,
   type PlanStatus,
   type RelationshipFacts,
@@ -22,7 +23,8 @@ import { progressFor } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { loadSkills, refsFor, toSkillRef } from '../shared/skills.ts';
 import { currentPlanOf, planAgreers } from '../shared/plans.ts';
-import { buildBrief, readReceipts } from './brief.ts';
+import { MIN_CELL, planCoverage } from '../shared/program.ts';
+import { readReceipts, worthObserving } from './brief.ts';
 
 /** One recognition moment per person and skill: the highest level earned (independent review). */
 const highestPerSkill = <B extends { personId: string; skillId: string; level: number }>(
@@ -34,6 +36,13 @@ const highestPerSkill = <B extends { personId: string; skillId: string; level: n
         (o) => o.personId === b.personId && o.skillId === b.skillId && o.level > b.level,
       ),
   );
+
+/** How the observer relates to the person who asked, in plain words. */
+const BASIS_RELATION: Record<ObserverBasis, string> = {
+  leader: 'Your report',
+  coach: 'You coach them',
+  designated: 'You were asked to observe them',
+};
 
 /** "Thu, Nov 12": the queue reads like a person wrote it. */
 const humanDate = (iso: string) =>
@@ -143,10 +152,10 @@ const toQueue = (
       title:
         o.status === 'drafting'
           ? `Finish your observation of ${personFrom(people, o.subjectId).displayName}`
-          : `Observe ${personFrom(people, o.subjectId).displayName}`,
+          : `${personFrom(people, o.subjectId).displayName} asked you to observe`,
       detail: null,
       person: personFrom(people, o.subjectId),
-      relation: o.basis === 'leader' ? 'Your report' : 'Your coachee',
+      relation: BASIS_RELATION[o.basis as ObserverBasis],
       dueAt: o.dueAt.toISOString(),
       href: `/observations/${o.id}`,
       actionLabel: o.status === 'drafting' ? 'Continue' : 'Open',
@@ -165,10 +174,10 @@ const toQueue = (
     ...plansToAgree.map((p): QueueItem => ({
       kind: 'agree_plan',
       id: p.id,
-      title: `${personFrom(people, p.ownerId).displayName} proposed a development plan`,
+      title: `${personFrom(people, p.ownerId).displayName} proposed a plan`,
       detail: p.title,
       person: personFrom(people, p.ownerId),
-      relation: coacheesOf(facts, me, on).includes(p.ownerId) ? 'Your coachee' : 'Your report',
+      relation: coacheesOf(facts, me, on).includes(p.ownerId) ? 'You coach them' : 'Your report',
       dueAt: null,
       href: `/team/${p.ownerId}`,
       actionLabel: 'Review plan',
@@ -362,7 +371,10 @@ const recentFeed = Effect.fn('support.home.feed')(function* (
   return recently;
 });
 
-/** Home: one merged queue of what is waiting on this person, across every relationship. */
+/**
+ * Home: what is waiting on this person across every relationship, their plan
+ * with its next step, and what happened recently.
+ */
 export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
   const db = yield* Db;
   const on = yield* today;
@@ -371,7 +383,10 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
   const queue = yield* needsYouQueue(actor, facts, on);
   const { nextStep, plan } = yield* planSummary(actor);
   const recently = yield* recentFeed(actor, facts, on);
-  const brief = yield* buildBrief(actor, facts, on);
+  const toObserve = yield* worthObserving(actor, facts, on);
+  const coverage = actor.grants.includes('program_owner')
+    ? yield* planCoverage(actor.tenantId, on)
+    : null;
   const coachIds = coachesOf(facts, me, on);
   const leaderId = leaderOf(facts, me, on);
   const support = yield* loadPeople(actor.tenantId, [...coachIds, ...(leaderId ? [leaderId] : [])]);
@@ -388,7 +403,13 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
     plan,
     coaches: coachIds.map((id) => personFrom(support, id)),
     leader: leaderId ? personFrom(support, leaderId) : null,
-    today: brief.today,
-    thisWeek: brief.thisWeek,
+    toObserve,
+    programHealth: coverage
+      ? {
+          withPlan: coverage.withPlan,
+          observedRecently: coverage.observed,
+          minimumCell: MIN_CELL,
+        }
+      : null,
   } satisfies HomeView;
 });

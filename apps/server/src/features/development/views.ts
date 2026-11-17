@@ -426,7 +426,7 @@ export const buildInteractionView = Effect.fn('development.interactionView')(fun
   return {
     id: interaction.id,
     activityId: interaction.activityId,
-    activityTitle: activity?.title ?? 'Activity',
+    activityTitle: activity?.title ?? 'Work',
     occurredOn: interaction.occurredOn,
     kind: interaction.kind as InteractionKind,
     clientRef: interaction.clientRef,
