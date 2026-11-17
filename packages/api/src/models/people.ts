@@ -3,6 +3,7 @@ import {
   COACHING_DIRECTIONS,
   CreditRole,
   GrantRole,
+  InteractionId,
   IsoDate,
   ObservationId,
   ObservationMode,
@@ -50,27 +51,53 @@ export const ProfileView = Schema.Struct({
 });
 export type ProfileView = typeof ProfileView.Type;
 
+/** One observer's credit for a piece of work, as it stands on the badge's receipt. */
+export const ReceiptCredit = Schema.Struct({
+  /** The observation that posted it. */
+  id: ObservationId,
+  observer: PersonSummary,
+  level: Schema.Number,
+  levelName: Schema.String,
+  mode: ObservationMode,
+  /** Null where the viewer may not read the observer's words (I13). */
+  narrativeSaw: Schema.NullOr(Schema.String),
+  /** What this credit was worth, frozen at signing. */
+  points: Schema.Number,
+  /** `unclassified`: observed before roles existed. */
+  role: CreditRole,
+  /** Where the value came from: `activity` is an individual value set on that work; `legacy` before points. */
+  pointsSource: PointsSource,
+  /** True for the one credit that counted for its piece of work; the others are the same work. */
+  counted: Schema.Boolean,
+});
+export type ReceiptCredit = typeof ReceiptCredit.Type;
+
 export const BadgeReceiptView = Schema.Struct({
   badge: BadgeView,
   holder: PersonSummary,
   facts: Schema.String,
   narrativesVisible: Schema.Boolean,
-  observations: Schema.Array(
+  /** Points that counted: each piece of work once, at its highest value. */
+  points: Schema.Number,
+  /** What the badge needed when it was awarded (its saved thresholds); null if unreadable. */
+  required: Schema.NullOr(
     Schema.Struct({
-      id: ObservationId,
-      observer: PersonSummary,
-      occurredOn: IsoDate,
-      level: Schema.Number,
-      levelName: Schema.String,
-      mode: ObservationMode,
-      narrativeSaw: Schema.NullOr(Schema.String),
-      /** "How this was earned": what this credit was worth, its role and where the value came from. */
       points: Schema.Number,
-      /** `unclassified`: observed before roles existed. */
-      role: CreditRole,
-      pointsSource: PointsSource,
-      /** False when another credit for the same work counted (one piece of work counts once). */
-      counted: Schema.Boolean,
+      interactions: Schema.Number,
+      observers: Schema.Number,
+      firstHandShare: Schema.Number,
+      spanDays: Schema.Number,
+      /** 0: no requirement. */
+      primaryPoints: Schema.Number,
+    }),
+  ),
+  /** Each piece of work in date order, with every credit for it; exactly one counted. */
+  work: Schema.Array(
+    Schema.Struct({
+      interactionId: InteractionId,
+      occurredOn: IsoDate,
+      points: Schema.Number,
+      credits: Schema.Array(ReceiptCredit),
     }),
   ),
 });

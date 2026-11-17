@@ -660,7 +660,7 @@ describe('the next step, in plain words', () => {
       c: criteria(),
       values: { primary: 10, secondary: 3 },
       sentence:
-        '20 more points at doing independently or above to earn Client discovery · Doing independently, about two more observations with Client discovery as the main skill.',
+        '20 more points at doing independently or above to earn Client discovery · Doing independently, about two more observations with Client discovery as the primary skill.',
     },
     {
       rule: 'without role values it says points only',
@@ -679,14 +679,14 @@ describe('the next step, in plain words', () => {
         'Be observed one more time at doing independently or above to earn Client discovery · Doing independently.',
     },
     {
-      rule: 'a missing primary share names the main skill',
+      rule: 'a missing primary share names the primary skill',
       credits: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) =>
         credit(n, { points: 3, role: 'secondary', observerId: n % 2 ? coach : leader }),
       ),
       c: criteria({ minPrimaryPoints: 10 }),
       values: undefined,
       sentence:
-        '10 more points from work where Client discovery is the main skill to earn Client discovery · Doing independently.',
+        '10 more points from work where Client discovery is the primary skill to earn Client discovery · Doing independently.',
     },
     {
       rule: 'then a second observer',

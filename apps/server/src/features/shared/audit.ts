@@ -8,7 +8,9 @@ type AuditReasonCode = NonNullable<typeof schema.auditEvent.$inferInsert.reasonC
 /**
  * Append an audit event (ADR 0012, 0015) inside the same transaction as the
  * change it records. Human-written reasons go to `note` (purgeable) and are
- * linked; the audit row itself never contains narratives, evidence or PII.
+ * linked; the audit row itself never contains narratives, evidence or PII. An
+ * explicit `reasonCode` is kept when a note is attached too (a value change
+ * stays `value_override`); otherwise a note alone records `note`.
  */
 export const recordAudit = Effect.fn('audit.record')(function* (
   actor: { readonly tenantId: TenantId; readonly personId: PersonId | null },
@@ -41,7 +43,8 @@ export const recordAudit = Effect.fn('audit.record')(function* (
     event: event.event,
     fromState: event.from ?? null,
     toState: event.to ?? null,
-    reasonCode: noteId ? 'note' : (event.reasonCode ?? null),
+    // A specific reason code wins; a bare note is recorded as `note`.
+    reasonCode: event.reasonCode ?? (noteId ? 'note' : null),
     noteId,
     policyVersion: event.policyVersion ?? null,
     data: event.data ?? {},

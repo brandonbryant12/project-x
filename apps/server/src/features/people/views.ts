@@ -1,8 +1,9 @@
-import { CurrentActor, NotFound, type PersonCard } from '@repo/api';
+import { CurrentActor, NotFound, type BadgeReceiptView, type PersonCard } from '@repo/api';
 import {
   LEVEL_NAMES,
   canReadNarrative,
   checkObserverEligibility,
+  criteriaFromSnapshot,
   developmentAccess,
   projectWork,
   proposableDirections,
@@ -209,7 +210,13 @@ export const buildProfile = Effect.fn('people.profile')(function* (id: PersonId)
   };
 });
 
-/** The credits behind a badge; narratives only where the viewer may read them. */
+/**
+ * "How this was earned": the credits behind a badge, grouped by piece of work
+ * through the one projection (`projectWork`), so work two observers saw counts
+ * once and the receipt marks which credit counted. The total is set against
+ * what the badge needed when it was awarded (its saved thresholds), never
+ * today's policy. Narratives only where the viewer may read them (I13).
+ */
 export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
   personId: PersonId,
   badgeId: BadgeAwardId,
@@ -234,17 +241,25 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
     .select({ credit: schema.creditEntry })
     .from(schema.badgeAwardCredit)
     .innerJoin(schema.creditEntry, eq(schema.creditEntry.id, schema.badgeAwardCredit.creditEntryId))
-    .where(eq(schema.badgeAwardCredit.badgeAwardId, badge.id))
+    .where(
+      and(
+        eq(schema.badgeAwardCredit.tenantId, actor.tenantId),
+        eq(schema.badgeAwardCredit.badgeAwardId, badge.id),
+      ),
+    )
     .orderBy(schema.creditEntry.demonstratedOn)
     .pipe(Effect.map((rows) => rows.map((r) => r.credit)));
   const observations = credits.length
     ? yield* db
-        .select()
+        .select({ id: schema.observation.id, narrativeSaw: schema.observation.narrativeSaw })
         .from(schema.observation)
         .where(
-          inArray(
-            schema.observation.id,
-            credits.map((c) => c.observationId),
+          and(
+            eq(schema.observation.tenantId, actor.tenantId),
+            inArray(
+              schema.observation.id,
+              credits.map((c) => c.observationId),
+            ),
           ),
         )
     : [];
@@ -259,21 +274,20 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
     (Date.parse(criteria.lastDemonstratedOn) - Date.parse(criteria.firstDemonstratedOn)) /
       86_400_000,
   );
-  const observers = new Set(credits.map((x) => x.observerId)).size;
-  const firstHand = new Set(credits.filter((x) => x.isFirstHand).map((x) => x.interactionId)).size;
-  // Points through the one projection: each piece of work once, at its highest value.
-  const work = projectWork(credits.map(toCreditFact));
-  const counted = new Set(work.map((w) => w.countedCreditId));
-  const demonstrations = work.length;
-  const points = work.reduce((sum, w) => sum + w.value, 0);
-  const visibleCount = credits.filter((c) =>
+  const readable = (observerId: PersonId) =>
     canReadNarrative(facts, {
       viewerId: actor.personId,
       subjectId: badge.personId,
-      observerId: c.observerId,
+      observerId,
       on,
-    }),
-  ).length;
+    });
+  const observers = new Set(credits.map((x) => x.observerId)).size;
+  // Points through the one projection: each piece of work once, at its highest value.
+  const work = projectWork(credits.map(toCreditFact));
+  const firstHand = work.filter((w) => w.firstHand).length;
+  const demonstrations = work.length;
+  const points = work.reduce((sum, w) => sum + w.value, 0);
+  const saved = criteriaFromSnapshot(criteria.thresholds);
   return {
     badge: {
       id: badge.id,
@@ -284,28 +298,42 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
     },
     holder: personFrom(people, badge.personId),
     facts: `Observed ${demonstrations} ${demonstrations === 1 ? 'time' : 'times'} · ${points} points · ${observers} observers · ${firstHand} seen first-hand · over ${weeks(span)} weeks`,
-    narrativesVisible: visibleCount > 0,
-    observations: credits.map((c) => {
-      const obs = observations.find((o) => o.id === c.observationId);
-      const readable = canReadNarrative(facts, {
-        viewerId: actor.personId,
-        subjectId: badge.personId,
-        observerId: c.observerId,
-        on,
-      });
-      return {
-        id: c.observationId,
-        observer: personFrom(people, c.observerId),
-        occurredOn: c.demonstratedOn,
-        level: c.level,
-        levelName: LEVEL_NAMES[c.level as Level],
-        mode: c.mode as ObservationMode,
-        narrativeSaw: readable ? (obs?.narrativeSaw ?? null) : null,
-        points: c.points,
-        role: c.role as CreditRole,
-        pointsSource: c.pointsSource as PointsSource,
-        counted: counted.has(c.id),
-      };
-    }),
-  };
+    narrativesVisible: credits.some((c) => readable(c.observerId)),
+    points,
+    required: saved.ok
+      ? {
+          points: saved.criteria.badgePoints,
+          interactions: saved.criteria.minInteractions,
+          observers: saved.criteria.minObservers,
+          firstHandShare: saved.criteria.minFirstHandShare,
+          spanDays: saved.criteria.minSpanDays,
+          primaryPoints: saved.criteria.minPrimaryPoints,
+        }
+      : null,
+    work: work.map((w) => ({
+      interactionId: w.interactionId,
+      occurredOn: w.on,
+      points: w.value,
+      credits: w.creditIds.flatMap((creditId) => {
+        const c = credits.find((x) => x.id === creditId);
+        if (!c) return [];
+        return [
+          {
+            id: c.observationId,
+            observer: personFrom(people, c.observerId),
+            level: c.level,
+            levelName: LEVEL_NAMES[c.level as Level],
+            mode: c.mode as ObservationMode,
+            narrativeSaw: readable(c.observerId)
+              ? (observations.find((o) => o.id === c.observationId)?.narrativeSaw ?? null)
+              : null,
+            points: c.points,
+            role: c.role as CreditRole,
+            pointsSource: c.pointsSource as PointsSource,
+            counted: c.id === w.countedCreditId,
+          },
+        ];
+      }),
+    })),
+  } satisfies BadgeReceiptView;
 });

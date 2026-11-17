@@ -304,5 +304,9 @@ export const InteractionView = Schema.Struct({
       alreadyAsked: Schema.Boolean,
     }),
   ),
+  /** The work's skills in order (primary first), the defaults for a request. */
+  skills: Schema.Array(Schema.Struct({ skill: SkillRef, role: SkillRole })),
+  /** The tenant's limit on skills in one observation. */
+  maxSkills: Schema.Number,
 });
 export type InteractionView = typeof InteractionView.Type;
