@@ -10,6 +10,7 @@
 4. [Domain model](product/domain-model.md): entities, eligibility, badges,
    lifecycles and visibility.
 5. [Backlog](backlog.md): what is deferred or not built yet, one line each.
+6. [Feature map](feature-map/README.md): every feature, who uses it, its code, tests, QA playbook and verify commands.
 
 ## Then, when you need them
 

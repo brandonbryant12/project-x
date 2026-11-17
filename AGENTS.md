@@ -94,3 +94,4 @@ Follow the [testing strategy](docs/testing/strategy.md):
 - For UI work, run the screenshot loop and look at the images.
 - For a flow, run the [QA skill](.claude/skills/qa/SKILL.md) and file its
   report.
+- Find the feature and its checks in the [feature map](docs/feature-map/README.md) (`pnpm verify show <id>`), and update the map in the same change ([feature-map skill](.claude/skills/feature-map/SKILL.md)).
