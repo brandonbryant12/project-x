@@ -27,7 +27,8 @@ import { OUTSIDER, seedSecondTenant } from '../test/second-tenant.ts';
  * other edits and leaves only with its skill; an individual value is set by an
  * agreer or a program owner, never the subject whatever grants they hold,
  * within the tenant's range, with a reason, before the work is observed, and a
- * credit signed afterwards carries it while earlier credit is unchanged. The
+ * credit signed afterwards for work done from the day it was set carries it,
+ * while earlier credit, and work done before it was set, are unchanged. The
  * tests share one seeded tenant and run in order.
  */
 const client = HttpApiTest.groups(Api, ['development', 'observations']);
@@ -360,6 +361,18 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
         );
         const planning = skill('goals-based-planning');
         const annual = work(yield* planAs('Maya Chen'), 'Lead the goals conversation');
+        // Maya logged this work yesterday, before anyone valued it.
+        const before = yield* api.development.logInteraction({
+          payload: {
+            activityId: annual.id,
+            adHocTitle: null,
+            adHocSkillIds: [],
+            occurredOn: addDaysIso(on, -1),
+            kind: 'client_meeting',
+            clientRef: null,
+            reflection: 'Prepared the annual review and asked them to bring last year’s goals.',
+          },
+        });
         const set = (points: number | null, reason = REASON, activityId = annual.id) =>
           api.development.setActivityValue({
             params: { id: activityId },
@@ -414,7 +427,11 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
           )
           .orderBy(schema.auditEvent.seq);
         assert.deepStrictEqual(audits.at(-1)?.data.before, { points: 12, setById: ids.elena });
-        assert.deepStrictEqual(audits.at(-1)?.data.after, { points: 14, setById: ids.sam });
+        assert.deepStrictEqual(audits.at(-1)?.data.after, {
+          points: 14,
+          setById: ids.sam,
+          appliesFrom: on,
+        });
         // The specific reason code survives the attached note.
         assert.deepStrictEqual(
           [audits.at(-1)?.reasonCode, audits.at(-1)?.noteId !== null],
@@ -427,6 +444,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
         );
         assert.deepStrictEqual(seen?.value, { points: 14, source: 'activity' });
         assert.strictEqual(seen?.override?.setBy.id, ids.sam);
+        assert.strictEqual(seen?.override?.appliesFrom, on);
         assert.deepStrictEqual(seen?.valueWithoutOverride, {
           points: DEFAULT_CREDIT_POLICY.primaryPoints,
           source: 'tenant',
@@ -521,6 +539,36 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
         assert.deepStrictEqual(
           unchanged.filter((c) => earlier.some((e) => e.id === c.id)),
           earlier,
+        );
+
+        // Work done before the value was set never gets it, even observed afterwards.
+        yield* signInAs('Sam Rivera');
+        const late = yield* api.observations.start({
+          payload: {
+            subjectId: ids.maya,
+            interactionId: before.id,
+            activityId: null,
+            title: null,
+            occurredOn: on,
+            kind: 'client_meeting',
+            mode: 'saw_it',
+            skillIds: [planning],
+          },
+        });
+        const lateSigned = yield* api.observations.sign({
+          params: { id: late.id },
+          payload: {
+            version: late.version,
+            mode: 'saw_it',
+            ratings: [{ skillId: planning, level: 2, indicatorIds: [], credit: true }],
+            narrativeSaw:
+              'Maya asked the couple to bring last year’s goals and read them aloud before anything else.',
+            narrativeNext: 'Ask which goal mattered most before reviewing the rest.',
+          },
+        });
+        assert.deepStrictEqual(
+          lateSigned.credits.map((c) => [c.role, c.points, c.pointsSource]),
+          [['primary', DEFAULT_CREDIT_POLICY.primaryPoints, 'tenant']],
         );
       }),
   );

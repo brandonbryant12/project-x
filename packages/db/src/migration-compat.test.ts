@@ -39,7 +39,10 @@ import { layerPostgresScratchClient } from './testing.ts';
  * revocation decisions over the legacy-only ledger are the same as the old
  * rule's, that the append-only ledger and frozen ratings still refuse
  * mutation, and that a legacy value the policy cannot represent fails the
- * migration loudly.
+ * migration loudly. Then, at the migrations that introduced points, it
+ * writes an individual value and a pair of engagements in both directions
+ * (one ended), and proves the next migration dates the value and keeps the
+ * engagements.
  *
  * Runs on PGlite, or on a scratch database on real PostgreSQL when
  * `TEST_DATABASE_URL` is set (the Postgres lane). The migrator cannot stop at
@@ -48,14 +51,28 @@ import { layerPostgresScratchClient } from './testing.ts';
  * real folder (the migrator applies only the migrations it has not recorded).
  */
 const LEGACY_MIGRATIONS = ['20261117114331_init', '20261117114337_integrity'];
+const POINTS_MIGRATIONS = [
+  ...LEGACY_MIGRATIONS,
+  '20261117125514_credit_points',
+  '20261117125515_credit_integrity',
+];
 
-const legacyFolder = (() => {
+const folderOf = (names: ReadonlyArray<string>) => {
   const dir = mkdtempSync(join(tmpdir(), 'legacy-migrations-'));
-  for (const name of LEGACY_MIGRATIONS) {
+  for (const name of names) {
     cpSync(join(defaultMigrationsFolder, name), join(dir, name), { recursive: true });
   }
   return dir;
-})();
+};
+const legacyFolder = folderOf(LEGACY_MIGRATIONS);
+const pointsFolder = folderOf(POINTS_MIGRATIONS);
+
+/** Rows written under the points migrations, before values were dated. */
+const POINTS_ROWS = `
+update activity_skill set points_override = 15, points_override_by_id = 'per_sam' where skill_id = 'skl_a';
+insert into engagement (id, tenant_id, coach_id, coachee_id, proposed_by_id, status, accepted_on, ended_on) values
+  ('eng_2', 'ten_tuned', 'per_ada', 'per_sam', 'per_ada', 'ended', '2026-01-01', '2026-02-01');
+`;
 
 /** A database the test migrates itself, on either driver. */
 class Migrations extends Context.Service<
@@ -230,6 +247,8 @@ layer(Harness, { timeout: 120_000 })('migration to weighted credit', (it) => {
         const sql = yield* SqlClient.SqlClient;
         yield* from(legacyFolder);
         for (const statement of statements(LEGACY_ROWS)) yield* sql.unsafe(statement);
+        yield* from(pointsFolder);
+        for (const statement of statements(POINTS_ROWS)) yield* sql.unsafe(statement);
         yield* from(defaultMigrationsFolder);
 
         // Every tenant holds a complete policy, version 1. Legacy criteria convert
@@ -279,11 +298,31 @@ layer(Harness, { timeout: 120_000 })('migration to weighted credit', (it) => {
           .select()
           .from(schema.activitySkill)
           .orderBy(asc(schema.activitySkill.skillId));
+        // An individual value stored before values were dated takes the time of
+        // the migration, so it reaches only work from then on (I38).
         assert.deepStrictEqual(
-          activitySkills.map((s) => [s.skillId, s.role, s.pointsOverride, s.templatePoints]),
+          activitySkills.map((s) => [
+            s.skillId,
+            s.role,
+            s.pointsOverride,
+            s.templatePoints,
+            s.pointsOverrideAt !== null,
+          ]),
           [
-            ['skl_a', 'primary', null, null],
-            ['skl_b', 'secondary', null, null],
+            ['skl_a', 'primary', 15, null, true],
+            ['skl_b', 'secondary', null, null, false],
+          ],
+        );
+        // An ended engagement in the other direction is legal and kept (I45).
+        const engagements = yield* db
+          .select({ id: schema.engagement.id, status: schema.engagement.status })
+          .from(schema.engagement)
+          .orderBy(asc(schema.engagement.id));
+        assert.deepStrictEqual(
+          engagements.map((e) => [e.id, e.status]),
+          [
+            ['eng_1', 'active'],
+            ['eng_2', 'ended'],
           ],
         );
 
@@ -431,6 +470,12 @@ layer(Harness, { timeout: 120_000 })('a legacy value the policy cannot represent
       if (Exit.isFailure(exit)) assert.match(Cause.pretty(exit.cause), /ten_bad[^]*minObservers/);
       const [tenant] = yield* db.select().from(schema.tenant);
       assert.deepStrictEqual(tenant?.settings, { badgeCriteria: { minObservers: -1 } } as unknown);
+      // The migrator applies pending migrations in one transaction: the columns the
+      // failed migration added before it stopped are gone too.
+      const added = yield* sql<{ column_name: string }>`
+        select column_name from information_schema.columns
+        where table_name = 'skill' and column_name = 'primary_points'`;
+      assert.lengthOf(added, 0);
     }),
   );
 });

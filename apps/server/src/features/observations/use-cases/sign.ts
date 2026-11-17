@@ -191,6 +191,7 @@ const appendCredits = Effect.fn('observations.appendCredits')(function* (
     policy,
     yield* skillsOfWork(actor.tenantId, row.interactionId),
     ratings.map((r) => r.skillId),
+    interaction.occurredOn,
   );
   const subjectPositionId = yield* positionOn(
     actor.tenantId,

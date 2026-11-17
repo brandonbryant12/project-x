@@ -45,11 +45,12 @@ import {
 import { Db, schema } from '@repo/db';
 import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
 import { Effect } from 'effect';
-import { today } from '../../platform/time.ts';
+import { BusinessTimeZone, today } from '../../platform/time.ts';
 import { loadPeople, personFrom } from '../shared/people.ts';
 import { netCreditsBySkill, progressFor, tenantCreditPolicy } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import {
+  activitySkillValue,
   loadActivitySkillRows,
   loadPlanSkills,
   type ActivitySkillRow,
@@ -208,37 +209,41 @@ const reviewPeople = (plan: PlanRow): Array<PersonId> => [
 ];
 
 /**
- * Each skill of a piece of work with what one signed observation would add
- * right now, resolved with the same domain function signing uses.
+ * Each skill of a piece of work with what one signed observation of work done
+ * today would add, resolved with the same domain function signing uses. An
+ * individual value shows the date of the work it applies from.
  */
 const activitySkillViews = (
   rows: ReadonlyArray<ActivitySkillRow>,
   skills: ReadonlyMap<SkillId, SkillRow>,
   policy: CreditPolicy,
   people: People,
+  context: { readonly on: IsoDate; readonly timeZone: string },
 ): Array<ActivitySkillView> =>
   rows.flatMap((row) => {
     const skill = skills.get(row.skillId);
     if (!skill) return [];
     const role = row.role as SkillRole;
-    const activity = {
-      role,
-      pointsOverride: row.pointsOverride,
-      templatePoints: row.templatePoints,
-    };
+    const activity = activitySkillValue(row, context.timeZone);
+    const workOn = context.on;
     return [
       {
         skill: toSkillRef(skill),
         role,
-        value: resolveCreditValue({ role, policy, activity, skill }),
+        value: resolveCreditValue({ role, policy, workOn, activity, skill }),
         override:
-          row.pointsOverride !== null && row.pointsOverrideById
-            ? { points: row.pointsOverride, setBy: personFrom(people, row.pointsOverrideById) }
+          row.pointsOverride !== null && row.pointsOverrideById && activity.pointsOverrideFrom
+            ? {
+                points: row.pointsOverride,
+                setBy: personFrom(people, row.pointsOverrideById),
+                appliesFrom: activity.pointsOverrideFrom,
+              }
             : null,
         valueWithoutOverride: resolveCreditValue({
           role,
           policy,
-          activity: { ...activity, pointsOverride: null },
+          workOn,
+          activity: { ...activity, pointsOverride: null, pointsOverrideFrom: null },
           skill,
         }),
       },
@@ -324,6 +329,7 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
   );
   const isOwner = plan.ownerId === actor.personId;
   const who: PlanRelation = planRelation(actor, plan.ownerId, facts, on);
+  const values = { on, timeZone: yield* BusinessTimeZone };
 
   const activityViews = activities.map((a): ActivityView => ({
     id: a.id,
@@ -335,7 +341,7 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     template: a.templateId
       ? { id: a.templateId, name: templates.get(a.templateId) ?? 'Template' }
       : null,
-    skills: activitySkillViews(activitySkills.get(a.id) ?? [], skills, policy, people),
+    skills: activitySkillViews(activitySkills.get(a.id) ?? [], skills, policy, people, values),
     intendedObserver: a.intendedObserverId ? (people.get(a.intendedObserverId) ?? null) : null,
     intendedMode: (a.intendedMode as ObservationMode | null) ?? null,
     interactions: interactions.flatMap((i) => {

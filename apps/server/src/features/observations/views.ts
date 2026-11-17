@@ -42,9 +42,14 @@ import {
 import { Db, schema } from '@repo/db';
 import { and, desc, eq, gte, inArray, lte, ne } from 'drizzle-orm';
 import { Effect } from 'effect';
-import { addDaysIso, today } from '../../platform/time.ts';
+import { BusinessTimeZone, addDaysIso, today } from '../../platform/time.ts';
 import type { Interpretation } from '../shared/advisory/question-sets.ts';
-import { loadActivitySkillRows, loadDefinitions, loadPlanSkills } from '../shared/catalog-reads.ts';
+import {
+  activitySkillValue,
+  loadActivitySkillRows,
+  loadDefinitions,
+  loadPlanSkills,
+} from '../shared/catalog-reads.ts';
 import { observableBy } from '../shared/directory.ts';
 import { recordAudit } from '../shared/audit.ts';
 import { latestNotes } from '../shared/notes.ts';
@@ -311,6 +316,7 @@ const draftValues = Effect.fn('observations.draftValues')(function* (
   parts: ObservationParts,
 ) {
   const policy = yield* tenantCreditPolicy(actor.tenantId);
+  const timeZone = yield* BusinessTimeZone;
   const listed =
     (yield* loadActivitySkillRows(actor.tenantId, [parts.interaction.activityId])).get(
       parts.interaction.activityId,
@@ -318,16 +324,11 @@ const draftValues = Effect.fn('observations.draftValues')(function* (
   const valuesOf = (skillId: SkillId): Readonly<Record<SkillRole, number>> => {
     const row = listed.find((s) => s.skillId === skillId);
     const skill = parts.skills.get(skillId);
-    const activity = row
-      ? {
-          role: row.role as SkillRole,
-          pointsOverride: row.pointsOverride,
-          templatePoints: row.templatePoints,
-        }
-      : null;
+    const activity = row ? activitySkillValue(row, timeZone) : null;
+    const workOn = parts.interaction.occurredOn;
     return {
-      primary: resolveCreditValue({ role: 'primary', policy, activity, skill }).points,
-      secondary: resolveCreditValue({ role: 'secondary', policy, activity, skill }).points,
+      primary: resolveCreditValue({ role: 'primary', policy, workOn, activity, skill }).points,
+      secondary: resolveCreditValue({ role: 'secondary', policy, workOn, activity, skill }).points,
     };
   };
   return { maxSkills: policy.maxSkillsPerObservation, valuesOf };

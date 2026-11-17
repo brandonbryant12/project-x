@@ -159,7 +159,8 @@ const ValueSource = ({ skill }: { readonly skill: ActivitySkillView }) => {
   if (skill.override) {
     return (
       <span className="text-meta text-ink-3">
-        Set for this work by {skill.override.setBy.displayName}
+        Set for this work by {skill.override.setBy.displayName}; applies to work from{' '}
+        {formatDate(skill.override.appliesFrom)}
         {skill.value.source === 'activity'
           ? ''
           : ` (not in use: ${VALUE_SOURCE[skill.value.source]} applies)`}

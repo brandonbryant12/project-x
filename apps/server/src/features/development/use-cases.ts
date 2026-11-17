@@ -681,8 +681,10 @@ export const updateActivity = Effect.fn('useCase.updateActivity')(function* (
 
 /**
  * Set or clear one skill's individual value on planned work (design §6). It is
- * written before the work is observed and applies to credits signed afterwards;
- * the reason is kept as a note and the change is audited with before and after.
+ * written before the work is observed, and applies only to work done on or
+ * after the business date it is set (signing compares the work's date with
+ * `points_override_at`), so it never values work that had already happened.
+ * The reason is kept as a note and the change is audited with before and after.
  */
 export const setActivityValue = Effect.fn('useCase.setActivityValue')(function* (
   activityId: ActivityId,
@@ -722,12 +724,13 @@ export const setActivityValue = Effect.fn('useCase.setActivityValue')(function* 
       new Unprocessable({ message: 'This skill has no value of its own to clear.' }),
     );
   }
+  const at = yield* now;
   yield* transactionally(
     Effect.gen(function* () {
       // The version bump serializes this with edits of the same work.
       yield* db
         .update(schema.activity)
-        .set({ version: activity.version + 1, updatedAt: yield* now })
+        .set({ version: activity.version + 1, updatedAt: at })
         .where(
           and(eq(schema.activity.id, activity.id), eq(schema.activity.version, activity.version)),
         )
@@ -738,6 +741,7 @@ export const setActivityValue = Effect.fn('useCase.setActivityValue')(function* 
         .set({
           pointsOverride: input.points,
           pointsOverrideById: input.points === null ? null : actor.personId,
+          pointsOverrideAt: input.points === null ? null : at,
         })
         .where(
           and(
@@ -760,6 +764,7 @@ export const setActivityValue = Effect.fn('useCase.setActivityValue')(function* 
           after: {
             points: input.points,
             setById: input.points === null ? null : actor.personId,
+            appliesFrom: input.points === null ? null : yield* today,
           },
         },
       });

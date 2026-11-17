@@ -11,11 +11,12 @@ import { Db, schema, transactionally } from '@repo/db';
 import { assert, layer } from '@effect/vitest';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { Effect } from 'effect';
+import { TestClock } from 'effect/testing';
 import { HttpApiTest } from 'effect/http-api';
 import { addDaysIso, today } from '../platform/time.ts';
 import { saveCreditPolicy } from '../features/shared/recognition.ts';
 import { seedWorld } from '../scripts/seed-world.ts';
-import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
+import { SCENARIO_NOW, ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
 
 /**
  * Journey: one piece of work, seen by two observers, earns a badge once
@@ -58,7 +59,9 @@ layer(ScenarioLayer, { timeout: 120_000 })('same work once; how this was earned'
         if (!planning) return yield* Effect.die('seeded skill missing');
         const skillId = planning.id as SkillId;
 
-        // Sam, Maya's coach, values her goals conversations before any is observed.
+        // Sam, Maya's coach, valued her goals conversations a month ago, before any
+        // was done (a value applies only to work from the day it is set).
+        yield* TestClock.setTime(SCENARIO_NOW - 30 * 86_400_000);
         yield* signInAs('Sam Rivera');
         const annual = (yield* api.development.of({
           params: { id: ids.maya },
@@ -68,6 +71,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('same work once; how this was earned'
           params: { id: annual.id },
           payload: { skillId, points: 12, reason: REASON },
         });
+        yield* atScenarioTime;
 
         /** As Maya: log the work and ask these observers to look at it. */
         const logAndAsk = (occurredOn: IsoDate, observers: ReadonlyArray<PersonId>) =>

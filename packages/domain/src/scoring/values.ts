@@ -1,4 +1,4 @@
-import type { SkillId } from '../ids.ts';
+import type { IsoDate, SkillId } from '../ids.ts';
 import type { SkillRole } from '../vocabulary.ts';
 import type { CreditPolicy, PointsSource } from './policy.ts';
 
@@ -7,6 +7,8 @@ export interface ActivitySkillValue {
   readonly role: SkillRole;
   /** The activity's own value, set by a plan agreer or program owner. */
   readonly pointsOverride: number | null;
+  /** The business date the activity's own value was set; it applies to work from then on. */
+  readonly pointsOverrideFrom: IsoDate | null;
   /** The template's value, copied when the work was added; never read live from the template. */
   readonly templatePoints: number | null;
 }
@@ -15,10 +17,12 @@ export interface ActivitySkillValue {
  * What one credit is worth, resolved once inside the signing transaction and
  * frozen on the credit row. Most specific wins:
  *
- * 1. the activity's own value for this skill (`activity`), only while the
- *    tenant allows individual values AND the value lies inside the range in
- *    force at signing; otherwise it is not applied (never clamped: a value
- *    nobody chose is never written to the ledger) and resolution falls through;
+ * 1. the activity's own value for this skill (`activity`), only for work done
+ *    on or after the business date the value was set (a value never reaches
+ *    work that had already happened), only while the tenant allows individual
+ *    values AND the value lies inside the range in force at signing; otherwise
+ *    it is not applied (never clamped: a value nobody chose is never written to
+ *    the ledger) and resolution falls through;
  * 2. the template's value copied onto the activity, when the credit's role
  *    equals the skill's role on the activity (`template`);
  * 3. the skill's value for the role (`skill`);
@@ -27,6 +31,8 @@ export interface ActivitySkillValue {
 export interface CreditValueInput {
   readonly role: SkillRole;
   readonly policy: CreditPolicy;
+  /** The date of the work being valued; null when there is no work (a value in general). */
+  readonly workOn: IsoDate | null;
   readonly activity?: ActivitySkillValue | null | undefined;
   readonly skill?:
     | { readonly primaryPoints: number | null; readonly secondaryPoints: number | null }
@@ -42,14 +48,19 @@ export interface CreditValue {
 export const resolveCreditValue = ({
   role,
   policy,
+  workOn,
   activity,
   skill,
 }: CreditValueInput): CreditValue => {
   const overrides = policy.activityOverrides;
   const override = activity?.pointsOverride;
+  const from = activity?.pointsOverrideFrom;
   if (
     overrides.enabled &&
     override != null &&
+    from != null &&
+    workOn !== null &&
+    workOn >= from &&
     override >= overrides.minPoints &&
     override <= overrides.maxPoints
   ) {
@@ -71,8 +82,8 @@ export const roleValues = (
   policy: CreditPolicy,
   skill?: { readonly primaryPoints: number | null; readonly secondaryPoints: number | null } | null,
 ): Readonly<Record<SkillRole, number>> => ({
-  primary: resolveCreditValue({ role: 'primary', policy, skill }).points,
-  secondary: resolveCreditValue({ role: 'secondary', policy, skill }).points,
+  primary: resolveCreditValue({ role: 'primary', policy, workOn: null, skill }).points,
+  secondary: resolveCreditValue({ role: 'secondary', policy, workOn: null, skill }).points,
 });
 
 export interface RatedSkill {

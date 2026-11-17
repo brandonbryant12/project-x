@@ -215,10 +215,15 @@ layer(ScenarioLayer, { timeout: 120_000 })('weighted credit', (it) => {
           firstCredits.every((c) => c.policyVersion === creditPolicyVersion(DEFAULT_CREDIT_POLICY)),
         );
 
-        // The activity's own value wins over every other value, whatever the role.
+        // The activity's own value wins over every other value, whatever the role
+        // (set on the day of the work it values).
         yield* db
           .update(schema.activitySkill)
-          .set({ pointsOverride: 15, pointsOverrideById: ids.sam })
+          .set({
+            pointsOverride: 15,
+            pointsOverrideById: ids.sam,
+            pointsOverrideAt: new Date(`${day(-2)}T12:00:00Z`),
+          })
           .where(
             and(
               eq(schema.activitySkill.activityId, discovery),

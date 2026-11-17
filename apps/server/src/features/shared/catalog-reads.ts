@@ -1,16 +1,19 @@
 import type {
+  ActivitySkillValue,
   Level,
   PlanId,
   SkillDefinition,
   SkillId,
   SkillIndicatorId,
   SkillVersionId,
+  SkillRole,
   TenantId,
   ActivityId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { Effect } from 'effect';
+import { businessDateIn } from '../../platform/time.ts';
 
 /** Rebuilds published definitions from relational rows (docs/architecture/data-model.md). */
 export const loadDefinitions = Effect.fn('catalog.definitions')(function* (
@@ -92,6 +95,20 @@ export const loadPlanSkills = Effect.fn('plan.skills')(function* (
 });
 
 export type ActivitySkillRow = typeof schema.activitySkill.$inferSelect;
+
+/**
+ * A skill row as value resolution reads it. An individual value applies from
+ * the business date it was set, in the tenant's time zone (I38).
+ */
+export const activitySkillValue = (
+  row: Pick<ActivitySkillRow, 'role' | 'pointsOverride' | 'pointsOverrideAt' | 'templatePoints'>,
+  timeZone: string,
+): ActivitySkillValue => ({
+  role: row.role as SkillRole,
+  pointsOverride: row.pointsOverride,
+  pointsOverrideFrom: row.pointsOverrideAt ? businessDateIn(row.pointsOverrideAt, timeZone) : null,
+  templatePoints: row.templatePoints,
+});
 
 /** Each activity's skill rows (role and values included), in position order. */
 export const loadActivitySkillRows = Effect.fn('activity.skillRows')(function* (

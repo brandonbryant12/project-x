@@ -142,7 +142,8 @@ Added with weighted signed credit and run-time administration (2026-11-17):
 - **I36.** A void is judged by the thresholds saved on each award; the skill
   is then judged again under the current policy.
 - **I38.** An individual value is never set by the person whose work it is,
-  and never after the work has been observed.
+  never after the work has been observed, and never applies to work done
+  before the day it was set.
 - **I39.** A closed plan is never edited, and a closing review never writes
   credit or a badge.
 - **I46.** One piece of work is observed at most once by each observer, and
@@ -224,8 +225,8 @@ Further rules:
   their progress; there are no totals across people and no rankings.
 - **Individual values.** A plan agreer or a program owner may give one skill
   on one piece of planned work its own value, inside the tenant's range, with
-  a reason, before the work is observed. The person whose work it is never
-  may (I38).
+  a reason, before the work is observed. It applies only to work done from
+  the day it is set. The person whose work it is never may (I38).
 - **Level 4, "Teaching others"** cannot be shown in a client meeting. It will
   be earned by developing others: signed observations _given_ as a designated
   observer. This is designed, not built. A plan may still target level 4: a

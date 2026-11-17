@@ -1,0 +1,160 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "46435d58-0eff-4e95-9516-5e2be98f283f",
+  "prevIds": [
+    "0552468f-04e1-47e0-a5e2-364202898f9d"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "engagement",
+        "engagement_open_pair_unique"
+      ],
+      "writes": [
+        "s|idx|public.engagement_open_pair_unique",
+        "n|idx|public.engagement_open_pair_unique",
+        "e|idx|public.engagement_open_pair_unique",
+        "n|rel|public.engagement_open_pair_unique"
+      ],
+      "reads": [
+        "e|tbl|public.engagement",
+        "n|sch|public",
+        "e|col|public.engagement.tenant_id",
+        "e|col|public.engagement.coach_id",
+        "e|col|public.engagement.coachee_id"
+      ],
+      "sharedWrites": []
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "activity_skill",
+        "points_override_at"
+      ],
+      "writes": [
+        "s|col|public.activity_skill.points_override_at",
+        "n|col|public.activity_skill.points_override_at",
+        "e|col|public.activity_skill.points_override_at"
+      ],
+      "reads": [
+        "n|tbl|public.activity_skill",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "engagement",
+        "engagement_live_pair_unique"
+      ],
+      "writes": [
+        "s|idx|public.engagement_live_pair_unique",
+        "n|idx|public.engagement_live_pair_unique",
+        "e|idx|public.engagement_live_pair_unique",
+        "n|rel|public.engagement_live_pair_unique"
+      ],
+      "reads": [
+        "n|tbl|public.engagement",
+        "n|sch|public",
+        "n|col|public.engagement.tenant_id"
+      ]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "activity_skill"
+      ],
+      "writes": [
+        "s|ck|public.activity_skill.activity_skill_points_override_pair"
+      ],
+      "reads": [
+        "n|tbl|public.activity_skill",
+        "n|sch|public",
+        "n|col|public.activity_skill.points_override",
+        "n|col|public.activity_skill.points_override_by_id",
+        "n|col|public.activity_skill.points_override_at",
+        "e|col|public.activity_skill.points_override",
+        "e|col|public.activity_skill.points_override_by_id"
+      ],
+      "sqlHash": "9d7299a8fb19c55c"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_skill",
+        "name": "points_override_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "engagement",
+        "name": "engagement_live_pair_unique",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "least(\"coach_id\", \"coachee_id\")",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "greatest(\"coach_id\", \"coachee_id\")",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "\"status\" in ('proposed', 'active', 'paused')",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"engagement_open_pair_unique\"]"
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"activity_skill\",\"activity_skill_points_override_pair\"]",
+      "set": {
+        "value": "(\"points_override\" is null) = (\"points_override_by_id\" is null) and (\"points_override\" is null) = (\"points_override_at\" is null)"
+      }
+    }
+  ]
+}
