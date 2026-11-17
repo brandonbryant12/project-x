@@ -1,5 +1,6 @@
 import { Api } from '@repo/api';
 import {
+  DEFAULT_CREDIT_POLICY,
   PersonId,
   RoleGrantId,
   type EvidenceId,
@@ -9,9 +10,10 @@ import {
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { assert, layer } from '@effect/vitest';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, like } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { HttpApiTest } from 'effect/http-api';
+import { inspectTenantCreditPolicy } from '../features/shared/recognition.ts';
 import { seedWorld } from '../scripts/seed-world.ts';
 import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
 
@@ -23,7 +25,7 @@ import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
  * that it exists. Refused attempts run first, so an allowed cell's write never
  * decides another cell.
  */
-const client = HttpApiTest.groups(Api, ['observations', 'admin', 'hub', 'directory']);
+const client = HttpApiTest.groups(Api, ['observations', 'admin', 'hub', 'directory', 'program']);
 
 const PERSONAS = [
   'advisor',
@@ -50,6 +52,15 @@ const nameOf = (persona: Persona) =>
   persona === 'leader' ? LEADER : (ADDED.find((a) => a.persona === persona)?.name as string);
 
 const A = 'allowed';
+/** Program administration (design §7): program owners and tenant admins, nobody else. */
+const PROGRAM_ONLY: Readonly<Record<Persona, Outcome>> = {
+  advisor: 'Forbidden',
+  coach: 'Forbidden',
+  leader: 'Forbidden',
+  tenant_admin: A,
+  compliance_reviewer: 'Forbidden',
+  program_owner: A,
+};
 const MATRIX: Readonly<Record<string, Readonly<Record<Persona, Outcome>>>> = {
   'read a narrative outside relationships': {
     advisor: 'NotFound',
@@ -123,6 +134,12 @@ const MATRIX: Readonly<Record<string, Readonly<Record<Persona, Outcome>>>> = {
     compliance_reviewer: 'Forbidden',
     program_owner: 'Forbidden',
   },
+  'read the credit rules': PROGRAM_ONLY,
+  'change the credit rules': PROGRAM_ONLY,
+  'add a skill to the catalog': PROGRAM_ONLY,
+  'publish a skill': PROGRAM_ONLY,
+  'set a skill’s own values': PROGRAM_ONLY,
+  'edit an activity template': PROGRAM_ONLY,
 };
 
 const outcome = <E extends { readonly _tag: string }>(effect: Effect.Effect<unknown, E>) =>
@@ -199,6 +216,60 @@ layer(ScenarioLayer, { timeout: 120_000 })('role-by-action matrix', (it) => {
       assert.isDefined(held, 'the seed has a held reflection');
       const evidenceId = held.id as EvidenceId;
 
+      // Program targets: two complete skill drafts to publish (one per allowed persona).
+      yield* signInAs(nameOf('program_owner'));
+      for (const name of ['Matrix skill A', 'Matrix skill B']) {
+        const draft = yield* api.program.createSkill({
+          payload: {
+            name,
+            summary: 'A skill drafted for the permission matrix.',
+            domain: 'communication',
+            outcome: 'Client trust',
+            tags: [],
+          },
+        });
+        yield* api.program.updateSkill({
+          params: { slug: draft.slug },
+          payload: {
+            version: draft.version,
+            name,
+            summary: draft.summary,
+            domain: draft.domain,
+            outcome: draft.outcome,
+            tags: [],
+            definition: ([1, 2, 3, 4] as const).map((level) => ({
+              level,
+              summary: `Level ${level}.`,
+              indicators: [{ lineageKey: null, text: `Shows it at level ${level}` }],
+            })),
+          },
+        });
+      }
+      const skillRow = (where: ReturnType<typeof and>) =>
+        db
+          .select()
+          .from(schema.skill)
+          .where(and(eq(schema.skill.tenantId, tenantId), where))
+          .orderBy(asc(schema.skill.slug))
+          .pipe(Effect.map((rows) => rows[0]!));
+      const nextDraft = skillRow(
+        and(like(schema.skill.slug, 'matrix-skill-%'), eq(schema.skill.status, 'draft')),
+      );
+      const planning = skillRow(eq(schema.skill.slug, 'goals-based-planning'));
+      const [template] = yield* db
+        .select()
+        .from(schema.activityTemplate)
+        .where(eq(schema.activityTemplate.tenantId, tenantId))
+        .orderBy(asc(schema.activityTemplate.slug));
+      assert.isDefined(template);
+      const templateSkills = yield* db
+        .select()
+        .from(schema.activityTemplateSkill)
+        .where(eq(schema.activityTemplateSkill.templateId, template.id))
+        .orderBy(asc(schema.activityTemplateSkill.position));
+      const reason = 'Checked with the practice leads this week.';
+      const { version: _, ...workingDefaults } = DEFAULT_CREDIT_POLICY;
+
       const ACTIONS: Readonly<Record<keyof typeof MATRIX, Effect.Effect<Outcome>>> = {
         'read a narrative outside relationships': api.observations
           .get({ params: { id: voidTarget } })
@@ -238,6 +309,81 @@ layer(ScenarioLayer, { timeout: 120_000 })('role-by-action matrix', (it) => {
             payload: { event: 'RELEASE', reason: 'Checked: no client details.' },
           }),
         ),
+        'read the credit rules': outcome(api.program.creditPolicy()),
+        'change the credit rules': Effect.gen(function* () {
+          const { version } = yield* Effect.provideService(
+            inspectTenantCreditPolicy(tenantId),
+            Db,
+            db,
+          );
+          return yield* outcome(
+            api.program.saveCreditPolicy({
+              payload: { expectedVersion: version, policy: workingDefaults, reason },
+            }),
+          );
+        }).pipe(Effect.orDie),
+        'add a skill to the catalog': outcome(
+          api.program.createSkill({
+            payload: {
+              name: 'Matrix added skill',
+              summary: 'A skill added by the permission matrix.',
+              domain: 'leadership',
+              outcome: 'Team growth',
+              tags: [],
+            },
+          }),
+        ),
+        'publish a skill': Effect.gen(function* () {
+          const draft = yield* nextDraft;
+          return yield* outcome(
+            api.program.skillTransition({
+              params: { slug: draft.slug },
+              payload: { version: draft.version, event: 'PUBLISH', note: null },
+            }),
+          );
+        }).pipe(Effect.orDie),
+        'set a skill’s own values': Effect.gen(function* () {
+          const skill = yield* planning;
+          return yield* outcome(
+            api.program.setSkillValues({
+              params: { slug: skill.slug },
+              payload: {
+                version: skill.version,
+                values: {
+                  primaryPoints: null,
+                  secondaryPoints: null,
+                  badgePoints: null,
+                  minPrimaryPoints: null,
+                },
+                reason,
+              },
+            }),
+          );
+        }).pipe(Effect.orDie),
+        'edit an activity template': Effect.gen(function* () {
+          const [row] = yield* db
+            .select()
+            .from(schema.activityTemplate)
+            .where(eq(schema.activityTemplate.id, template.id));
+          return yield* outcome(
+            api.program.updateTemplate({
+              params: { id: template.id },
+              payload: {
+                version: row!.version,
+                name: template.name,
+                description: template.description,
+                kind: template.kind as 'client_meeting',
+                observationTip: template.observationTip,
+                typicalMinutes: template.typicalMinutes,
+                skills: templateSkills.map((t) => ({
+                  skillId: t.skillId,
+                  role: t.role as 'primary' | 'secondary',
+                  points: t.points,
+                })),
+              },
+            }),
+          );
+        }).pipe(Effect.orDie),
       };
 
       const actual: Record<string, Record<Persona, Outcome>> = {};
@@ -269,6 +415,17 @@ layer(ScenarioLayer, { timeout: 120_000 })('role-by-action matrix', (it) => {
       ]);
       const [gone] = yield* db.select().from(schema.person).where(eq(schema.person.id, leaver));
       assert.strictEqual(gone?.status, 'departed');
+      const matrixSkills = yield* db
+        .select({ slug: schema.skill.slug, status: schema.skill.status })
+        .from(schema.skill)
+        .where(and(eq(schema.skill.tenantId, tenantId), like(schema.skill.slug, 'matrix-%')))
+        .orderBy(asc(schema.skill.slug));
+      assert.deepStrictEqual(matrixSkills, [
+        { slug: 'matrix-added-skill', status: 'draft' },
+        { slug: 'matrix-added-skill-2', status: 'draft' },
+        { slug: 'matrix-skill-a', status: 'published' },
+        { slug: 'matrix-skill-b', status: 'published' },
+      ]);
     }),
   );
 });
