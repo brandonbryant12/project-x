@@ -20,9 +20,9 @@ does any of the following:
 | [0002](./0002-monorepo-layout-and-toolchain.md)               | pnpm + Turborepo monorepo on Node 24 with a small, layered package set                                       | Accepted (amended)            |
 | [0003](./0003-effect-backend-architecture.md)                 | Effect 4 for the backend: HttpApi, use cases, tagged errors, one layer graph                                 | Accepted (amended)            |
 | [0004](./0004-postgres-drizzle-effect-and-pglite-tests.md)    | PostgreSQL via Drizzle's Effect driver; PGlite runs tests in-process                                         | Accepted (amended)            |
-| [0005](./0005-explicit-lifecycles-with-xstate.md)             | Every lifecycle is an explicit XState v5 machine, enforced on the server with pure transitions               | Accepted                      |
+| [0005](./0005-explicit-lifecycles-with-xstate.md)             | Every lifecycle is an explicit XState v5 machine, enforced on the server with pure transitions               | Accepted (amended)            |
 | [0006](./0006-identity-entra-roles-and-relationships.md)      | Entra ID sign-in with app roles; leader, coach and coachee are relationships                                 | Accepted (amended)            |
-| [0007](./0007-credit-only-from-signed-observations.md)        | Credit is posted only by signing an observation, to an append-only ledger                                    | Accepted (amended)            |
+| [0007](./0007-credit-only-from-signed-observations.md)        | Credit is posted only by signing an observation, to an append-only ledger; each credit carries a frozen role and points | Accepted (amended)            |
 | [0008](./0008-decisions-api-is-advisory.md)                   | The Gemini Decisions API is advisory: it may hold or nudge, never clear                                      | Accepted (amended)            |
 | [0009](./0009-row-level-tenancy.md)                           | One database with a tenant ID on every row, enforced in the repositories                                     | Accepted (amended)            |
 | [0010](./0010-frontend-stack.md)                              | React + TanStack Router/Query, with a typed client derived from the HttpApi                                  | Accepted (amended)            |
@@ -38,3 +38,4 @@ does any of the following:
 | [0020](./0020-designated-observers.md)                        | A leader or coach may designate a colleague to observe, for a bounded window                                 | Accepted (amended)            |
 | [0021](./0021-program-owner-and-adoption-view.md)             | A program owner sees adoption in aggregate only                                                              | Accepted (amended)            |
 | [0022](./0022-calendar-assisted-logging.md)                   | Calendar-assisted logging reads the calendar on demand and never stores it                                   | **Deferred** (never built)    |
+| [0023](./0023-program-owners-administer-credit-rules-and-catalog.md) | Program owners change the credit rules and the catalog at run time, with an audit record | Accepted |
