@@ -750,6 +750,7 @@ export const setActivityValue = Effect.fn('useCase.setActivityValue')(function* 
         entityType: 'activity',
         entityId: activity.id,
         event: input.points === null ? 'CLEAR_VALUE' : 'SET_VALUE',
+        reasonCode: 'value_override',
         note: { kind: 'value_override', body: reason },
         policyVersion: creditPolicyVersion(policy),
         data: {

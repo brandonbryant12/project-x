@@ -107,7 +107,9 @@ const signIn = async (
   playwright: { request: { newContext: (o: { baseURL: string }) => Promise<APIRequestContext> } },
   persona: string,
 ) => {
-  const api = await playwright.request.newContext({ baseURL: 'http://localhost:5400' });
+  const api = await playwright.request.newContext({
+    baseURL: process.env['E2E_BASE_URL'] ?? 'http://localhost:5400',
+  });
   const seeded = await getJson(api, '/api/auth/dev/personas');
   const match = seeded.find(
     (p: { person: { displayName: string } }) => p.person.displayName === persona,

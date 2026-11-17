@@ -5,11 +5,13 @@ import {
   type SkillId,
   type SkillIndicatorId,
   type SkillLevelDefinition,
+  type SkillRole,
 } from '@repo/domain';
 import {
   AssistantNote,
   AssistantPreRead,
   Button,
+  CreditFacts,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -29,6 +31,8 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  SegmentedControl,
+  SegmentedItem,
   Textarea,
   type PreReadFinding,
 } from '@repo/ui';
@@ -48,6 +52,18 @@ const relationLine = (view: ObservationView) =>
     view.subject.displayName.split(' ')[0] ?? '',
   );
 
+const firstName = (name: string) => name.split(' ')[0] ?? name;
+
+/** Whose note this is, from where the viewer stands. */
+const requestNoteCaption = (view: ObservationView) => {
+  const from = firstName(view.requestedBy.displayName);
+  const to = firstName(view.observer.displayName);
+  if (view.viewerRole === 'observer') return `${from}’s note to you`;
+  if (view.viewerRole === 'subject' && view.requestedBy.id === view.subject.id)
+    return `Your note to ${to}`;
+  return `${from}’s note to ${to}`;
+};
+
 /** What happened: the account of the person observed, framed as theirs. */
 export const EvidenceCard = ({
   view,
@@ -57,6 +73,7 @@ export const EvidenceCard = ({
   readonly showTitle?: boolean;
 }) => {
   const evidence = view.evidence;
+  const own = view.viewerRole === 'subject';
   return (
     <section className="grid gap-4">
       <div className="grid gap-1">
@@ -72,9 +89,7 @@ export const EvidenceCard = ({
       </div>
       {view.requestNote ? (
         <figure className="rounded-card border border-line bg-surface px-4 py-3">
-          <figcaption className="mb-1 text-meta text-ink-3">
-            {view.requestedBy.displayName.split(' ')[0]}’s note to you
-          </figcaption>
+          <figcaption className="mb-1 text-meta text-ink-3">{requestNoteCaption(view)}</figcaption>
           <blockquote className="narrative text-ink">{view.requestNote}</blockquote>
         </figure>
       ) : null}
@@ -82,7 +97,7 @@ export const EvidenceCard = ({
         <div className="grid gap-2">
           <div className="flex items-center justify-between gap-2">
             <p className="text-meta font-medium text-ink-3">
-              In {view.subject.displayName.split(' ')[0]}’s words
+              {own ? 'Your reflection' : `In ${firstName(view.subject.displayName)}’s words`}
             </p>
             {evidence.status !== 'available' ? (
               <Pill tone={EVIDENCE_STATUS[evidence.status].tone} dot>
@@ -92,7 +107,14 @@ export const EvidenceCard = ({
           </div>
           {evidence.body ? (
             <p className="narrative whitespace-pre-line text-ink">{evidence.body}</p>
-          ) : (
+          ) : null}
+          {own && evidence.status === 'held' ? (
+            <AssistantNote>
+              {evidence.holdReason ?? 'Held for privacy.'} Nobody else can see it until you revise
+              it to remove client details.
+            </AssistantNote>
+          ) : null}
+          {evidence.body ? null : (
             <AssistantNote>
               {view.subject.displayName.split(' ')[0]}’s description is on hold for a privacy check
               and isn’t visible yet. They’ve been asked to revise it.
@@ -191,6 +213,7 @@ export const RatingEditor = ({
   canRemove,
   compact,
   collapseIndicators = false,
+  onRole,
 }: {
   readonly skillName: string;
   /** The pinned skill version's ladder; empty while it loads. */
@@ -203,6 +226,8 @@ export const RatingEditor = ({
   readonly compact: boolean;
   /** Quick capture keeps the optional indicators one tap away. */
   readonly collapseIndicators?: boolean;
+  /** Only for the observer: the skill's role in this work (they own it). */
+  readonly onRole?: (role: SkillRole) => void;
 }) => {
   const current = levels.find((l) => l.level === draft.level);
   const toggle = (id: SkillIndicatorId, on: boolean) =>
@@ -243,6 +268,22 @@ export const RatingEditor = ({
           </Button>
         ) : null}
       </header>
+      {onRole ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="text-ui text-ink-2">Role in this work</span>
+          <SegmentedControl
+            type="single"
+            aria-label={`Role of ${skillName} in this work`}
+            value={draft.role}
+            onValueChange={(v) => {
+              if (v) onRole(v as SkillRole);
+            }}
+          >
+            <SegmentedItem value="primary">Primary</SegmentedItem>
+            <SegmentedItem value="secondary">Secondary</SegmentedItem>
+          </SegmentedControl>
+        </div>
+      ) : null}
       <LevelPicker
         name={`Level observed for ${skillName}`}
         value={draft.level}
@@ -281,7 +322,7 @@ export const RatingEditor = ({
   );
 };
 
-/** Add one more skill from the catalog (an observation rates up to three). */
+/** Add one more skill from the catalog (up to the tenant's limit, which the caller enforces). */
 export const AddSkill = ({
   exclude,
   onAdd,
@@ -324,8 +365,16 @@ export const AddSkill = ({
   );
 };
 
-/** A signed or read-only rating. */
-export const RatingRead = ({ rating }: { readonly rating: RatingView }) => {
+type CreditView = ObservationView['credits'][number];
+
+/** A signed or read-only rating, with what its credit added (or that it added nothing). */
+export const RatingRead = ({
+  rating,
+  credit,
+}: {
+  readonly rating: RatingView;
+  readonly credit?: CreditView | undefined;
+}) => {
   const ticked = rating.levels
     .flatMap((l) => l.indicators)
     .filter((i) => rating.indicatorIds.includes(i.id));
@@ -336,8 +385,13 @@ export const RatingRead = ({ rating }: { readonly rating: RatingView }) => {
         <p className="text-ui font-medium text-ink">{rating.skill.name}</p>
         <p className="text-meta text-ink-3">
           {rating.level ? levelName(rating.level) : 'No level'}
-          {rating.credit ? '' : ' · feedback only'}
         </p>
+        {rating.credit ? null : (
+          <p className="text-meta text-ink-3">Feedback only. Adds nothing to the record.</p>
+        )}
+        {rating.credit && credit ? (
+          <CreditFacts role={credit.role} points={credit.points} source={credit.pointsSource} />
+        ) : null}
         {ticked.length > 0 ? (
           <ul className="mt-1 grid gap-1">
             {ticked.map((i) => (

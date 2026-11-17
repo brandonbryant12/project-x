@@ -259,7 +259,7 @@ export const evaluateBadge = (
         'primaryPoints',
         primaryPoints,
         required.minPrimaryPoints,
-        `${upTo(primaryPoints, required.minPrimaryPoints)} of ${required.minPrimaryPoints} points as the main skill`,
+        `${upTo(primaryPoints, required.minPrimaryPoints)} of ${required.minPrimaryPoints} points as the primary skill`,
       ),
     );
   }
@@ -323,7 +323,7 @@ export const nextStepSentence = (
   const observations = (n: number) => {
     if (!values) return '';
     const count = Math.ceil(n / values.primary);
-    return `, about ${say(count).toLowerCase()} more ${plural(count, 'observation')} with ${skillName} as the main skill`;
+    return `, about ${say(count).toLowerCase()} more ${plural(count, 'observation')} with ${skillName} as the primary skill`;
   };
 
   const points = unmet('points');
@@ -339,7 +339,7 @@ export const nextStepSentence = (
   const primary = unmet('primaryPoints');
   if (primary) {
     const n = gap(primary);
-    return `${say(n)} more ${plural(n, 'point')} from work where ${skillName} is the main skill to earn ${badge}${observations(n)}.`;
+    return `${say(n)} more ${plural(n, 'point')} from work where ${skillName} is the primary skill to earn ${badge}${observations(n)}.`;
   }
   const observers = unmet('observers');
   if (observers) {

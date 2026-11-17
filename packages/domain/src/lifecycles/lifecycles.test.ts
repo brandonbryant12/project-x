@@ -42,6 +42,7 @@ describe('observation', () => {
     narrativeLength: MIN_NARRATIVE_LENGTH,
     privacyHold: false,
     acknowledged: false,
+    reflectionHeld: false,
   };
   const L = ObservationLifecycle;
 
@@ -83,6 +84,15 @@ describe('observation', () => {
     const acknowledged = { ...ready, acknowledged: true };
     expect(L.next('signed', acknowledged, { type: 'ACKNOWLEDGE' })).toBeNull();
     expect(L.next('signed', acknowledged, { type: 'REQUEST_REVIEW' })).toBeNull();
+  });
+
+  it('resends a returned request only while the reflection is not held for privacy', () => {
+    const held = { ...ready, reflectionHeld: true };
+    expect(L.next('returned', held, { type: 'RESUBMIT' })).toBeNull();
+    // The requester can still withdraw it.
+    expect(L.next('returned', held, { type: 'WITHDRAW' })).toBe('withdrawn');
+    // The hold never blocks the observer: signing is judged by the observer's own words.
+    expect(L.next('drafting', held, { type: 'SIGN' })).toBe('signed');
   });
 
   it('lists only the events allowed in a state', () => {

@@ -39,7 +39,9 @@ const median = (xs: ReadonlyArray<number>) => {
 };
 
 test(`capture timing · ${OBSERVER} · ${RUNS} runs`, async ({ page, playwright }, info) => {
-  const api = await playwright.request.newContext({ baseURL: 'http://localhost:5400' });
+  const api = await playwright.request.newContext({
+    baseURL: process.env['E2E_BASE_URL'] ?? 'http://localhost:5400',
+  });
   let personas: Array<{ person: { id: string; displayName: string } }> = [];
   for (let attempt = 1; personas.length === 0 && attempt <= 40; attempt++) {
     const response = await api.get('/api/auth/dev/personas');

@@ -245,7 +245,13 @@ export const saveDraft = Effect.fn('useCase.saveObservationDraft')(function* (
   const to = yield* decide({
     lifecycle: ObservationLifecycle,
     from: row.status as ObservationStatus,
-    facts: { ratingsComplete: false, narrativeLength: 0, privacyHold: false, acknowledged: false },
+    facts: {
+      ratingsComplete: false,
+      narrativeLength: 0,
+      privacyHold: false,
+      acknowledged: false,
+      reflectionHeld: false,
+    },
     event: { type: 'SAVE_DRAFT' },
     permitted: true,
   });
@@ -292,6 +298,8 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
       narrativeLength: input.narrativeSaw.trim().length,
       privacyHold: narrativeScreen.held,
       acknowledged: false,
+      // Signing is judged by the observer's own words, not the reflection's hold.
+      reflectionHeld: false,
     },
     event: { type: 'SIGN' },
     permitted: true,

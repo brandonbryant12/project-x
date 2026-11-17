@@ -119,6 +119,7 @@ export const runSweeps = Effect.fn('sweep.run')(function* () {
                 narrativeLength: 0,
                 privacyHold: false,
                 acknowledged: false,
+                reflectionHeld: false,
               },
               { type: 'EXPIRE' },
             ),
