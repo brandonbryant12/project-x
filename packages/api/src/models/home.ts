@@ -75,8 +75,9 @@ export const HomeView = Schema.Struct({
   /** Program owners: the adoption view's first two numbers (ADR 0021). Null for everyone else. */
   programHealth: Schema.NullOr(
     Schema.Struct({
-      withPlan: Schema.Number,
-      /** Null under the minimum cell size. */
+      /** Null (withheld) under the minimum cell size, as on the adoption view. */
+      withPlan: Schema.NullOr(Schema.Number),
+      /** Null (withheld) under the minimum cell size, as on the adoption view. */
       observedRecently: Schema.NullOr(Schema.Number),
       minimumCell: Schema.Number,
     }),
