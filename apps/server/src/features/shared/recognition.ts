@@ -194,23 +194,24 @@ export const progressFor = Effect.fn('progress.for')(function* (
 });
 
 /**
- * Evaluates badge criteria under the current policy for the given skills and
- * awards any newly met badges. Runs inside the signing transaction (or a void's
- * re-award); every input was human-signed. Each award saves the resolved
- * criteria it was judged by, so a later void is judged by the same thresholds.
- * `only` limits the levels considered; `triggeringObservationId` defaults to
- * the observation of the latest net credit for the skill.
+ * Evaluates badge criteria under `policy` (the current one, read once by the
+ * caller inside its transaction after the ledger lock) for the given skills
+ * and awards any newly met badges. Runs inside the signing transaction (or a
+ * void's re-award); every input was human-signed. Each award saves the
+ * resolved criteria it was judged by, so a later void is judged by the same
+ * thresholds. `only` limits the levels considered; `triggeringObservationId`
+ * defaults to the observation of the latest net credit for the skill.
  */
 export const awardEarnedBadges = Effect.fn('badges.award')(function* (
   actor: Actor,
+  policy: CreditPolicy,
   personId: PersonId,
   skillIds: ReadonlyArray<SkillId>,
   triggeringObservationId?: ObservationId,
   only?: ReadonlyArray<{ readonly skillId: SkillId; readonly level: BadgeLevel }>,
 ) {
   const db = yield* Db;
-  const [policy, credits, badges, skills] = yield* Effect.all([
-    tenantCreditPolicy(actor.tenantId),
+  const [credits, badges, skills] = yield* Effect.all([
     netCreditsBySkill(actor.tenantId, personId, skillIds),
     heldBadges(actor.tenantId, personId),
     loadSkills(actor.tenantId, skillIds),

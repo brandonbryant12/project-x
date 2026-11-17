@@ -253,6 +253,27 @@ layer(ScenarioLayer, { timeout: 120_000 })('weighted credit', (it) => {
             narrativeNext: '',
           },
         });
+        // The tenant's skill limit holds while drafting too, not only when asking.
+        const fourSkills = draft(['secondary', 'primary']);
+        const overLimit = yield* api.observations
+          .saveDraft({
+            ...fourSkills,
+            payload: {
+              ...fourSkills.payload,
+              ratings: [
+                ...fourSkills.payload.ratings,
+                ...[planning, skill('relationship-deepening')].map((skillId) => ({
+                  skillId,
+                  level: 3 as const,
+                  indicatorIds: [],
+                  credit: true,
+                })),
+              ],
+            },
+          })
+          .pipe(Effect.flip);
+        assert.strictEqual(DEFAULT_CREDIT_POLICY.maxSkillsPerObservation, 3);
+        assert.deepInclude(overLimit, { _tag: 'Unprocessable', field: 'ratings' });
         const twoPrimaries = yield* api.observations
           .saveDraft(draft(['primary', 'primary']))
           .pipe(Effect.flip);
