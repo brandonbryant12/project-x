@@ -5,15 +5,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { createHash } from 'node:crypto';
 
-export type NoteKind =
-  | 'request'
-  | 'return'
-  | 'decline'
-  | 'review'
-  | 'void'
-  | 'uphold'
-  | 'release'
-  | 'resolve';
+export type NoteKind = (typeof schema.NOTE_KINDS)[number];
 
 export const digestOf = (text: string) => createHash('sha256').update(text).digest('hex');
 

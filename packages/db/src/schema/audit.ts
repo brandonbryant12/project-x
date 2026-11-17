@@ -14,6 +14,10 @@ export const AUDIT_REASON_CODES = [
   'admin_release',
   'compliance_resolution',
   'data_correction',
+  'value_override',
+  'policy_change',
+  'catalog_change',
+  'plan_review',
 ] as const;
 
 /**

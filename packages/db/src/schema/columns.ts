@@ -36,3 +36,14 @@ export const oneOfOrNull = (
 /** A SQL list literal for partial-index predicates, from the same constants. */
 export const inList = (column: PgColumn, values: ReadonlyArray<string | number>) =>
   sql`${column} in (${literalList(values)})`;
+
+/** CHECK (column BETWEEN min AND max), or NULL when `nullable`. Bounds come from domain constants. */
+export const inRange = (
+  name: string,
+  column: PgColumn,
+  range: { readonly min: number; readonly max: number },
+  options: { readonly nullable?: boolean } = {},
+) => {
+  const bounded = sql`${column} between ${sql.raw(String(range.min))} and ${sql.raw(String(range.max))}`;
+  return check(name, options.nullable ? sql`${column} is null or ${bounded}` : bounded);
+};

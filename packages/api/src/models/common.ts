@@ -23,6 +23,7 @@ export const SkillRef = Schema.Struct({
 export type SkillRef = typeof SkillRef.Type;
 
 export const CriterionView = Schema.Struct({
+  /** `points`, `primaryPoints` (only when the policy requires it), `observers`, `firstHand`, `span`. */
   key: Schema.String,
   label: Schema.String,
   met: Schema.Boolean,
@@ -39,6 +40,12 @@ export const ProgressView = Schema.Struct({
   targetLevelName: Schema.NullOr(Schema.String),
   /** Distinct interactions demonstrating the skill at or above the target level. */
   demonstrations: Schema.Number,
+  /** Points toward the target badge: each piece of work once, at its highest value. */
+  points: Schema.Number,
+  /** Points the target badge needs (the skill's own value, else the tenant's). */
+  pointsRequired: Schema.Number,
+  /** What one observation in this skill is worth by role, before any activity or template value. */
+  pointsPerObservation: Schema.Struct({ primary: Schema.Number, secondary: Schema.Number }),
   criteria: Schema.Array(CriterionView),
   nextStep: Schema.String,
   lastDemonstratedOn: Schema.NullOr(IsoDate),

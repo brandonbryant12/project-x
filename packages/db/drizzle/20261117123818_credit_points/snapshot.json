@@ -1,0 +1,1368 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "0ccb8523-1596-4908-b7a1-0d7c518c3a26",
+  "prevIds": [
+    "7ca2eb63-1f10-464f-ba14-6eeb67d0ed78"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "activity_template_skill",
+        "role"
+      ],
+      "writes": [
+        "s|col|public.activity_template_skill.role",
+        "n|col|public.activity_template_skill.role",
+        "e|col|public.activity_template_skill.role"
+      ],
+      "reads": [
+        "n|tbl|public.activity_template_skill",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "activity_template_skill",
+        "points"
+      ],
+      "writes": [
+        "s|col|public.activity_template_skill.points",
+        "n|col|public.activity_template_skill.points",
+        "e|col|public.activity_template_skill.points"
+      ],
+      "reads": [
+        "n|tbl|public.activity_template_skill",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "skill",
+        "primary_points"
+      ],
+      "writes": [
+        "s|col|public.skill.primary_points",
+        "n|col|public.skill.primary_points",
+        "e|col|public.skill.primary_points"
+      ],
+      "reads": [
+        "n|tbl|public.skill",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "skill",
+        "secondary_points"
+      ],
+      "writes": [
+        "s|col|public.skill.secondary_points",
+        "n|col|public.skill.secondary_points",
+        "e|col|public.skill.secondary_points"
+      ],
+      "reads": [
+        "n|tbl|public.skill",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "skill",
+        "badge_points"
+      ],
+      "writes": [
+        "s|col|public.skill.badge_points",
+        "n|col|public.skill.badge_points",
+        "e|col|public.skill.badge_points"
+      ],
+      "reads": [
+        "n|tbl|public.skill",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "skill",
+        "min_primary_points"
+      ],
+      "writes": [
+        "s|col|public.skill.min_primary_points",
+        "n|col|public.skill.min_primary_points",
+        "e|col|public.skill.min_primary_points"
+      ],
+      "reads": [
+        "n|tbl|public.skill",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "activity_skill",
+        "role"
+      ],
+      "writes": [
+        "s|col|public.activity_skill.role",
+        "n|col|public.activity_skill.role",
+        "e|col|public.activity_skill.role"
+      ],
+      "reads": [
+        "n|tbl|public.activity_skill",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "activity_skill",
+        "points_override"
+      ],
+      "writes": [
+        "s|col|public.activity_skill.points_override",
+        "n|col|public.activity_skill.points_override",
+        "e|col|public.activity_skill.points_override"
+      ],
+      "reads": [
+        "n|tbl|public.activity_skill",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "activity_skill",
+        "points_override_by_id"
+      ],
+      "writes": [
+        "s|col|public.activity_skill.points_override_by_id",
+        "n|col|public.activity_skill.points_override_by_id",
+        "e|col|public.activity_skill.points_override_by_id"
+      ],
+      "reads": [
+        "n|tbl|public.activity_skill",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "activity_skill",
+        "template_points"
+      ],
+      "writes": [
+        "s|col|public.activity_skill.template_points",
+        "n|col|public.activity_skill.template_points",
+        "e|col|public.activity_skill.template_points"
+      ],
+      "reads": [
+        "n|tbl|public.activity_skill",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "plan",
+        "review_recorded_by_id"
+      ],
+      "writes": [
+        "s|col|public.plan.review_recorded_by_id",
+        "n|col|public.plan.review_recorded_by_id",
+        "e|col|public.plan.review_recorded_by_id"
+      ],
+      "reads": [
+        "n|tbl|public.plan",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "plan",
+        "review_recorded_at"
+      ],
+      "writes": [
+        "s|col|public.plan.review_recorded_at",
+        "n|col|public.plan.review_recorded_at",
+        "e|col|public.plan.review_recorded_at"
+      ],
+      "reads": [
+        "n|tbl|public.plan",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "plan",
+        "review_confirmed_by_id"
+      ],
+      "writes": [
+        "s|col|public.plan.review_confirmed_by_id",
+        "n|col|public.plan.review_confirmed_by_id",
+        "e|col|public.plan.review_confirmed_by_id"
+      ],
+      "reads": [
+        "n|tbl|public.plan",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "plan",
+        "review_confirmed_at"
+      ],
+      "writes": [
+        "s|col|public.plan.review_confirmed_at",
+        "n|col|public.plan.review_confirmed_at",
+        "e|col|public.plan.review_confirmed_at"
+      ],
+      "reads": [
+        "n|tbl|public.plan",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "credit_entry",
+        "role"
+      ],
+      "writes": [
+        "s|col|public.credit_entry.role",
+        "n|col|public.credit_entry.role",
+        "e|col|public.credit_entry.role"
+      ],
+      "reads": [
+        "n|tbl|public.credit_entry",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "credit_entry",
+        "points"
+      ],
+      "writes": [
+        "s|col|public.credit_entry.points",
+        "n|col|public.credit_entry.points",
+        "e|col|public.credit_entry.points"
+      ],
+      "reads": [
+        "n|tbl|public.credit_entry",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "credit_entry",
+        "points_source"
+      ],
+      "writes": [
+        "s|col|public.credit_entry.points_source",
+        "n|col|public.credit_entry.points_source",
+        "e|col|public.credit_entry.points_source"
+      ],
+      "reads": [
+        "n|tbl|public.credit_entry",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "observation_rating",
+        "role"
+      ],
+      "writes": [
+        "s|col|public.observation_rating.role",
+        "n|col|public.observation_rating.role",
+        "e|col|public.observation_rating.role"
+      ],
+      "reads": [
+        "n|tbl|public.observation_rating",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "activity_skill"
+      ],
+      "writes": [
+        "s|fk|public.activity_skill.activity_skill_points_override_by_fk",
+        "n|fk|public.activity_skill.activity_skill_points_override_by_fk",
+        "e|fk|public.activity_skill.activity_skill_points_override_by_fk",
+        "n|con|public.activity_skill.activity_skill_points_override_by_fk"
+      ],
+      "reads": [
+        "n|tbl|public.activity_skill",
+        "n|sch|public",
+        "n|tbl|public.person",
+        "n|sch|public",
+        "n|col|public.activity_skill.tenant_id",
+        "n|col|public.activity_skill.points_override_by_id",
+        "n|col|public.person.tenant_id",
+        "n|col|public.person.id",
+        "e|uniqueness|public.person.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan"
+      ],
+      "writes": [
+        "s|fk|public.plan.plan_review_recorded_by_fk",
+        "n|fk|public.plan.plan_review_recorded_by_fk",
+        "e|fk|public.plan.plan_review_recorded_by_fk",
+        "n|con|public.plan.plan_review_recorded_by_fk"
+      ],
+      "reads": [
+        "n|tbl|public.plan",
+        "n|sch|public",
+        "n|tbl|public.person",
+        "n|sch|public",
+        "n|col|public.plan.tenant_id",
+        "n|col|public.plan.review_recorded_by_id",
+        "n|col|public.person.tenant_id",
+        "n|col|public.person.id",
+        "e|uniqueness|public.person.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan"
+      ],
+      "writes": [
+        "s|fk|public.plan.plan_review_confirmed_by_fk",
+        "n|fk|public.plan.plan_review_confirmed_by_fk",
+        "e|fk|public.plan.plan_review_confirmed_by_fk",
+        "n|con|public.plan.plan_review_confirmed_by_fk"
+      ],
+      "reads": [
+        "n|tbl|public.plan",
+        "n|sch|public",
+        "n|tbl|public.person",
+        "n|sch|public",
+        "n|col|public.plan.tenant_id",
+        "n|col|public.plan.review_confirmed_by_id",
+        "n|col|public.person.tenant_id",
+        "n|col|public.person.id",
+        "e|uniqueness|public.person.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "activity_template_skill"
+      ],
+      "writes": [
+        "s|ck|public.activity_template_skill.activity_template_skill_role_check",
+        "n|ck|public.activity_template_skill.activity_template_skill_role_check",
+        "e|ck|public.activity_template_skill.activity_template_skill_role_check",
+        "n|con|public.activity_template_skill.activity_template_skill_role_check"
+      ],
+      "reads": [
+        "n|tbl|public.activity_template_skill",
+        "n|sch|public",
+        "n|col|public.activity_template_skill.role"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "activity_template_skill"
+      ],
+      "writes": [
+        "s|ck|public.activity_template_skill.activity_template_skill_points",
+        "n|ck|public.activity_template_skill.activity_template_skill_points",
+        "e|ck|public.activity_template_skill.activity_template_skill_points",
+        "n|con|public.activity_template_skill.activity_template_skill_points"
+      ],
+      "reads": [
+        "n|tbl|public.activity_template_skill",
+        "n|sch|public",
+        "n|col|public.activity_template_skill.points"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "skill"
+      ],
+      "writes": [
+        "s|ck|public.skill.skill_primary_points",
+        "n|ck|public.skill.skill_primary_points",
+        "e|ck|public.skill.skill_primary_points",
+        "n|con|public.skill.skill_primary_points"
+      ],
+      "reads": [
+        "n|tbl|public.skill",
+        "n|sch|public",
+        "n|col|public.skill.primary_points"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "skill"
+      ],
+      "writes": [
+        "s|ck|public.skill.skill_secondary_points",
+        "n|ck|public.skill.skill_secondary_points",
+        "e|ck|public.skill.skill_secondary_points",
+        "n|con|public.skill.skill_secondary_points"
+      ],
+      "reads": [
+        "n|tbl|public.skill",
+        "n|sch|public",
+        "n|col|public.skill.secondary_points"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "skill"
+      ],
+      "writes": [
+        "s|ck|public.skill.skill_badge_points",
+        "n|ck|public.skill.skill_badge_points",
+        "e|ck|public.skill.skill_badge_points",
+        "n|con|public.skill.skill_badge_points"
+      ],
+      "reads": [
+        "n|tbl|public.skill",
+        "n|sch|public",
+        "n|col|public.skill.badge_points"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "skill"
+      ],
+      "writes": [
+        "s|ck|public.skill.skill_min_primary_points",
+        "n|ck|public.skill.skill_min_primary_points",
+        "e|ck|public.skill.skill_min_primary_points",
+        "n|con|public.skill.skill_min_primary_points"
+      ],
+      "reads": [
+        "n|tbl|public.skill",
+        "n|sch|public",
+        "n|col|public.skill.min_primary_points"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "activity_skill"
+      ],
+      "writes": [
+        "s|ck|public.activity_skill.activity_skill_role_check",
+        "n|ck|public.activity_skill.activity_skill_role_check",
+        "e|ck|public.activity_skill.activity_skill_role_check",
+        "n|con|public.activity_skill.activity_skill_role_check"
+      ],
+      "reads": [
+        "n|tbl|public.activity_skill",
+        "n|sch|public",
+        "n|col|public.activity_skill.role"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "activity_skill"
+      ],
+      "writes": [
+        "s|ck|public.activity_skill.activity_skill_points_override",
+        "n|ck|public.activity_skill.activity_skill_points_override",
+        "e|ck|public.activity_skill.activity_skill_points_override",
+        "n|con|public.activity_skill.activity_skill_points_override"
+      ],
+      "reads": [
+        "n|tbl|public.activity_skill",
+        "n|sch|public",
+        "n|col|public.activity_skill.points_override"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "activity_skill"
+      ],
+      "writes": [
+        "s|ck|public.activity_skill.activity_skill_template_points",
+        "n|ck|public.activity_skill.activity_skill_template_points",
+        "e|ck|public.activity_skill.activity_skill_template_points",
+        "n|con|public.activity_skill.activity_skill_template_points"
+      ],
+      "reads": [
+        "n|tbl|public.activity_skill",
+        "n|sch|public",
+        "n|col|public.activity_skill.template_points"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "activity_skill"
+      ],
+      "writes": [
+        "s|ck|public.activity_skill.activity_skill_points_override_pair",
+        "n|ck|public.activity_skill.activity_skill_points_override_pair",
+        "e|ck|public.activity_skill.activity_skill_points_override_pair",
+        "n|con|public.activity_skill.activity_skill_points_override_pair"
+      ],
+      "reads": [
+        "n|tbl|public.activity_skill",
+        "n|sch|public",
+        "n|col|public.activity_skill.points_override",
+        "n|col|public.activity_skill.points_override_by_id"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan"
+      ],
+      "writes": [
+        "s|ck|public.plan.plan_review_recorded_pair",
+        "n|ck|public.plan.plan_review_recorded_pair",
+        "e|ck|public.plan.plan_review_recorded_pair",
+        "n|con|public.plan.plan_review_recorded_pair"
+      ],
+      "reads": [
+        "n|tbl|public.plan",
+        "n|sch|public",
+        "n|col|public.plan.review_recorded_by_id",
+        "n|col|public.plan.review_recorded_at"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan"
+      ],
+      "writes": [
+        "s|ck|public.plan.plan_review_confirmed_pair",
+        "n|ck|public.plan.plan_review_confirmed_pair",
+        "e|ck|public.plan.plan_review_confirmed_pair",
+        "n|con|public.plan.plan_review_confirmed_pair"
+      ],
+      "reads": [
+        "n|tbl|public.plan",
+        "n|sch|public",
+        "n|col|public.plan.review_confirmed_by_id",
+        "n|col|public.plan.review_confirmed_at"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan"
+      ],
+      "writes": [
+        "s|ck|public.plan.plan_review_confirmed_after_recorded",
+        "n|ck|public.plan.plan_review_confirmed_after_recorded",
+        "e|ck|public.plan.plan_review_confirmed_after_recorded",
+        "n|con|public.plan.plan_review_confirmed_after_recorded"
+      ],
+      "reads": [
+        "n|tbl|public.plan",
+        "n|sch|public",
+        "n|col|public.plan.review_confirmed_at",
+        "n|col|public.plan.review_recorded_at"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan"
+      ],
+      "writes": [
+        "s|ck|public.plan.plan_review_not_self_confirmed",
+        "n|ck|public.plan.plan_review_not_self_confirmed",
+        "e|ck|public.plan.plan_review_not_self_confirmed",
+        "n|con|public.plan.plan_review_not_self_confirmed"
+      ],
+      "reads": [
+        "n|tbl|public.plan",
+        "n|sch|public",
+        "n|col|public.plan.review_confirmed_by_id",
+        "n|col|public.plan.owner_id"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "credit_entry"
+      ],
+      "writes": [
+        "s|ck|public.credit_entry.credit_entry_role_check",
+        "n|ck|public.credit_entry.credit_entry_role_check",
+        "e|ck|public.credit_entry.credit_entry_role_check",
+        "n|con|public.credit_entry.credit_entry_role_check"
+      ],
+      "reads": [
+        "n|tbl|public.credit_entry",
+        "n|sch|public",
+        "n|col|public.credit_entry.role"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "credit_entry"
+      ],
+      "writes": [
+        "s|ck|public.credit_entry.credit_entry_points_source_check",
+        "n|ck|public.credit_entry.credit_entry_points_source_check",
+        "e|ck|public.credit_entry.credit_entry_points_source_check",
+        "n|con|public.credit_entry.credit_entry_points_source_check"
+      ],
+      "reads": [
+        "n|tbl|public.credit_entry",
+        "n|sch|public",
+        "n|col|public.credit_entry.points_source"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "credit_entry"
+      ],
+      "writes": [
+        "s|ck|public.credit_entry.credit_entry_points",
+        "n|ck|public.credit_entry.credit_entry_points",
+        "e|ck|public.credit_entry.credit_entry_points",
+        "n|con|public.credit_entry.credit_entry_points"
+      ],
+      "reads": [
+        "n|tbl|public.credit_entry",
+        "n|sch|public",
+        "n|col|public.credit_entry.points"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "observation_rating"
+      ],
+      "writes": [
+        "s|ck|public.observation_rating.observation_rating_role_check",
+        "n|ck|public.observation_rating.observation_rating_role_check",
+        "e|ck|public.observation_rating.observation_rating_role_check",
+        "n|con|public.observation_rating.observation_rating_role_check"
+      ],
+      "reads": [
+        "n|tbl|public.observation_rating",
+        "n|sch|public",
+        "n|col|public.observation_rating.role"
+      ]
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "observation_rating"
+      ],
+      "writes": [
+        "s|ck|public.observation_rating.observation_rating_position"
+      ],
+      "reads": [
+        "n|tbl|public.observation_rating",
+        "n|sch|public",
+        "n|col|public.observation_rating.position",
+        "e|col|public.observation_rating.position"
+      ],
+      "sqlHash": "1343714cc812f88c"
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "audit_event"
+      ],
+      "writes": [
+        "s|ck|public.audit_event.audit_event_reason_code_check"
+      ],
+      "reads": [
+        "n|tbl|public.audit_event",
+        "n|sch|public",
+        "n|col|public.audit_event.reason_code",
+        "e|col|public.audit_event.reason_code"
+      ],
+      "sqlHash": "a5733e1f36d70806"
+    },
+    {
+      "statementType": "alter_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "note"
+      ],
+      "writes": [
+        "s|ck|public.note.note_kind_check"
+      ],
+      "reads": [
+        "n|tbl|public.note",
+        "n|sch|public",
+        "n|col|public.note.kind",
+        "e|col|public.note.kind"
+      ],
+      "sqlHash": "f284e85f4a85a47e"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_template_skill",
+        "name": "role",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_template_skill",
+        "name": "points",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "skill",
+        "name": "primary_points",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "skill",
+        "name": "secondary_points",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "skill",
+        "name": "badge_points",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "skill",
+        "name": "min_primary_points",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_skill",
+        "name": "role",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_skill",
+        "name": "points_override",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_skill",
+        "name": "points_override_by_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_skill",
+        "name": "template_points",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan",
+        "name": "review_recorded_by_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan",
+        "name": "review_recorded_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan",
+        "name": "review_confirmed_by_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan",
+        "name": "review_confirmed_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "credit_entry",
+        "name": "role",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "credit_entry",
+        "name": "points",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "credit_entry",
+        "name": "points_source",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "observation_rating",
+        "name": "role",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_skill",
+        "name": "activity_skill_points_override_by_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "points_override_by_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "person",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan",
+        "name": "plan_review_recorded_by_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "review_recorded_by_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "person",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan",
+        "name": "plan_review_confirmed_by_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "review_confirmed_by_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "person",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_template_skill",
+        "name": "activity_template_skill_role_check",
+        "value": "\"role\" in ('primary', 'secondary')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_template_skill",
+        "name": "activity_template_skill_points",
+        "value": "\"points\" is null or \"points\" between 1 and 1000",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "skill",
+        "name": "skill_primary_points",
+        "value": "\"primary_points\" is null or \"primary_points\" between 1 and 1000",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "skill",
+        "name": "skill_secondary_points",
+        "value": "\"secondary_points\" is null or \"secondary_points\" between 1 and 1000",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "skill",
+        "name": "skill_badge_points",
+        "value": "\"badge_points\" is null or \"badge_points\" between 1 and 100000",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "skill",
+        "name": "skill_min_primary_points",
+        "value": "\"min_primary_points\" is null or \"min_primary_points\" between 0 and 100000",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_skill",
+        "name": "activity_skill_role_check",
+        "value": "\"role\" in ('primary', 'secondary')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_skill",
+        "name": "activity_skill_points_override",
+        "value": "\"points_override\" is null or \"points_override\" between 1 and 1000",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_skill",
+        "name": "activity_skill_template_points",
+        "value": "\"template_points\" is null or \"template_points\" between 1 and 1000",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "activity_skill",
+        "name": "activity_skill_points_override_pair",
+        "value": "(\"points_override\" is null) = (\"points_override_by_id\" is null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan",
+        "name": "plan_review_recorded_pair",
+        "value": "(\"review_recorded_by_id\" is null) = (\"review_recorded_at\" is null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan",
+        "name": "plan_review_confirmed_pair",
+        "value": "(\"review_confirmed_by_id\" is null) = (\"review_confirmed_at\" is null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan",
+        "name": "plan_review_confirmed_after_recorded",
+        "value": "\"review_confirmed_at\" is null or \"review_recorded_at\" is not null",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "plan",
+        "name": "plan_review_not_self_confirmed",
+        "value": "\"review_confirmed_by_id\" is null or \"review_confirmed_by_id\" <> \"owner_id\"",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "credit_entry",
+        "name": "credit_entry_role_check",
+        "value": "\"role\" in ('primary', 'secondary')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "credit_entry",
+        "name": "credit_entry_points_source_check",
+        "value": "\"points_source\" in ('activity', 'template', 'skill', 'tenant', 'legacy')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "credit_entry",
+        "name": "credit_entry_points",
+        "value": "\"points\" between 1 and 1000",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "observation_rating",
+        "name": "observation_rating_role_check",
+        "value": "\"role\" in ('primary', 'secondary')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"observation_rating\",\"observation_rating_position\"]",
+      "set": {
+        "value": "\"position\" between 0 and 5"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"audit_event\",\"audit_event_reason_code_check\"]",
+      "set": {
+        "value": "\"reason_code\" is null or \"reason_code\" in ('note', 'privacy_local', 'privacy_assistant', 'assistant_unavailable', 'expired', 'directory_change', 'admin_release', 'compliance_resolution', 'data_correction', 'value_override', 'policy_change', 'catalog_change', 'plan_review')"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "checks\u0000[\"public\",\"note\",\"note_kind_check\"]",
+      "set": {
+        "value": "\"kind\" in ('request', 'return', 'decline', 'review', 'void', 'uphold', 'release', 'resolve', 'value_override', 'policy_change', 'catalog_change', 'plan_review')"
+      }
+    }
+  ]
+}

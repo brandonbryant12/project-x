@@ -61,6 +61,15 @@ export const OBSERVATION_MODE_LABELS: Readonly<Record<ObservationMode, string>> 
 
 export const isFirstHand = (mode: ObservationMode): boolean => mode !== 'discussed';
 
+/**
+ * A skill's place in one piece of work. At most one `primary` per activity and
+ * per observation: a product rule enforced in domain code and use cases, not by
+ * the database, because it may change. A credit's role decides its points.
+ */
+export const SKILL_ROLES = ['primary', 'secondary'] as const;
+export const SkillRole = Schema.Literals(SKILL_ROLES);
+export type SkillRole = typeof SkillRole.Type;
+
 /** Why an observer is eligible. `designated`: named by the subject's leader or coach (ADR 0020). */
 export const OBSERVER_BASES = ['leader', 'coach', 'designated'] as const;
 export const ObserverBasis = Schema.Literals(OBSERVER_BASES);

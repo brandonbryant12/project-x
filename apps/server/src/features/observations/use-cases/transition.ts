@@ -3,7 +3,8 @@ import {
   BadgeAwardLifecycle,
   CreditReversalId,
   ObservationLifecycle,
-  SCORING_POLICY_VERSION,
+  creditPolicyVersion,
+  criteriaFromSnapshot,
   evaluateBadge,
   type BadgeLevel,
   type ObservationId,
@@ -18,9 +19,10 @@ import { recordAudit } from '../../shared/audit.ts';
 import { notify } from '../../shared/notify.ts';
 import { decide, requireUpdated } from '../../shared/mutation.ts';
 import {
+  awardEarnedBadges,
   lockPersonLedger,
   netCreditsBySkill,
-  tenantCriteria,
+  tenantCreditPolicy,
   toCreditFact,
 } from '../../shared/recognition.ts';
 import { permittedEvents } from '../views.ts';
@@ -103,7 +105,14 @@ export const transitionObservation = Effect.fn('useCase.transitionObservation')(
   );
 });
 
-/** VOID: append a reversal per credit, then revoke badges whose criteria no longer hold. */
+/**
+ * VOID: append a reversal per credit, then revoke badges whose criteria no
+ * longer hold. Each badge is judged by the thresholds saved on its award (a
+ * legacy snapshot reads as N interactions and N × 10 points), never by the
+ * policy of the day. A revoked badge is then judged once more under the
+ * current policy and, if still met, awarded again as a new award with the
+ * current thresholds, so nobody who qualifies today is left without it.
+ */
 const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
   observationId: ObservationId,
   subjectId: typeof schema.observation.$inferSelect.subjectId,
@@ -114,34 +123,44 @@ const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
   const credits = yield* db
     .select()
     .from(schema.creditEntry)
-    .where(eq(schema.creditEntry.observationId, observationId));
+    .where(
+      and(
+        eq(schema.creditEntry.tenantId, actor.tenantId),
+        eq(schema.creditEntry.observationId, observationId),
+      ),
+    );
   if (credits.length === 0) return;
+  const policyVersion = creditPolicyVersion(yield* tenantCreditPolicy(actor.tenantId));
   const reversals = credits.map((c) => ({
     id: CreditReversalId.generate(),
     tenantId: actor.tenantId,
     creditEntryId: c.id,
     reversedById: actor.personId,
     reasonCode: 'observation_voided',
-    policyVersion: SCORING_POLICY_VERSION,
+    policyVersion,
   }));
   yield* db.insert(schema.creditReversal).values(reversals);
   const skills = [...new Set(credits.map((c) => c.skillId))] as Array<SkillId>;
-  const [criteria, net] = yield* Effect.all([
-    tenantCriteria(actor.tenantId),
-    netCreditsBySkill(actor.tenantId, subjectId, skills),
-  ]);
+  const net = yield* netCreditsBySkill(actor.tenantId, subjectId, skills);
   const badges = yield* db
     .select()
     .from(schema.badgeAward)
-    .where(and(eq(schema.badgeAward.personId, subjectId), eq(schema.badgeAward.status, 'awarded')));
+    .where(
+      and(
+        eq(schema.badgeAward.tenantId, actor.tenantId),
+        eq(schema.badgeAward.personId, subjectId),
+        eq(schema.badgeAward.status, 'awarded'),
+      ),
+    );
   const at = yield* now;
+  const revoked: Array<{ skillId: SkillId; level: BadgeLevel }> = [];
   for (const badge of badges.filter(
     (b) => skills.includes(b.skillId) && (b.level === 2 || b.level === 3),
   )) {
     const evaluation = evaluateBadge(
       (net.get(badge.skillId) ?? []).map(toCreditFact),
       badge.level as BadgeLevel,
-      criteria,
+      criteriaFromSnapshot(badge.criteria.thresholds),
     );
     if (evaluation.met || BadgeAwardLifecycle.next('awarded', {}, { type: 'REVOKE' }) === null)
       continue;
@@ -156,7 +175,17 @@ const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
       from: 'awarded',
       to: 'revoked',
       reasonCode: 'data_correction',
-      policyVersion: SCORING_POLICY_VERSION,
+      policyVersion,
     });
+    revoked.push({ skillId: badge.skillId, level: badge.level as BadgeLevel });
+  }
+  if (revoked.length > 0) {
+    yield* awardEarnedBadges(
+      actor,
+      subjectId,
+      [...new Set(revoked.map((r) => r.skillId))],
+      undefined,
+      revoked,
+    );
   }
 });

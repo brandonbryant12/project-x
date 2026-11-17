@@ -19,6 +19,7 @@ import {
   LOG_WINDOW_DAYS,
   PlanId,
   PlanLifecycle,
+  defaultSkillRole,
   eligibleObserversOf,
   leaderChainOf,
   type ActivityEventType,
@@ -330,6 +331,7 @@ export const addActivity = Effect.fn('useCase.addActivity')(function* (
           activityId: id,
           skillId,
           position,
+          role: defaultSkillRole(position),
         })),
       );
       yield* recordAudit(actor, {
@@ -451,6 +453,7 @@ export const logInteraction = Effect.fn('useCase.logInteraction')(function* (
               activityId: activityId as ActivityId,
               skillId,
               position,
+              role: defaultSkillRole(position),
             })),
           );
         }

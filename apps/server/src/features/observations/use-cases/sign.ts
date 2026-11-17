@@ -8,16 +8,17 @@ import {
 } from '@repo/api';
 import {
   CreditId,
-  MAX_SKILLS_PER_OBSERVATION,
   MIN_NARRATIVE_LENGTH,
   ObservationLifecycle,
-  SCORING_POLICY_VERSION,
+  creditPolicyVersion,
   isFirstHand,
   screenLocally,
+  type CreditPolicy,
   type ObservationId,
   type ObservationStatus,
   type SkillId,
   type SkillIndicatorId,
+  type SkillRole,
   type SkillVersionId,
 } from '@repo/domain';
 import { Db, schema, transactionally } from '@repo/db';
@@ -28,7 +29,12 @@ import { recordAudit } from '../../shared/audit.ts';
 import { notify } from '../../shared/notify.ts';
 import { decide, requireUpdated } from '../../shared/mutation.ts';
 import { digestOf } from '../../shared/notes.ts';
-import { awardEarnedBadges, lockPersonLedger } from '../../shared/recognition.ts';
+import {
+  awardEarnedBadges,
+  lockPersonLedger,
+  tenantCreditPolicy,
+} from '../../shared/recognition.ts';
+import { creditValues, positionOn, requireSkillLimit, rolesFor, skillsOfWork } from './roles.ts';
 import { currentVersions, loadVisible, requireEligible } from './shared.ts';
 
 type ObservationRow = typeof schema.observation.$inferSelect;
@@ -38,12 +44,19 @@ const requireObserver = (actor: Actor, row: ObservationRow) =>
     ? Effect.void
     : Effect.fail(new Forbidden({ message: 'Only the observer can write this observation.' }));
 
-/** Validates and writes the draft (ratings, ticks, narrative) inside the caller's transaction. */
+/**
+ * Validates and writes the draft (ratings, ticks, narrative) inside the
+ * caller's transaction. The observer owns each rating's role (design §4, like
+ * the mode): their choice, else the role already stored on the rating, else
+ * the activity's default. Two primaries are refused. Only the observer reaches
+ * this (`requireObserver`), so a subject can never set a role.
+ */
 const writeDraft = Effect.fn('observations.writeDraft')(function* (
   actor: Actor,
   row: ObservationRow,
   input: ObservationDraftInput,
   status: ObservationStatus,
+  policy: CreditPolicy,
 ) {
   const db = yield* Db;
   if (input.version !== row.version) {
@@ -52,15 +65,24 @@ const writeDraft = Effect.fn('observations.writeDraft')(function* (
     );
   }
   const skillIds = input.ratings.map((r) => r.skillId);
-  if (new Set(skillIds).size !== skillIds.length || skillIds.length > MAX_SKILLS_PER_OBSERVATION) {
+  if (new Set(skillIds).size !== skillIds.length) {
     return yield* Effect.fail(
-      new Unprocessable({ message: 'Rate up to three different skills.', field: 'ratings' }),
+      new Unprocessable({ message: 'Rate each skill once.', field: 'ratings' }),
     );
   }
+  yield* requireSkillLimit(policy, skillIds.length);
   const existing = yield* db
     .select()
     .from(schema.observationRating)
     .where(eq(schema.observationRating.observationId, row.id));
+  const roles = yield* rolesFor(
+    yield* skillsOfWork(actor.tenantId, row.interactionId),
+    input.ratings.map((r) => ({
+      skillId: r.skillId,
+      chosen: r.role,
+      stored: existing.find((x) => x.skillId === r.skillId)?.role as SkillRole | undefined,
+    })),
+  );
   const pinned = new Map<SkillId, SkillVersionId>(
     existing.map((r) => [r.skillId, r.skillVersionId]),
   );
@@ -122,6 +144,7 @@ const writeDraft = Effect.fn('observations.writeDraft')(function* (
         level: r.level,
         credit: r.credit,
         position,
+        role: roles[position] as SkillRole,
       })),
     );
   }
@@ -146,6 +169,7 @@ export const saveDraft = Effect.fn('useCase.saveObservationDraft')(function* (
   const actor = yield* CurrentActor;
   const row = yield* loadVisible(id);
   yield* requireObserver(actor, row);
+  const policy = yield* tenantCreditPolicy(actor.tenantId);
   const to = yield* decide({
     lifecycle: ObservationLifecycle,
     from: row.status as ObservationStatus,
@@ -153,14 +177,15 @@ export const saveDraft = Effect.fn('useCase.saveObservationDraft')(function* (
     event: { type: 'SAVE_DRAFT' },
     permitted: true,
   });
-  yield* transactionally(writeDraft(actor, row, input, to));
+  yield* transactionally(writeDraft(actor, row, input, to, policy));
 });
 
 /**
  * SIGN — the only code path that writes credit (ADR 0007, invariant I2).
  * Re-checks eligibility as of the interaction date, then in ONE transaction:
- * saves the final draft, signs, appends one demonstration per credited skill,
- * awards newly met badges and audits it all.
+ * saves the final draft, signs, appends one demonstration per credited skill
+ * with its role, its points (resolved now and frozen) and the subject's
+ * position, awards newly met badges and audits it all.
  */
 export const signObservation = Effect.fn('useCase.signObservation')(function* (
   id: ObservationId,
@@ -181,6 +206,8 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
     on: interaction.occurredOn,
   });
   const narrativeScreen = screenLocally(`${input.narrativeSaw}\n${input.narrativeNext}`);
+  const policy = yield* tenantCreditPolicy(actor.tenantId);
+  const policyVersion = creditPolicyVersion(policy);
   const from = row.status as ObservationStatus;
   yield* decide({
     lifecycle: ObservationLifecycle,
@@ -188,7 +215,7 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
     facts: {
       ratingsComplete:
         input.ratings.length >= 1 &&
-        input.ratings.length <= MAX_SKILLS_PER_OBSERVATION &&
+        input.ratings.length <= policy.maxSkillsPerObservation &&
         input.ratings.every((r) => r.level !== null),
       narrativeLength: input.narrativeSaw.trim().length,
       privacyHold: narrativeScreen.held,
@@ -213,6 +240,7 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
         row,
         input,
         from === 'requested' ? 'drafting' : from,
+        policy,
       );
       yield* db
         .update(schema.observation)
@@ -228,28 +256,48 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
         )
         .returning({ id: schema.observation.id })
         .pipe(Effect.flatMap(requireUpdated('observation')));
-      const credited = input.ratings.filter((r) => r.credit && r.level !== null);
       const ratings = yield* db
         .select()
         .from(schema.observationRating)
         .where(eq(schema.observationRating.observationId, row.id));
+      const valueOf = yield* creditValues(
+        actor.tenantId,
+        policy,
+        yield* skillsOfWork(actor.tenantId, row.interactionId),
+        ratings.map((r) => r.skillId),
+      );
+      const subjectPositionId = yield* positionOn(
+        actor.tenantId,
+        row.subjectId,
+        interaction.occurredOn,
+      );
+      const credited = ratings
+        .filter((r) => r.credit && r.level !== null)
+        .toSorted((a, b) => a.position - b.position)
+        .map((r) => {
+          const role = r.role as SkillRole;
+          return { rating: r, role, ...valueOf(r.skillId, role) };
+        });
       if (credited.length > 0) {
         yield* db.insert(schema.creditEntry).values(
-          credited.map((r) => ({
+          credited.map(({ rating, role, points, source }) => ({
             id: CreditId.generate(),
             tenantId: actor.tenantId,
             personId: row.subjectId,
-            skillId: r.skillId,
+            skillId: rating.skillId,
             observationId: row.id,
             interactionId: row.interactionId,
             observerId: actor.personId,
-            skillVersionId: ratings.find((x) => x.skillId === r.skillId)
-              ?.skillVersionId as SkillVersionId,
-            level: r.level as number,
+            skillVersionId: rating.skillVersionId,
+            level: rating.level as number,
+            subjectPositionId,
             mode,
             isFirstHand: isFirstHand(mode),
             demonstratedOn: interaction.occurredOn,
-            policyVersion: SCORING_POLICY_VERSION,
+            role,
+            points,
+            pointsSource: source,
+            policyVersion,
           })),
         );
       }
@@ -259,12 +307,20 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
         event: 'SIGN',
         from,
         to: 'signed',
-        policyVersion: SCORING_POLICY_VERSION,
+        policyVersion,
         data: {
           basis: row.basis,
           mode,
-          credited: credited.map((r) => ({ skillId: r.skillId, level: r.level })),
+          credited: credited.map(({ rating, role, points, source }) => ({
+            skillId: rating.skillId,
+            level: rating.level,
+            role,
+            points,
+            pointsSource: source,
+          })),
           feedbackOnly: input.ratings.filter((r) => !r.credit).map((r) => r.skillId),
+          // The roles the observer signed, feedback-only ratings included.
+          roles: Object.fromEntries(ratings.map((r) => [r.skillId, r.role])),
         },
       });
       yield* notify(actor.tenantId, {
@@ -277,7 +333,7 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
       return yield* awardEarnedBadges(
         actor,
         row.subjectId,
-        credited.map((r) => r.skillId),
+        credited.map((c) => c.rating.skillId),
         row.id,
       );
     }),

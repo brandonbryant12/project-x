@@ -10,6 +10,8 @@ import {
   SkillIndicatorId,
   SkillVersionId,
   TenantId,
+  DEFAULT_CREDIT_POLICY,
+  defaultSkillRole,
   type ActivityId,
   type GrantRole,
   type InteractionKind,
@@ -189,6 +191,8 @@ const seedDirectoryAndCatalog = Effect.gen(function* () {
     name: 'Northwind Wealth Partners',
     slug: TENANT_SLUG,
     timeZone: 'America/New_York',
+    // Stored complete, as the migration and every save store it (design §2).
+    settings: { creditPolicy: DEFAULT_CREDIT_POLICY },
   });
   const functions = new Map<string, BusinessFunctionId>();
   for (const name of new Set(PEOPLE.map((p) => p.fn))) {
@@ -331,6 +335,7 @@ const seedDirectoryAndCatalog = Effect.gen(function* () {
         templateId,
         skillId: skills.get(slug) as SkillId,
         position,
+        role: defaultSkillRole(position),
       })),
     );
   }
@@ -515,7 +520,12 @@ const scenario = (world: Effect.Success<typeof seedDirectoryAndCatalog>) =>
       'sam',
       i1,
       'saw_it',
-      [['client-discovery', 3]],
+      // Explaining simply is a supporting (secondary) skill of discovery work:
+      // Maya is part-way to that badge through secondary credit alone.
+      [
+        ['client-discovery', 3],
+        ['explaining-simply', 2],
+      ],
       'Maya asked what a good Tuesday in retirement would look like, then summarized their three priorities back before showing any numbers. The couple visibly relaxed.',
       'Next time, ask each partner separately about trade-offs; one of them deferred a lot.',
       56,
@@ -532,7 +542,10 @@ const scenario = (world: Effect.Success<typeof seedDirectoryAndCatalog>) =>
       'leo',
       i2,
       'reviewed_work',
-      [['client-discovery', 3]],
+      [
+        ['client-discovery', 3],
+        ['explaining-simply', 2],
+      ],
       'In the recording Maya surfaced the owner’s worry about staff after the sale, which he had not raised. She held off on the liquidity discussion until he had finished.',
       'Bring that staff concern into the plan explicitly at the next meeting.',
       30,
