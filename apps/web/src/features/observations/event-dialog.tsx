@@ -8,7 +8,8 @@ export const NOTE_EVENTS = {
   RETURN: {
     label: 'Send back',
     title: 'Send this back',
-    description: 'Say what would help you sign. They can revise and resend.',
+    description:
+      'Say what would help you sign. They can revise their reflection and resend it to you.',
     presets: [] as ReadonlyArray<string>,
   },
   DECLINE: {

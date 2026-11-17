@@ -4,6 +4,7 @@ import {
   BadgeSeal,
   Button,
   Card,
+  CreditFacts,
   EmptyState,
   Field,
   FieldHint,
@@ -275,8 +276,58 @@ export const ProfileScreen = ({ profile }: { readonly profile: ProfileView }) =>
   );
 };
 
+type ReceiptWork = BadgeReceiptView['work'][number];
+
+/** One piece of work on the receipt: every observer who saw it; it counted once. */
+const ReceiptWorkItem = ({ work }: { readonly work: ReceiptWork }) => {
+  const shared = work.credits.length > 1;
+  return (
+    <li>
+      <Card className="grid gap-4 p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <span className="text-ui font-medium text-ink">
+            {formatDate(work.occurredOn, { year: 'numeric' })}
+          </span>
+          <span className="text-meta text-ink-3 tabular">
+            Counted {work.points} {work.points === 1 ? 'point' : 'points'}
+            {shared ? ` · seen by ${work.credits.length} observers, counted once` : ''}
+          </span>
+        </div>
+        {work.credits.map((c) => (
+          <div key={c.id} className="grid gap-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <PersonAvatar person={c.observer} size="sm" />
+              <span className="text-ui font-medium text-ink">{c.observer.displayName}</span>
+              <span className="text-meta text-ink-3">
+                {c.levelName} · {OBSERVATION_MODE_LABELS[c.mode]}
+              </span>
+            </div>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <CreditFacts role={c.role} points={c.points} source={c.pointsSource} />
+              {shared && !c.counted ? (
+                <span className="text-meta text-ink-3">· same work, not added again</span>
+              ) : null}
+            </p>
+            {c.narrativeSaw ? (
+              <blockquote className="narrative border-l-2 border-brass pl-4 text-ink">
+                {c.narrativeSaw}
+              </blockquote>
+            ) : null}
+          </div>
+        ))}
+      </Card>
+    </li>
+  );
+};
+
+/**
+ * "How this was earned": each piece of work once, with every observer who saw
+ * it, the role and value of each credit, and the total against what the badge
+ * needed when it was awarded.
+ */
 export const BadgeReceiptScreen = ({ receipt }: { readonly receipt: BadgeReceiptView }) => {
   const first = receipt.holder.displayName.split(' ')[0];
+  const legacy = receipt.work.some((w) => w.credits.some((c) => c.role === 'unclassified'));
   return (
     <Page width="reading">
       <Button variant="ghost" size="sm" asChild className="mb-6 -ml-2">
@@ -299,29 +350,32 @@ export const BadgeReceiptScreen = ({ receipt }: { readonly receipt: BadgeReceipt
         </div>
       </header>
       <p className="mt-6 text-body text-ink-2">{receipt.facts}</p>
+      {receipt.required ? (
+        <p className="mt-2 text-ui text-ink-2 tabular">
+          {receipt.points} points from {receipt.work.length}{' '}
+          {receipt.work.length === 1 ? 'piece' : 'pieces'} of work. When it was awarded, this badge
+          needed {receipt.required.points} points from at least {receipt.required.interactions}{' '}
+          {receipt.required.interactions === 1 ? 'piece' : 'pieces'} of work and{' '}
+          {receipt.required.observers} {receipt.required.observers === 1 ? 'observer' : 'observers'}
+          {receipt.required.primaryPoints > 0
+            ? `, ${receipt.required.primaryPoints} of them as the primary skill`
+            : ''}
+          .
+        </p>
+      ) : null}
       <section className="mt-10 grid gap-4" aria-labelledby="receipt">
         <SectionLabel id="receipt">How this was earned</SectionLabel>
         <ol className="grid gap-4">
-          {receipt.observations.map((o) => (
-            <li key={`${o.id}`}>
-              <Card className="grid gap-3 p-5">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <PersonAvatar person={o.observer} size="sm" />
-                  <span className="text-ui font-medium text-ink">{o.observer.displayName}</span>
-                  <span className="text-meta text-ink-3">
-                    {formatDate(o.occurredOn, { year: 'numeric' })} · {o.levelName} ·{' '}
-                    {OBSERVATION_MODE_LABELS[o.mode]}
-                  </span>
-                </div>
-                {o.narrativeSaw ? (
-                  <blockquote className="narrative border-l-2 border-brass pl-4 text-ink">
-                    {o.narrativeSaw}
-                  </blockquote>
-                ) : null}
-              </Card>
-            </li>
+          {receipt.work.map((w) => (
+            <ReceiptWorkItem key={w.interactionId} work={w} />
           ))}
         </ol>
+        {legacy ? (
+          <p className="text-meta text-ink-3">
+            Observed before roles: credit signed before skills had a primary or secondary role. It
+            counts its value but never as primary.
+          </p>
+        ) : null}
         {!receipt.narrativesVisible ? (
           <p className="text-ui text-ink-3">
             Narratives are visible to {first}, their coaches and their direct leader.

@@ -1,7 +1,6 @@
-import type { InboxView, ObserveTarget } from '@repo/api';
+import type { InboxView, ObserveTarget, ObserveTargets } from '@repo/api';
 import {
   INTERACTION_KINDS,
-  MAX_SKILLS_PER_OBSERVATION,
   OBSERVATION_MODE_LABELS,
   OBSERVATION_MODES,
   OBSERVE_WINDOW_DAYS,
@@ -162,20 +161,59 @@ const WhoRow = ({
   );
 };
 
+/**
+ * Work the person already logged that day (title and kind only). Observing it
+ * attaches to that work, so the same meeting is never counted twice.
+ */
+const LoggedWork = ({
+  capture,
+  first,
+}: {
+  readonly capture: QuickCapture;
+  readonly first: string;
+}) => {
+  const { loggedThatDay, work } = capture;
+  if (loggedThatDay.length === 0) return null;
+  return (
+    <div className="grid gap-2">
+      <p className="text-ui text-ink-2">
+        {first} already logged work that day. If you saw it, choose it so it counts once.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {loggedThatDay.map((w) => (
+          <Chip
+            key={w.id}
+            on={w.id === work?.id}
+            onClick={() => capture.chooseWork(w.id === work?.id ? null : w.id)}
+          >
+            {w.title}
+            <span className="text-meta text-ink-3">· {kindLabel(w.kind)}</span>
+          </Chip>
+        ))}
+        <Chip on={work === undefined} onClick={() => capture.chooseWork(null)}>
+          Different work
+        </Chip>
+      </div>
+    </div>
+  );
+};
+
 const WorkRow = ({
   capture,
   target,
+  first,
 }: {
   readonly capture: QuickCapture;
   readonly target: ObserveTarget;
+  readonly first: string;
 }) => {
-  const { activity, activityId, kind, title } = capture;
+  const { activity, activityId, kind, title, work } = capture;
   const { activities } = target;
   if (capture.locked) {
     return (
       <Row label="The work">
         <p className="text-ui text-ink-2">
-          {activity?.title ?? (title.trim() || kindLabel(kind))} ·{' '}
+          {work?.title ?? activity?.title ?? (title.trim() || kindLabel(kind))} ·{' '}
           {formatLongDate(capture.occurredOn)}
         </p>
       </Row>
@@ -183,18 +221,36 @@ const WorkRow = ({
   }
   return (
     <Row label="The work">
+      <LoggedWork capture={capture} first={first} />
+      {work ? null : <NewWork capture={capture} activities={activities} activityId={activityId} />}
+    </Row>
+  );
+};
+
+const NewWork = ({
+  capture,
+  activities,
+  activityId,
+}: {
+  readonly capture: QuickCapture;
+  readonly activities: ObserveTarget['activities'];
+  readonly activityId: ObserveTarget['activities'][number]['id'] | null;
+}) => {
+  const { activity, kind, title } = capture;
+  return (
+    <>
       {activities.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {activities.map((a) => (
             <Chip
               key={a.id}
               on={a.id === activityId}
-              onClick={() => capture.setActivityId(a.id === activityId ? null : a.id)}
+              onClick={() => capture.chooseActivity(a.id === activityId ? null : a.id)}
             >
               {a.title}
             </Chip>
           ))}
-          <Chip on={activityId === null} onClick={() => capture.setActivityId(null)}>
+          <Chip on={activityId === null} onClick={() => capture.chooseActivity(null)}>
             Something else
           </Chip>
         </div>
@@ -223,7 +279,7 @@ const WorkRow = ({
           />
         )}
       </div>
-    </Row>
+    </>
   );
 };
 
@@ -237,7 +293,7 @@ const WhenRow = ({ capture }: { readonly capture: QuickCapture }) => (
   <Row label="When">
     <div className="flex flex-wrap items-center gap-2">
       {WHEN.map(([value, label]) => (
-        <Chip key={value} on={capture.when === value} onClick={() => capture.setWhen(value)}>
+        <Chip key={value} on={capture.when === value} onClick={() => capture.chooseWhen(value)}>
           {label}
         </Chip>
       ))}
@@ -248,7 +304,7 @@ const WhenRow = ({ capture }: { readonly capture: QuickCapture }) => (
           min={daysAgoIso(OBSERVE_WINDOW_DAYS)}
           max={todayIso()}
           value={capture.earlier}
-          onChange={(e) => capture.setEarlier(e.target.value)}
+          onChange={(e) => capture.chooseEarlier(e.target.value)}
           className="h-11 w-auto md:h-9"
         />
       ) : (
@@ -291,6 +347,10 @@ const SkillsRow = ({
   const { draft } = capture;
   return (
     <Row label="Skills you saw">
+      <FieldHint>
+        Mark what the work was mainly about as primary; the others are secondary. At most one is
+        primary.
+      </FieldHint>
       {capture.suggestions.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {capture.suggestions.map((s) => (
@@ -326,15 +386,18 @@ const SkillsRow = ({
               }))
             }
             onRemove={() => capture.removeSkill(r.skillId)}
+            onRole={(role) => capture.chooseRole(r.skillId, role)}
           />
         ))}
       </div>
-      {draft.ratings.length < MAX_SKILLS_PER_OBSERVATION ? (
+      {capture.full ? (
+        <FieldHint>An observation rates up to {capture.maxSkills} skills.</FieldHint>
+      ) : (
         <AddSkill
           exclude={draft.ratings.map((r) => r.skillId)}
           onAdd={(skill) => capture.toggleSkill(skill)}
         />
-      ) : null}
+      )}
     </Row>
   );
 };
@@ -448,7 +511,7 @@ export const ObserveNew = ({
   inbox,
   preselect,
 }: {
-  readonly targets: ReadonlyArray<ObserveTarget>;
+  readonly targets: ObserveTargets;
   readonly inbox: InboxView | undefined;
   readonly preselect: string | undefined;
 }) => {
@@ -457,7 +520,7 @@ export const ObserveNew = ({
   const { target } = capture;
   const first = target?.person.displayName.split(' ')[0] ?? '';
 
-  if (targets.length === 0) {
+  if (targets.people.length === 0) {
     return (
       <Page width="reading">
         <PageHeader title="I saw this" />
@@ -476,8 +539,9 @@ export const ObserveNew = ({
         <WhoRow capture={capture} inbox={inbox} />
         {target ? (
           <>
-            <WorkRow capture={capture} target={target} />
+            {/* When before the work: the work already logged that day is offered first. */}
             {capture.locked ? null : <WhenRow capture={capture} />}
+            <WorkRow capture={capture} target={target} first={first} />
             <ModeRow capture={capture} />
             <SkillsRow capture={capture} first={first} />
             <Comments capture={capture} first={first} />

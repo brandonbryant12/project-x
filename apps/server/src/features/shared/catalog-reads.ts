@@ -92,28 +92,6 @@ export const loadPlanSkills = Effect.fn('plan.skills')(function* (
   return result;
 });
 
-export const loadActivitySkills = Effect.fn('activity.skills')(function* (
-  tenantId: TenantId,
-  activityIds: ReadonlyArray<ActivityId>,
-) {
-  const result = new Map<ActivityId, Array<SkillId>>();
-  if (activityIds.length === 0) return result;
-  const db = yield* Db;
-  const rows = yield* db
-    .select()
-    .from(schema.activitySkill)
-    .where(
-      and(
-        eq(schema.activitySkill.tenantId, tenantId),
-        inArray(schema.activitySkill.activityId, [...activityIds]),
-      ),
-    )
-    .orderBy(asc(schema.activitySkill.position));
-  for (const row of rows)
-    result.set(row.activityId, [...(result.get(row.activityId) ?? []), row.skillId]);
-  return result;
-});
-
 export type ActivitySkillRow = typeof schema.activitySkill.$inferSelect;
 
 /** Each activity's skill rows (role and values included), in position order. */

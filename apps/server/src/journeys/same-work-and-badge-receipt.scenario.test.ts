@@ -198,10 +198,8 @@ layer(ScenarioLayer, { timeout: 120_000 })('same work once; how this was earned'
         );
 
         // The program owner raises the bar afterwards; the receipt keeps the award's own.
-        yield* saveCreditPolicy(planning.tenantId, DEFAULT_CREDIT_POLICY.version, {
-          ...(({ version: _, ...rest }) => rest)(DEFAULT_CREDIT_POLICY),
-          badgePoints: 40,
-        });
+        const { version, ...stored } = DEFAULT_CREDIT_POLICY;
+        yield* saveCreditPolicy(planning.tenantId, version, { ...stored, badgePoints: 40 });
         const [award] = yield* db
           .select()
           .from(schema.badgeAward)
