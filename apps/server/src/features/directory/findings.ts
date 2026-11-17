@@ -2,16 +2,16 @@ import type { DirectoryExceptionFinding } from '@repo/api';
 import type { DirectoryExceptionKind, PersonId } from '@repo/domain';
 
 /**
- * A directory exception before it is stored (ADR 0006). The explanation is
- * rendered from `kind` and structured `data`, so the stored row holds no
- * free text.
+ * A rule the HR data breaks, or a row that could not be applied (ADR 0006).
+ * Returned by the import and by a departure, never stored and never an import
+ * failure. The explanation is rendered from `kind` and structured `data`.
  */
 export interface Finding {
   readonly kind: DirectoryExceptionKind;
   readonly email: string | null;
   readonly personId: PersonId | null;
   readonly data: Readonly<Record<string, unknown>>;
-  /** One live exception per (kind, subject). */
+  /** One finding per (kind, subject). */
   readonly dedupeKey: string;
 }
 
@@ -39,7 +39,7 @@ export const describeFinding = (
   const who = email ?? 'This person';
   switch (kind) {
     case 'coach_reports_to_coach':
-      return `${who} holds the coach grant and reports to ${text(data['managerEmail'])}, who also holds it. Coaches should report to leaders; fix it in HR or acknowledge it.`;
+      return `${who} holds the coach grant and reports to ${text(data['managerEmail'])}, who also holds it. Coaches should report to leaders; fix it in HR.`;
     case 'manager_not_found':
       return `Line ${text(data['line'])} names ${text(data['managerEmail'])} as manager, but nobody in the file has that address. The current reporting line was kept.`;
     case 'cycle':

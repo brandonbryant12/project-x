@@ -21,8 +21,7 @@ import { Effect } from 'effect';
 import { addDaysIso, now, today } from '../../platform/time.ts';
 import { digestOf } from '../shared/notes.ts';
 import { parseDirectoryCsv } from './csv.ts';
-import { departWithin, MAX_DEPARTURE_BACKDATE_DAYS } from './depart.ts';
-import { persistFindings, requireTenantAdmin, resolveStale } from './exceptions.ts';
+import { departWithin, MAX_DEPARTURE_BACKDATE_DAYS, requireTenantAdmin } from './depart.ts';
 import { toFindingView, uniqueFindings, type Finding } from './findings.ts';
 import { planImport, type DirectorySnapshot, type ImportPlan } from './plan.ts';
 
@@ -285,8 +284,10 @@ const applyPlan = Effect.fn('directory.apply')(function* (
 
 /**
  * `POST /admin/directory/import`: a full HR snapshot as CSV (ADR 0006). A dry
- * run returns the diff and exceptions and writes nothing, not even an audit
- * row. An applied run writes every change, audited, in one transaction.
+ * run returns the diff and the findings (rules the HR data breaks) and writes
+ * nothing, not even an audit row. An applied run writes every change, audited,
+ * in one transaction, and returns the findings too. Findings are never stored:
+ * the admin fixes them in HR and re-runs the dry run.
  */
 export const importDirectory = Effect.fn('useCase.importDirectory')(function* (
   input: DirectoryImportInput,
@@ -351,8 +352,6 @@ export const importDirectory = Effect.fn('useCase.importDirectory')(function* (
       const applied = plan(snapshot);
       const departureFindings = yield* applyPlan(actor, applied, snapshot, effectiveOn);
       const findings = uniqueFindings([...applied.findings, ...departureFindings]);
-      yield* persistFindings(actor, findings, on);
-      yield* resolveStale(actor, findings);
       yield* auditMany(actor, [
         {
           entityType: 'directory_import',

@@ -13,8 +13,8 @@ import { ScenarioLayer, SCENARIO_NOW, atScenarioTime, signInAs } from '../test/h
  * (docs/runbooks/deprovisioning.md). Protects I30: in one audited transaction
  * their sessions are gone, every open edge and grant is closed, requests
  * waiting on them are released so the requester can ask someone else, their
- * reports become `manager_departed` exceptions, and their signed history and
- * credit are untouched.
+ * reports are returned as `manager_departed` findings, and their signed
+ * history and credit are untouched.
  */
 const client = HttpApiTest.groups(Api, ['directory', 'observations', 'session']);
 
@@ -204,10 +204,6 @@ layer(ScenarioLayer, { timeout: 60_000 })('deprovision a leaver', (it) => {
       const reversals = yield* db.select().from(schema.creditReversal);
       assert.lengthOf(reversals, reversalsBefore.length);
 
-      // The reports without a manager wait in the exceptions queue for a tenant admin.
-      yield* signInAs('Rhea Castillo');
-      const queue = yield* api.directory.exceptions({ query: {} });
-      assert.strictEqual(queue.filter((e) => e.kind === 'manager_departed').length, 3);
       const departEvents = yield* db
         .select()
         .from(schema.auditEvent)

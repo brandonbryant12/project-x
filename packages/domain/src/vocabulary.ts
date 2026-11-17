@@ -153,9 +153,9 @@ export type NotificationChannel = typeof NotificationChannel.Type;
 export const DEFAULT_OBSERVE_CAPACITY = 2;
 
 /**
- * Directory exceptions (ADR 0006): HR data that breaks a structural rule or
- * cannot be applied. The import records them for a tenant admin and never
- * fails on them, because HR is the source of truth.
+ * Directory findings (ADR 0006): HR data that breaks a structural rule or
+ * cannot be applied. The import returns them to the tenant admin and never
+ * fails on them, because HR is the source of truth. They are not stored.
  */
 export const DIRECTORY_EXCEPTION_KINDS = [
   'coach_reports_to_coach',

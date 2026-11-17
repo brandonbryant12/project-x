@@ -1,19 +1,17 @@
-import { DirectoryExceptionId, PersonId } from '@repo/domain';
-import { Schema } from 'effect';
+import { PersonId } from '@repo/domain';
 import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import { Authenticated } from '../auth.ts';
 import { Conflict, Forbidden, InvalidTransition, NotFound, Unprocessable } from '../errors.ts';
 import {
   DepartInput,
   DepartureResult,
-  DirectoryExceptionView,
   DirectoryImportInput,
   DirectoryImportResult,
 } from '../models/index.ts';
 
 /**
- * The HR directory (ADR 0006): CSV import with a dry-run diff, the exceptions
- * queue, and deprovisioning a leaver. Tenant admins only; every applied change
+ * The HR directory (ADR 0006): CSV import with a dry-run diff and findings,
+ * and deprovisioning a leaver. Tenant admins only; every applied change
  * is audited.
  */
 export class DirectoryGroup extends HttpApiGroup.make('directory')
@@ -22,18 +20,6 @@ export class DirectoryGroup extends HttpApiGroup.make('directory')
       payload: DirectoryImportInput,
       success: DirectoryImportResult,
       error: [Forbidden, Unprocessable, Conflict, InvalidTransition],
-    }),
-    HttpApiEndpoint.get('exceptions', '/admin/directory/exceptions', {
-      query: {
-        status: Schema.optional(Schema.Literals(['open', 'acknowledged', 'resolved', 'all'])),
-      },
-      success: Schema.Array(DirectoryExceptionView),
-      error: Forbidden,
-    }),
-    HttpApiEndpoint.post('acknowledgeException', '/admin/directory/exceptions/:id/acknowledge', {
-      params: { id: DirectoryExceptionId },
-      success: DirectoryExceptionView,
-      error: [Forbidden, NotFound, InvalidTransition, Conflict],
     }),
     HttpApiEndpoint.post('departPerson', '/admin/people/:id/depart', {
       params: { id: PersonId },

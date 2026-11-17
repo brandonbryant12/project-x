@@ -199,10 +199,10 @@ outbox row: `pending → sent · skipped · failed`, set only by the dispatcher)
 - **Program and Cohort**: a template plan plus an enrollment backed by an AD
   group (for example, new-advisor cohorts).
 - **Directory sync**: a scheduled Microsoft Graph sync of `manager` and app
-  roles, which records directory exceptions instead of rejecting HR data. A
-  CSV import with an exceptions queue comes first.
-- **Profiles and expectations by job family** (ADR 0017, proposed). The
-  columns exist; every credit is pinned to `core` until HR agrees.
+  roles, which reports rule violations instead of rejecting HR data. The CSV
+  import, which returns its findings, comes first.
+- **Profiles and expectations by job family** (ADR 0017, deferred until HR
+  agrees). Credits pin the subject's position, so they can follow later.
 
 ## How we will know it works
 

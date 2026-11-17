@@ -145,18 +145,19 @@ observer eligibility depends on.
 - Reporting lines come from the directory: the user's `manager` attribute
   through a scheduled Graph delta sync (_planned_), or an HR feed. Built
   today: a **CSV import** (`POST /admin/directory/import`) with a dry-run
-  diff, effective-dated line and position changes, and an **exceptions
-  queue** (`coach_reports_to_coach`, `cycle`, `manager_not_found`,
-  `self_manager`, `manager_departed`, …) that never fails the import, because
-  HR is the truth (I29). Whether the Entra `manager` attribute is reliable is
+  diff, effective-dated line and position changes, and **findings**
+  (`coach_reports_to_coach`, `cycle`, `manager_not_found`, `self_manager`,
+  `manager_departed`, …) returned with every run. A finding never fails the
+  import, because HR is the truth (I29), and is not stored: the admin fixes it
+  in HR and re-runs the dry run. Whether the Entra `manager` attribute is reliable is
   open question 24.
 - They are **effective-dated** and never edited by product flows. An exclusion
   constraint guarantees **one manager per person at any date**.
 - The owner's structural rules (only leaders have direct reports; coaches
   report to leaders; coaches never report to coaches) describe how the
-  **organization** should be shaped. HR data may disagree. The app records
-  violations as directory exceptions for a tenant admin and never rejects a
-  sync, because HR is the source of truth. See open question 6 and the
+  **organization** should be shaped. HR data may disagree. The app reports
+  violations to the tenant admin and never rejects a sync, because HR is the
+  source of truth. See open question 6 and the
   domain-expert questions.
 
 ## 5. Authorization: who may see and do what

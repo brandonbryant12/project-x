@@ -190,12 +190,6 @@ export const NotificationId = withGenerator(
 );
 export type NotificationId = typeof NotificationId.Type;
 
-export const DirectoryExceptionId = withGenerator(
-  'dex',
-  Schema.String.pipe(Schema.check(idPattern('dex')), Schema.brand('DirectoryExceptionId')),
-);
-export type DirectoryExceptionId = typeof DirectoryExceptionId.Type;
-
 /** Calendar date as `YYYY-MM-DD`. Lexicographic order equals chronological order. */
 export const IsoDate = Schema.String.pipe(
   Schema.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)),

@@ -36,7 +36,6 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   person_position: 'directory',
   reporting_line: 'directory',
   role_grant: 'directory',
-  directory_exception: 'directory',
   session: 'operational',
   notification_preference: 'operational',
   notification: 'operational',

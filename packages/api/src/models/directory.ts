@@ -1,12 +1,5 @@
-import {
-  DirectoryExceptionId,
-  DirectoryExceptionKind,
-  DirectoryExceptionLifecycle,
-  IsoDate,
-  PersonId,
-} from '@repo/domain';
+import { DirectoryExceptionKind, IsoDate, PersonId } from '@repo/domain';
 import { Schema } from 'effect';
-import { Instant, PersonSummary } from './common.ts';
 
 /** Largest HR file accepted in one request (about 20,000 rows). */
 export const MAX_DIRECTORY_CSV_LENGTH = 4_000_000;
@@ -109,20 +102,6 @@ export const DirectoryImportResult = Schema.Struct({
   departuresApplied: Schema.Number,
 });
 export type DirectoryImportResult = typeof DirectoryImportResult.Type;
-
-export const DirectoryExceptionView = Schema.Struct({
-  id: DirectoryExceptionId,
-  kind: DirectoryExceptionKind,
-  status: DirectoryExceptionLifecycle.Status,
-  person: Schema.NullOr(PersonSummary),
-  email: Schema.NullOr(Schema.String),
-  detail: Schema.String,
-  detectedOn: IsoDate,
-  acknowledgedBy: Schema.NullOr(PersonSummary),
-  acknowledgedAt: Schema.NullOr(Instant),
-  actions: Schema.Array(Schema.Literals(['ACKNOWLEDGE'])),
-});
-export type DirectoryExceptionView = typeof DirectoryExceptionView.Type;
 
 export const DepartInput = Schema.Struct({
   /** The leaving date. Defaults to today; at most 30 days back, never ahead. */

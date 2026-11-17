@@ -12,7 +12,8 @@ import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
  * run shows the diff and exceptions and writes nothing; an applied import
  * moves a manager with effective dating (the old line ends on the effective
  * date, the new one starts on it); a rule violation such as a coach reporting
- * to a coach is applied and queued as an exception, never a failure.
+ * to a coach is applied and returned as a finding, never a failure, and never
+ * stored.
  */
 const client = HttpApiTest.groups(Api, ['directory']);
 
@@ -64,7 +65,6 @@ const TABLES = [
   schema.personPosition,
   schema.businessFunction,
   schema.jobFamily,
-  schema.directoryException,
   schema.note,
 ] as const;
 
@@ -80,7 +80,7 @@ const counts = Effect.gen(function* () {
 
 layer(ScenarioLayer, { timeout: 60_000 })('directory import and exceptions', (it) => {
   it.effect(
-    'I29: a dry run writes nothing; applying moves a manager with effective dating and queues rule violations',
+    'I29: a dry run writes nothing; applying moves a manager with effective dating and returns rule violations',
     () =>
       Effect.gen(function* () {
         yield* atScenarioTime;
@@ -149,6 +149,7 @@ layer(ScenarioLayer, { timeout: 60_000 })('directory import and exceptions', (it
         assert.isTrue(applied.applied);
         assert.deepStrictEqual(applied.diff, preview.diff);
         assert.strictEqual(applied.departuresApplied, 0);
+        assert.deepStrictEqual(applied.exceptions, preview.exceptions);
 
         const mayaLines = yield* db
           .select()
@@ -169,7 +170,7 @@ layer(ScenarioLayer, { timeout: 60_000 })('directory import and exceptions', (it
           [`${ended?.id}:END:directory_change`, `${opened?.id}:START:directory_change`],
         );
 
-        // HR is the truth: Jordan now reports to Sam, and the violation waits for an admin.
+        // HR is the truth: Jordan now reports to Sam, and the violation is reported, not refused.
         const jordan = (yield* db
           .select()
           .from(schema.person)
@@ -211,37 +212,21 @@ layer(ScenarioLayer, { timeout: 60_000 })('directory import and exceptions', (it
           .where(isNull(schema.personPosition.validTo));
         assert.lengthOf(positions, 13);
 
-        yield* signInAs('Rhea Castillo');
-        const queue = yield* api.directory.exceptions({ query: {} });
-        const coachToCoach = queue.find((e) => e.kind === 'coach_reports_to_coach');
+        const coachToCoach = applied.exceptions.find((e) => e.kind === 'coach_reports_to_coach');
         assert.isDefined(coachToCoach);
-        assert.strictEqual(coachToCoach.person?.id, jordan?.id);
+        assert.strictEqual(coachToCoach.personEmail, at('Jordan Blake'));
         assert.include(coachToCoach.detail, at('Sam Rivera'));
-        assert.deepStrictEqual(coachToCoach.actions, ['ACKNOWLEDGE']);
-        const acknowledged = yield* api.directory.acknowledgeException({
-          params: { id: coachToCoach.id },
-        });
-        assert.strictEqual(acknowledged.status, 'acknowledged');
-        assert.deepStrictEqual(acknowledged.actions, []);
 
-        // Re-running the same file changes nothing and duplicates no exception.
-        const exceptionsBefore = (yield* counts)[6];
+        // Re-running the same file changes nothing and reports the same findings.
         const rerun = yield* api.directory.importDirectory({
           payload: { csv: HR_FILE, dryRun: false },
         });
         assert.lengthOf(rerun.diff.managerChanges, 0);
         assert.lengthOf(rerun.diff.positionChanges, 0);
         assert.lengthOf(rerun.diff.added, 0);
-        assert.strictEqual((yield* counts)[6], exceptionsBefore);
-        const stillAcknowledged = yield* api.directory.exceptions({
-          query: { status: 'acknowledged' },
-        });
-        assert.deepStrictEqual(
-          stillAcknowledged.map((e) => e.id),
-          [coachToCoach.id],
-        );
+        assert.sameDeepMembers([...rerun.exceptions], [...applied.exceptions]);
 
-        // HR fixes Jordan's line: the next import resolves the exception.
+        // HR fixes Jordan's line: the next import no longer reports it.
         const fixed = HR_FILE.replace(
           row(
             'Jordan Blake',
@@ -260,11 +245,12 @@ layer(ScenarioLayer, { timeout: 60_000 })('directory import and exceptions', (it
             'Hartford',
           ),
         );
-        yield* api.directory.importDirectory({ payload: { csv: fixed, dryRun: false } });
-        const resolved = yield* api.directory.exceptions({ query: { status: 'resolved' } });
-        assert.include(
-          resolved.map((e) => e.id),
-          coachToCoach.id,
+        const afterFix = yield* api.directory.importDirectory({
+          payload: { csv: fixed, dryRun: false },
+        });
+        assert.notInclude(
+          afterFix.exceptions.map((e) => e.kind),
+          'coach_reports_to_coach',
         );
 
         // Departures happen only when asked for, and then through the same deprovisioning.

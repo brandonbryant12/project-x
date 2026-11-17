@@ -1,6 +1,7 @@
 import {
   Conflict,
   CurrentActor,
+  Forbidden,
   NotFound,
   Unprocessable,
   type Actor,
@@ -22,8 +23,11 @@ import { Effect } from 'effect';
 import { addDaysIso, now, today } from '../../platform/time.ts';
 import { recordAudit } from '../shared/audit.ts';
 import { decide, requireUpdated } from '../shared/mutation.ts';
-import { persistFindings, requireTenantAdmin } from './exceptions.ts';
 import { finding, toFindingView, type Finding } from './findings.ts';
+
+/** The directory is a tenant admin's job (ADR 0006); nobody else may change it. */
+export const requireTenantAdmin = (actor: Actor, message: string) =>
+  actor.grants.includes('tenant_admin') ? Effect.void : Effect.fail(new Forbidden({ message }));
 
 /** How far back a leaving date may be recorded. A departure never takes effect ahead of today. */
 export const MAX_DEPARTURE_BACKDATE_DAYS = 30;
@@ -398,13 +402,7 @@ export const departPerson = Effect.fn('useCase.departPerson')(function* (
   if (person.status === 'departed') {
     return yield* Effect.fail(new Conflict({ message: 'This person has already departed.' }));
   }
-  const departure = yield* transactionally(
-    Effect.gen(function* () {
-      const result = yield* departWithin(actor, personId, effectiveOn, 'admin');
-      yield* persistFindings(actor, result.findings, on);
-      return result;
-    }),
-  );
+  const departure = yield* transactionally(departWithin(actor, personId, effectiveOn, 'admin'));
   return {
     personId,
     effectiveOn,

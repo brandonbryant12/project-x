@@ -7,4 +7,3 @@ export * from './advisory.ts';
 export * from './audit.ts';
 export * from './content.ts';
 export * from './notifications.ts';
-export * from './directory-exception.ts';

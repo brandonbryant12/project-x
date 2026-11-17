@@ -46,6 +46,10 @@ coachee and team are derived from relationships, never stored as roles.**
 - **Rule violations in directory data** ("a coach reports to a coach") are
   recorded as directory exceptions for a tenant admin to resolve in HR or
   acknowledge. They are never sync failures, because HR remains the truth.
+  _Amended 2026-11-17:_ the stored exceptions queue (table, lifecycle and
+  endpoints) is deferred. The import returns its findings, on a dry run and
+  when applied, and the admin fixes them in HR; nothing is stored or
+  acknowledged.
 - **Fallback when app roles are unavailable:** map AD group **object IDs**
   (never display names) to grants through tenant configuration, read from the
   `groups` claim. If the token reports overage, fail closed with an

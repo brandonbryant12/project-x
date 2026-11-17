@@ -7,13 +7,11 @@ export * from './evidence.ts';
 export * from './catalog-item.ts';
 export * from './advisory-check.ts';
 export * from './badge-award.ts';
-export * from './directory-exception.ts';
 
 import { ActivityLifecycle } from './activity.ts';
 import { AdvisoryCheckLifecycle } from './advisory-check.ts';
 import { BadgeAwardLifecycle } from './badge-award.ts';
 import { CatalogItemLifecycle } from './catalog-item.ts';
-import { DirectoryExceptionLifecycle } from './directory-exception.ts';
 import { EngagementLifecycle } from './engagement.ts';
 import { EvidenceLifecycle } from './evidence.ts';
 import { ObservationLifecycle } from './observation.ts';
@@ -29,5 +27,4 @@ export const ALL_LIFECYCLES = [
   CatalogItemLifecycle,
   AdvisoryCheckLifecycle,
   BadgeAwardLifecycle,
-  DirectoryExceptionLifecycle,
 ] as const;

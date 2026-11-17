@@ -172,17 +172,3 @@ stateDiagram-v2
   awarded --> revoked : REVOKE
   revoked --> [*]
 ```
-
-## directory exception
-
-States: `open`, `acknowledged`, `resolved` · terminal: `resolved`
-
-```mermaid
-stateDiagram-v2
-  direction LR
-  [*] --> open
-  open --> acknowledged : ACKNOWLEDGE (human)
-  open --> resolved : RESOLVE (human)
-  acknowledged --> resolved : RESOLVE (human)
-  resolved --> [*]
-```

@@ -14,8 +14,8 @@ import with `applyDepartures: true`. In one audited transaction it:
 - ends their engagements and expires requests waiting on them as observer,
   through the lifecycles, so requesters can ask someone else;
 - skips their pending notifications;
-- raises a `manager_departed` exception for each report left without a
-  manager.
+- returns a `manager_departed` finding for each report left without a
+  manager, for the admin to fix in HR.
 
 Signed history and credit are never touched. Proven by
 `journeys/deprovision-leaver.scenario.test.ts` (I30).
