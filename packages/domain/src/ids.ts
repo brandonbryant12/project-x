@@ -148,12 +148,6 @@ export const SkillIndicatorId = withGenerator(
 );
 export type SkillIndicatorId = typeof SkillIndicatorId.Type;
 
-export const SecondReadId = withGenerator(
-  'srd',
-  Schema.String.pipe(Schema.check(idPattern('srd')), Schema.brand('SecondReadId')),
-);
-export type SecondReadId = typeof SecondReadId.Type;
-
 export const CreditReversalId = withGenerator(
   'rev',
   Schema.String.pipe(Schema.check(idPattern('rev')), Schema.brand('CreditReversalId')),
@@ -171,18 +165,6 @@ export const AdvisoryDispositionId = withGenerator(
   Schema.String.pipe(Schema.check(idPattern('dsp')), Schema.brand('AdvisoryDispositionId')),
 );
 export type AdvisoryDispositionId = typeof AdvisoryDispositionId.Type;
-
-export const BadgeWaiverId = withGenerator(
-  'wvr',
-  Schema.String.pipe(Schema.check(idPattern('wvr')), Schema.brand('BadgeWaiverId')),
-);
-export type BadgeWaiverId = typeof BadgeWaiverId.Type;
-
-export const LegalHoldId = withGenerator(
-  'hld',
-  Schema.String.pipe(Schema.check(idPattern('hld')), Schema.brand('LegalHoldId')),
-);
-export type LegalHoldId = typeof LegalHoldId.Type;
 
 export const JobFamilyId = withGenerator(
   'jfm',

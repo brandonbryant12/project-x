@@ -1,4 +1,4 @@
-import type { LegalHoldId, NoteId, PersonId } from '@repo/domain';
+import type { NoteId, PersonId } from '@repo/domain';
 import { sql } from 'drizzle-orm';
 import { check, index, pgTable, text } from 'drizzle-orm/pg-core';
 import { createdAt, instant, oneOf, tenantIdColumn } from './columns.ts';
@@ -38,24 +38,5 @@ export const note = pgTable(
     ]),
     check('note_purge_shape', sql`(${t.body} is null) = (${t.purgedAt} is not null)`),
     index('note_entity_idx').on(t.tenantId, t.entityType, t.entityId, t.createdAt),
-  ],
-);
-
-/** While active, nothing about the person is purged regardless of retention class. */
-export const legalHold = pgTable(
-  'legal_hold',
-  {
-    id: text('id').$type<LegalHoldId>().primaryKey(),
-    tenantId: tenantIdColumn(),
-    personId: text('person_id').$type<PersonId>().notNull(),
-    placedById: text('placed_by_id').$type<PersonId>().notNull(),
-    reasonCode: text('reason_code').notNull(),
-    placedAt: instant('placed_at').notNull(),
-    releasedAt: instant('released_at'),
-  },
-  (t) => [
-    personFk('legal_hold_person_fk', t.tenantId, t.personId),
-    personFk('legal_hold_placed_by_fk', t.tenantId, t.placedById),
-    index('legal_hold_person_idx').on(t.tenantId, t.personId),
   ],
 );

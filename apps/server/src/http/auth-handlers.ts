@@ -58,7 +58,6 @@ export const AuthHandlers = HttpApiBuilder.group(
             const parts = [person.title ?? 'Team member'];
             if (flags.hasReports) parts.push('leads a team');
             if (flags.isCoach) parts.push('coach');
-            if (grants.some((g) => g.role === 'catalog_keeper')) parts.push('catalog keeper');
             if (grants.some((g) => g.role === 'tenant_admin')) parts.push('admin');
             result.push({ person: toPersonSummary(person), summary: parts.join(' · ') });
           }

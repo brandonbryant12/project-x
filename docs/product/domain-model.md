@@ -26,16 +26,16 @@ here is our best current design and is open to domain experts (see
 
 ## Bounded contexts
 
-| Context         | Owns                                                                                                                        | Notes                                                                                                                                |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| **Directory**   | Tenant, Person, ReportingLine, BusinessFunction, RoleGrant, JobFamily, PersonPosition                                       | Mirrors Entra ID. Effective-dated, never edited by product flows. See [identity and access](../architecture/identity-and-access.md). |
-| **Catalog**     | Skill, SkillVersion (levels and indicators), SkillProfile, ActivityTemplate                                                 | Curated by catalog keepers. Published versions are immutable. Each indicator has a lineage key that stays stable across versions.    |
-| **Coaching**    | CoachingEngagement, ObserverDesignation                                                                                     | The mesh: any coach can engage anyone. Carries no reporting authority. Conversations and commitments are deferred (ADR 0019).        |
-| **Development** | DevelopmentPlan (focus skills with **target levels**), Activity (with an **observation commitment**), Interaction, Evidence | The coachee's workspace. Logging an event is never credit.                                                                           |
-| **Recognition** | Observation, Rating, CreditEntry, CreditReversal, BadgeAward, BadgeWaiver                                                   | The **only** context that writes credit.                                                                                             |
-| **Advisory**    | AdvisoryCheck, AdvisoryDisposition                                                                                          | Gemini Decisions wrapper: the privacy screen only. The learning loop is deferred (ADR 0016).                                         |
-| **Compliance**  | AuditEvent, Note, LegalHold                                                                                                 | Append-only and exportable. Human reasons live in purgeable notes.                                                                   |
-| **Hub**         | Notification, NotificationPreference; the adoption view (a read-only projection)                                            | Tells people what waits on them, and shows the program owner aggregates. Writes nothing in other contexts (ADR 0018, ADR 0021).      |
+| Context         | Owns                                                                                                                        | Notes                                                                                                                                          |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Directory**   | Tenant, Person, ReportingLine, BusinessFunction, RoleGrant, JobFamily, PersonPosition                                       | Mirrors Entra ID. Effective-dated, never edited by product flows. See [identity and access](../architecture/identity-and-access.md).           |
+| **Catalog**     | Skill, SkillVersion (levels and indicators), ActivityTemplate                                                               | Seeded; catalog management is not built. Published versions are immutable. Each indicator has a lineage key that stays stable across versions. |
+| **Coaching**    | CoachingEngagement, ObserverDesignation                                                                                     | The mesh: any coach can engage anyone. Carries no reporting authority. Conversations and commitments are deferred (ADR 0019).                  |
+| **Development** | DevelopmentPlan (focus skills with **target levels**), Activity (with an **observation commitment**), Interaction, Evidence | The coachee's workspace. Logging an event is never credit.                                                                                     |
+| **Recognition** | Observation, Rating, CreditEntry, CreditReversal, BadgeAward                                                                | The **only** context that writes credit.                                                                                                       |
+| **Advisory**    | AdvisoryCheck, AdvisoryDisposition                                                                                          | Gemini Decisions wrapper: the privacy screen only. The learning loop is deferred (ADR 0016).                                                   |
+| **Compliance**  | AuditEvent, Note, LegalHold                                                                                                 | Append-only and exportable. Human reasons live in purgeable notes.                                                                             |
+| **Hub**         | Notification, NotificationPreference; the adoption view (a read-only projection)                                            | Tells people what waits on them, and shows the program owner aggregates. Writes nothing in other contexts (ADR 0018, ADR 0021).                |
 
 ## From work to credit
 
@@ -148,9 +148,9 @@ Further rules:
 - **Level 4, "Teaching others"** cannot be shown in a client meeting. It will
   be earned by developing others: signed observations _given_ as a designated
   observer, plus calibration agreement. This is designed, not built.
-- **Waivers.** A waiver of the observer criterion or the first-hand criterion,
-  for example for someone with only one eligible observer, is an audited row.
-  It is never a silent override.
+- **Waivers** of the observer or first-hand criterion are designed, not built
+  (the `badge_waiver` table was removed unused). When built, a waiver is an
+  audited row, never a silent override.
 - **Production metrics never feed recognition.** Assets, retention and
   revenue are studied only in aggregate, and only offline.
 

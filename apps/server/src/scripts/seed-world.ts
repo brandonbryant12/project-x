@@ -114,7 +114,6 @@ const PEOPLE: ReadonlyArray<{
     fn: 'Practice Development',
     location: 'Boston',
     manager: 'rhea',
-    grants: ['catalog_keeper'],
   },
   {
     key: 'nina',

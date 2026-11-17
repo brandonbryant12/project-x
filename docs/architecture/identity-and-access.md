@@ -16,7 +16,7 @@ Decisions: [ADR 0006](../adr/0006-identity-entra-roles-and-relationships.md),
    ┌──────────────────────────────────────────────┐
    │ users ── member of ──► AD groups               │
    │ AD groups ── assigned ──► app roles            │   capabilities
-   │   (Coach, CatalogKeeper, TenantAdmin,          │──────────────► role_grant
+   │   (Coach, TenantAdmin,                         │──────────────► role_grant
    │    ComplianceReviewer, ProgramOwner)           │   (dated)
    │ user.manager ─────────────────────────────────│──────────────► reporting_line
    └──────────────────────────────────────────────┘   relationships  (dated)
@@ -98,7 +98,6 @@ role. **This mode refuses to start under `NODE_ENV=production`** (enforced in
 | App role value       | Grants in the app                                                                                                                                                         |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Coach`              | May form coaching engagements and observe coachees                                                                                                                        |
-| `CatalogKeeper`      | Curates skills and activity templates                                                                                                                                     |
 | `TenantAdmin`        | Releases privacy holds; sees AI usage, the audit trail, and levels but not narratives                                                                                     |
 | `ComplianceReviewer` | Resolves escalated evidence; the only role that voids or upholds observations; may read narratives outside a relationship, and each read is audited; sees the audit trail |
 | `ProgramOwner`       | Sees the adoption view: aggregates only, no names (ADR 0021). _Being built in this round._                                                                                |

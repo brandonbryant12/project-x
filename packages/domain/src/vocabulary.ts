@@ -8,7 +8,6 @@ import { Schema } from 'effect';
 
 export const GRANT_ROLES = [
   'coach',
-  'catalog_keeper',
   'tenant_admin',
   'compliance_reviewer',
   /** Sees aggregate adoption only, never names (ADR 0021). */
@@ -20,7 +19,6 @@ export type GrantRole = typeof GrantRole.Type;
 /** Entra app-role values → grants. App roles are configured on the enterprise app. */
 export const ENTRA_APP_ROLE_TO_GRANT: Readonly<Record<string, GrantRole>> = {
   Coach: 'coach',
-  CatalogKeeper: 'catalog_keeper',
   TenantAdmin: 'tenant_admin',
   ComplianceReviewer: 'compliance_reviewer',
   ProgramOwner: 'program_owner',
@@ -129,10 +127,6 @@ export type QuestionSetId = typeof QuestionSetId.Type;
 
 /** A designation lasts at most this long (ADR 0020). */
 export const MAX_DESIGNATION_DAYS = 90;
-
-/** The capacity a skill profile applies to (ADR 0017). Only `core` profiles exist today. */
-export const PROFILE_CAPACITIES = ['any', 'leader', 'coach', 'job_family'] as const;
-export const CORE_PROFILE = 'core';
 
 /**
  * Notifications (ADR 0018). The kinds are a closed set; a message carries

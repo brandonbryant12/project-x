@@ -5,7 +5,8 @@
  *
  * The periods are PROVISIONAL defaults pending compliance sign-off
  * (docs/product/domain-expert-questions.md D2). Purge jobs are planned, not
- * built; purge columns (`purged_at`, nullable bodies) and `legal_hold` exist.
+ * built; purge columns (`purged_at`, nullable bodies) exist. Legal holds are
+ * not modelled yet; the purge job must honour them when it is built.
  */
 export const RETENTION_CLASSES = {
   /** Facts the firm may need to evidence: who observed whom, when, at what level. */
@@ -43,7 +44,6 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   skill_version: 'reference',
   skill_level: 'reference',
   skill_indicator: 'reference',
-  skill_profile: 'reference',
   activity_template: 'reference',
   activity_template_skill: 'reference',
   engagement: 'record',
@@ -61,14 +61,10 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   credit_reversal: 'record',
   badge_award: 'record',
   badge_award_credit: 'record',
-  badge_waiver: 'record',
   note: 'narrative',
-  legal_hold: 'audit',
   audit_event: 'audit',
   advisory_check: 'audit',
   advisory_disposition: 'audit',
-  second_read: 'audit',
-  second_read_rating: 'audit',
 };
 
 /** User-written words: retention class `narrative` regardless of their table's class. */
@@ -94,7 +90,6 @@ export const LABEL_COLUMNS: Readonly<Record<string, ReadonlyArray<string>>> = {
   skill: ['name', 'summary', 'tags'],
   skill_level: ['summary'],
   skill_indicator: ['text'],
-  skill_profile: ['name'],
   skill_version: ['change_note'],
 };
 
@@ -106,7 +101,6 @@ export const CODED_COLUMNS: Readonly<Record<string, ReadonlyArray<string>>> = {
   interaction: ['client_ref'],
   advisory_check: ['provider', 'failure'],
   advisory_disposition: ['disposition'],
-  second_read: ['assigned_reason'],
   audit_event: ['auth_method', 'from_state', 'to_state'],
 };
 

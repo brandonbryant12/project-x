@@ -1,11 +1,9 @@
 import {
   CatalogItemLifecycle,
   INTERACTION_KINDS,
-  PROFILE_CAPACITIES,
   LEVELS,
   SKILL_DOMAINS,
   type ActivityTemplateId,
-  type JobFamilyId,
   type PersonId,
   type SkillDefinition,
   type SkillId,
@@ -25,16 +23,8 @@ import {
   unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import {
-  createdAt,
-  instant,
-  oneOf,
-  profileKeyCheck,
-  tenantIdColumn,
-  updatedAt,
-  versionColumn,
-} from './columns.ts';
-import { jobFamily, personFk, tenant } from './directory.ts';
+import { createdAt, instant, oneOf, tenantIdColumn, updatedAt, versionColumn } from './columns.ts';
+import { personFk, tenant } from './directory.ts';
 
 /**
  * A skill is a workflow entity (keepers draft, publish, retire). Its published
@@ -190,41 +180,5 @@ export const activityTemplateSkill = pgTable(
     }),
     skillFk('activity_template_skill_skill_fk', t.tenantId, t.skillId),
     check('activity_template_skill_position', sql`${t.position} >= 0`),
-  ],
-);
-
-/**
- * Reserved (ADR 0017, proposed): a named variant of a skill version's level
- * descriptors for one capacity ("as a leader", "as a peer mentor"). Ledger rows
- * already pin `profile_key` (default `core`); authoring waits for HR sign-off.
- */
-export const skillProfile = pgTable(
-  'skill_profile',
-  {
-    tenantId: tenantIdColumn(),
-    skillVersionId: text('skill_version_id').$type<SkillVersionId>().notNull(),
-    key: text('key').notNull(),
-    name: text('name').notNull(),
-    capacity: text('capacity').notNull(),
-    jobFamilyId: text('job_family_id').$type<JobFamilyId>(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.skillVersionId, t.key] }),
-    foreignKey({
-      name: 'skill_profile_version_fk',
-      columns: [t.tenantId, t.skillVersionId],
-      foreignColumns: [skillVersion.tenantId, skillVersion.id],
-    }),
-    foreignKey({
-      name: 'skill_profile_job_family_fk',
-      columns: [t.tenantId, t.jobFamilyId],
-      foreignColumns: [jobFamily.tenantId, jobFamily.id],
-    }),
-    profileKeyCheck('skill_profile_key_check', t.key),
-    oneOf('skill_profile_capacity_check', t.capacity, PROFILE_CAPACITIES),
-    check(
-      'skill_profile_job_family_shape',
-      sql`(${t.capacity} = 'job_family') = (${t.jobFamilyId} is not null)`,
-    ),
   ],
 );

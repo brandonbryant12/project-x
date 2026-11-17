@@ -36,8 +36,3 @@ export const oneOfOrNull = (
 /** A SQL list literal for partial-index predicates, from the same constants. */
 export const inList = (column: PgColumn, values: ReadonlyArray<string | number>) =>
   sql`${column} in (${literalList(values)})`;
-
-/** Pins the skill profile (ADR 0017). Only `core` exists until profiles are authored. */
-export const profileKeyColumn = () => text('profile_key').notNull().default('core');
-export const profileKeyCheck = (name: string, column: PgColumn) =>
-  check(name, sql`${column} ~ '^[a-z][a-z0-9_]{0,31}$'`);

@@ -35,8 +35,6 @@ import {
   isoDate,
   oneOf,
   oneOfOrNull,
-  profileKeyCheck,
-  profileKeyColumn,
   tenantIdColumn,
   updatedAt,
   versionColumn,
@@ -97,7 +95,6 @@ export const planSkill = pgTable(
     planId: text('plan_id').$type<PlanId>().notNull(),
     skillId: text('skill_id').$type<SkillId>().notNull(),
     targetLevel: integer('target_level').notNull(),
-    profileKey: profileKeyColumn(),
     position: integer('position').notNull().default(0),
     /** Set in the closing review. */
     outcome: text('outcome'),
@@ -111,7 +108,6 @@ export const planSkill = pgTable(
     }),
     skillFk('plan_skill_skill_fk', t.tenantId, t.skillId),
     oneOf('plan_skill_target_level_check', t.targetLevel, LEVELS),
-    profileKeyCheck('plan_skill_profile_key_check', t.profileKey),
     oneOfOrNull('plan_skill_outcome_check', t.outcome, PLAN_OUTCOMES),
     // At most three focus skills, by construction.
     check('plan_skill_position_check', sql`${t.position} between 0 and 2`),

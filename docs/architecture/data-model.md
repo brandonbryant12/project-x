@@ -85,25 +85,23 @@ Do not mix kinds. If a workflow entity needs history, the history belongs in
 tenant ─┬─ business_function
         ├─ job_family
         ├─ person ─┬─ reporting_line (manager → report, dated)
-        │          ├─ role_grant (coach | catalog_keeper | tenant_admin | compliance_reviewer | program_owner, dated)
+        │          ├─ role_grant (coach | tenant_admin | compliance_reviewer | program_owner, dated)
         │          ├─ person_position (job family, title, function, dated)
         │          ├─ notification_preference (channel, weekly digest, observe capacity)
         │          └─ session
         ├─ skill ── skill_version ─┬─ skill_level
-        │                          ├─ skill_indicator (lineage_key)
-        │                          └─ skill_profile ('core' unless HR agrees otherwise)
+        │                          └─ skill_indicator (lineage_key)
         ├─ activity_template ── activity_template_skill
         ├─ engagement (coach ↔ coachee, mesh)
         ├─ observer_designation (designator names an observer for a subject, ≤ 90 days)
-        ├─ plan ─┬─ plan_skill (focus skill, profile, target level, closing outcome)
+        ├─ plan ─┬─ plan_skill (focus skill, target level, closing outcome)
         │        └─ activity ─┬─ activity_skill
         │                     └─ interaction ─┬─ evidence (screened text)
-        │                                     └─ observation ─┬─ observation_rating (skill, pinned version, profile, level, credit)
+        │                                     └─ observation ─┬─ observation_rating (skill, pinned version, level, credit)
         │                                                     └─ observation_indicator (indicator ticked)
-        ├─ credit_entry      (append-only ledger: one demonstration, with profile and subject position)
+        ├─ credit_entry      (append-only ledger: one demonstration, with the subject's position)
         ├─ badge_award       (awarded/revoked; receipt snapshot)
         ├─ advisory_check    (one AI evaluation: digests, probabilities, thresholds, effect, rationale)
-        ├─ second_read       (blind calibration read of a signed observation)
         ├─ notification      (outbox: one message to one person, no free text)
         └─ audit_event       (append-only: who, what, from → to, why, under which policy)
 ```
@@ -113,12 +111,12 @@ tenant ─┬─ business_function
 The schema for this round landed before the behavior, so that credits are
 pinned correctly from the first real row.
 
-| Table                                                                                  | Schema | Behavior                                                                                                                          |
-| -------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `observer_designation`, `observation.basis_designation_id`                             | Built  | Designating, ending, and observing on the `designated` basis are built; the journey test `designated-observer-signs` is _planned_ |
-| `notification_preference`                                                              | Built  | Built                                                                                                                             |
-| `notification`                                                                         | Built  | Rows written in the transition's transaction; dispatcher with staleness check (`notification-carries-no-content`)                 |
-| `job_family`, `person_position`, `skill_profile`, `profile_key`, `subject_position_id` | Built  | Every pin is `core`; profile authoring and expectations wait for HR (ADR 0017)                                                    |
+| Table                                                      | Schema | Behavior                                                                                                                          |
+| ---------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `observer_designation`, `observation.basis_designation_id` | Built  | Designating, ending, and observing on the `designated` basis are built; the journey test `designated-observer-signs` is _planned_ |
+| `notification_preference`                                  | Built  | Built                                                                                                                             |
+| `notification`                                             | Built  | Rows written in the transition's transaction; dispatcher with staleness check (`notification-carries-no-content`)                 |
+| `job_family`, `person_position`, `subject_position_id`     | Built  | Positions are pinned on credit; skill profiles and expectations are deferred (ADR 0017)                                           |
 
 Designed, not built:
 

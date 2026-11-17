@@ -102,8 +102,9 @@ by the leaver stay, because they were true on their dates. Requests waiting on
 the leaver expire on their own after the signing window (14 days). Purging
 free text under a retention class is not built yet (ADR 0012).
 
-If compliance or legal asks, place a legal hold before anything else:
-insert a `legal_hold` row for the person.
+If compliance or legal asks for a legal hold, record it in the ticket. Holds
+are not modelled in the database yet; nothing is purged automatically, and the
+purge job must honour holds when it is built.
 
 ## Check
 

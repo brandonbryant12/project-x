@@ -4,26 +4,21 @@ import {
   QUESTION_SETS,
   type AdvisoryCheckId,
   type AdvisoryDispositionId,
-  type ObservationId,
   type PersonId,
-  type SecondReadId,
 } from '@repo/domain';
 import { sql } from 'drizzle-orm';
 import {
-  boolean,
   check,
   foreignKey,
   index,
   integer,
   jsonb,
   pgTable,
-  primaryKey,
   text,
   unique,
 } from 'drizzle-orm/pg-core';
 import { createdAt, instant, oneOf, tenantIdColumn } from './columns.ts';
 import { personFk, tenant } from './directory.ts';
-import { observation } from './recognition.ts';
 
 export interface AdvisoryAnswersRecord {
   readonly answers: Readonly<Record<string, unknown>>;
@@ -80,58 +75,6 @@ export const advisoryCheck = pgTable(
     ),
     index('advisory_check_subject_idx').on(t.tenantId, t.subjectType, t.subjectId),
     index('advisory_check_usage_idx').on(t.tenantId, t.createdAt),
-  ],
-);
-
-/** A blind calibration read of a signed observation: neither the level nor the AI output is shown. */
-export const secondRead = pgTable(
-  'second_read',
-  {
-    id: text('id').$type<SecondReadId>().primaryKey(),
-    tenantId: tenantIdColumn(),
-    observationId: text('observation_id').$type<ObservationId>().notNull(),
-    readerId: text('reader_id').$type<PersonId>().notNull(),
-    assignedReason: text('assigned_reason').notNull(),
-    narrativeSpecific: boolean('narrative_specific'),
-    status: text('status').notNull().default('assigned'),
-    createdAt: createdAt(),
-    completedAt: instant('completed_at'),
-  },
-  (t) => [
-    foreignKey({
-      name: 'second_read_observation_fk',
-      columns: [t.tenantId, t.observationId],
-      foreignColumns: [observation.tenantId, observation.id],
-    }),
-    personFk('second_read_reader_fk', t.tenantId, t.readerId),
-    oneOf('second_read_reason_check', t.assignedReason, [
-      'random',
-      'model_disagreement',
-      'new_observer',
-    ]),
-    oneOf('second_read_status_check', t.status, ['assigned', 'completed', 'skipped']),
-    unique('second_read_tenant_id_key').on(t.tenantId, t.id),
-    index('second_read_reader_idx').on(t.tenantId, t.readerId, t.status),
-  ],
-);
-
-/** The blind reader's level per skill — joinable against observation_rating for inter-rater agreement. */
-export const secondReadRating = pgTable(
-  'second_read_rating',
-  {
-    tenantId: tenantIdColumn(),
-    secondReadId: text('second_read_id').$type<SecondReadId>().notNull(),
-    skillId: text('skill_id').notNull(),
-    level: integer('level').notNull(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.secondReadId, t.skillId] }),
-    foreignKey({
-      name: 'second_read_rating_read_fk',
-      columns: [t.tenantId, t.secondReadId],
-      foreignColumns: [secondRead.tenantId, secondRead.id],
-    }),
-    check('second_read_rating_level', sql`${t.level} between 1 and 4`),
   ],
 );
 

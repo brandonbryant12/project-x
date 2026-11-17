@@ -6,21 +6,21 @@ add it here first. The model behind the terms is described in
 
 ## People and structure
 
-| Term                    | Meaning                                                                                                                                        | Not to be confused with                    |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| **Tenant**              | One firm, mapped to one Entra ID tenant. Every row belongs to exactly one tenant.                                                              | Business function                          |
-| **Person**              | Someone in the tenant directory, mirrored from Entra ID.                                                                                       | "User" (use only in auth code)             |
-| **Business function**   | A tenant taxonomy entry (Advisory, Client Service, …). It is a facet of a person, not a container.                                             | Team                                       |
-| **Reporting line**      | An effective-dated _manager → report_ edge synced from the directory.                                                                          | Coaching engagement                        |
-| **Leader**              | Anyone on the manager end of an active reporting line. Derived, never stored.                                                                  | Coach                                      |
-| **Team**                | A leader plus their current direct reports. Derived, never stored.                                                                             | Cohort                                     |
-| **Coach**               | A person holding the `coach` role grant (from the Entra app role).                                                                             | Leader                                     |
-| **Coaching engagement** | A _coach ↔ coachee_ relationship in the mesh, proposed then accepted. Carries no reporting authority.                                          | Reporting line                             |
-| **Coachee**             | Anyone with a development plan or an engagement. Everyone can be one.                                                                          | Advisor (a job title)                      |
-| **Role grant**          | A dated capability from an Entra app role: `coach`, `catalog_keeper`, `tenant_admin`, `compliance_reviewer` or `program_owner`.                | Leader or coachee, which are relationships |
-| **Program owner**       | A person holding the `program_owner` grant. Runs the program and sees the adoption view, nothing per person (ADR 0021).                        | Tenant admin                               |
-| **Job family**          | A tenant taxonomy of jobs from the HR feed, such as _Financial advisor_. Used for skill profiles and, later, expectations (ADR 0017).          | Business function, Title                   |
-| **Position**            | An effective-dated record of a person's job family, title and business function. A credit pins the subject's position on the interaction date. | Person, which is not dated                 |
+| Term                    | Meaning                                                                                                                                                                                        | Not to be confused with                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| **Tenant**              | One firm, mapped to one Entra ID tenant. Every row belongs to exactly one tenant.                                                                                                              | Business function                          |
+| **Person**              | Someone in the tenant directory, mirrored from Entra ID.                                                                                                                                       | "User" (use only in auth code)             |
+| **Business function**   | A tenant taxonomy entry (Advisory, Client Service, …). It is a facet of a person, not a container.                                                                                             | Team                                       |
+| **Reporting line**      | An effective-dated _manager → report_ edge synced from the directory.                                                                                                                          | Coaching engagement                        |
+| **Leader**              | Anyone on the manager end of an active reporting line. Derived, never stored.                                                                                                                  | Coach                                      |
+| **Team**                | A leader plus their current direct reports. Derived, never stored.                                                                                                                             | Cohort                                     |
+| **Coach**               | A person holding the `coach` role grant (from the Entra app role).                                                                                                                             | Leader                                     |
+| **Coaching engagement** | A _coach ↔ coachee_ relationship in the mesh, proposed then accepted. Carries no reporting authority.                                                                                          | Reporting line                             |
+| **Coachee**             | Anyone with a development plan or an engagement. Everyone can be one.                                                                                                                          | Advisor (a job title)                      |
+| **Role grant**          | A dated capability from an Entra app role: `coach`, `tenant_admin`, `compliance_reviewer` or `program_owner`. (`catalog_keeper` was removed: it unlocked nothing while the catalog is seeded.) | Leader or coachee, which are relationships |
+| **Program owner**       | A person holding the `program_owner` grant. Runs the program and sees the adoption view, nothing per person (ADR 0021).                                                                        | Tenant admin                               |
+| **Job family**          | A tenant taxonomy of jobs from the HR feed, such as _Financial advisor_. Pinned on credit through the position; expectations are deferred (ADR 0017).                                          | Business function, Title                   |
+| **Position**            | An effective-dated record of a person's job family, title and business function. A credit pins the subject's position on the interaction date.                                                 | Person, which is not dated                 |
 
 ## Development
 
@@ -36,7 +36,6 @@ add it here first. The model behind the terms is described in
 | **Interaction**       | One dated occurrence of doing the work.                                                                                                                 | Observation                                         |
 | **Client reference**  | An opaque CRM ID. Never a name.                                                                                                                         |                                                     |
 | **Evidence**          | The coachee's reflection on an interaction, screened for privacy.                                                                                       | Observation                                         |
-| **Skill profile**     | A named variant of a skill's level descriptors for a capacity, such as "as a leader". Every skill has `core`; others wait for HR (ADR 0017).            | A separate skill                                    |
 | **Try next time**     | The latest signed observation's "What next", shown on the coachee's plan. Not stored separately; conversations and commitments are deferred (ADR 0019). | Activity                                            |
 | **Quick capture**     | The one-screen "I saw this": an observer records who, when, mode, skills, level and comment, and signs or saves to finish later.                        | Logging an interaction, which is the coachee\'s act |
 
@@ -52,7 +51,6 @@ add it here first. The model behind the terms is described in
 | **Demonstration**                     | One credit: a skill shown at a level, by one observer, in one interaction. Append-only.                                                                                   | Points, which no longer exist          |
 | **Reversal**                          | The record that cancels one demonstration, written when its observation is voided.                                                                                        | Deletion, which never happens          |
 | **Badge**                             | Recognition that a level was demonstrated in enough interactions, by enough observers, first-hand, over time. Levels 2 and 3 are awarded automatically.                   | Demonstration                          |
-| **Waiver**                            | An audited exception to one badge criterion.                                                                                                                              |                                        |
 | **Acknowledge / request review**      | The subject's response to a signed observation.                                                                                                                           |                                        |
 
 ## Assistant and governance

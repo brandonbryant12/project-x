@@ -1,8 +1,8 @@
 # ADR 0017: A skill can mean different things in different roles: skill profiles, expectations by job family, and position history
 
-- Status: **Proposed** for behavior. It needs product-owner and HR sign-off,
-  because expectations by job family edge toward performance management. The
-  schema columns are accepted (see the amendment below).
+- Status: **Deferred** (2026-11-17) for skill profiles and expectations.
+  Position history (`job_family`, `person_position`, `subject_position_id`)
+  stays built (see the amendments below).
 - Date: 2026-11-16
 - Builds on: [ADR 0006](./0006-identity-entra-roles-and-relationships.md), [ADR 0007](./0007-credit-only-from-signed-observations.md)
 
@@ -117,3 +117,13 @@ behavior does not.
 
 Until then every credit is written with `profile_key = 'core'`, and nothing
 reads `job_family` to suggest or gate anything.
+
+## Amendment (2026-11-17): profiles deferred, columns removed
+
+Nothing ever wrote a profile other than `core`, and HR has not answered E1.
+Before any client data exists, `skill_profile` and every `profile_key` column
+and check are dropped, and the badge uniqueness index is keyed on (person,
+skill, level) again. Position history stays: credits still pin
+`subject_position_id`. If profiles return, `profile_key` comes back as a
+nullable column meaning "core" for existing rows, or the decision is made
+before the pilot writes credit.

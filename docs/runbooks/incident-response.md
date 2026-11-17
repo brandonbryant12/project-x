@@ -62,9 +62,9 @@ need to purge it during the incident.
   digests, probabilities, thresholds and effects, not the text.
 - Traces and logs in Datadog carry `user.id` and `tenant.id` on each request.
   They never carry narratives or provider payloads.
-- If people are involved in a dispute, compliance can place a legal hold:
-  insert a `legal_hold` row for the person. Purging is not built yet, so
-  nothing is purged automatically either way.
+- If people are involved in a dispute, record the legal hold in the ticket.
+  Holds are not modelled in the database yet. Purging is not built either, so
+  nothing is purged automatically.
 
 ## 4. Recover
 

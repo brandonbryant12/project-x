@@ -6,7 +6,6 @@ import {
   OBSERVER_BASES,
   ObservationLifecycle,
   type BadgeAwardId,
-  type BadgeWaiverId,
   type CreditId,
   type CreditReversalId,
   type DesignationId,
@@ -43,8 +42,6 @@ import {
   instant,
   isoDate,
   oneOf,
-  profileKeyCheck,
-  profileKeyColumn,
   tenantIdColumn,
   updatedAt,
   versionColumn,
@@ -185,7 +182,6 @@ export const observationRating = pgTable(
     skillId: text('skill_id').$type<SkillId>().notNull(),
     skillVersionId: text('skill_version_id').$type<SkillVersionId>().notNull(),
     level: integer('level'),
-    profileKey: profileKeyColumn(),
     /** false = feedback only ("not yet"); never posts credit. */
     credit: boolean('credit').notNull().default(true),
     position: integer('position').notNull().default(0),
@@ -209,7 +205,6 @@ export const observationRating = pgTable(
       foreignColumns: [skillVersion.tenantId, skillVersion.skillId, skillVersion.id],
     }),
     check('observation_rating_level', sql`${t.level} is null or ${t.level} between 1 and 4`),
-    profileKeyCheck('observation_rating_profile_key_check', t.profileKey),
     check('observation_rating_position', sql`${t.position} between 0 and 2`),
     unique('observation_rating_position_key').on(t.observationId, t.position),
     index('observation_rating_skill_idx').on(t.tenantId, t.skillId),
@@ -266,7 +261,6 @@ export const creditEntry = pgTable(
     observerId: text('observer_id').$type<PersonId>().notNull(),
     skillVersionId: text('skill_version_id').$type<SkillVersionId>().notNull(),
     level: integer('level').notNull(),
-    profileKey: profileKeyColumn(),
     /** The subject's position on the interaction date, when the directory knows it (ADR 0017). */
     subjectPositionId: text('subject_position_id').$type<PositionId>(),
     mode: text('mode').notNull(),
@@ -309,7 +303,6 @@ export const creditEntry = pgTable(
       columns: [t.tenantId, t.subjectPositionId, t.personId],
       foreignColumns: [personPosition.tenantId, personPosition.id, personPosition.personId],
     }),
-    profileKeyCheck('credit_entry_profile_key_check', t.profileKey),
     oneOf('credit_entry_level_check', t.level, LEVELS),
     oneOf('credit_entry_mode_check', t.mode, OBSERVATION_MODES),
     check('credit_entry_first_hand', sql`${t.isFirstHand} = (${t.mode} <> 'discussed')`),
@@ -358,7 +351,6 @@ export const badgeAward = pgTable(
     personId: text('person_id').$type<PersonId>().notNull(),
     skillId: text('skill_id').$type<SkillId>().notNull(),
     level: integer('level').notNull(),
-    profileKey: profileKeyColumn(),
     status: text('status').notNull(),
     /** Thresholds in force and measured values at award time. */
     criteria: jsonb('criteria').$type<BadgeCriteriaSnapshot>().notNull(),
@@ -383,9 +375,8 @@ export const badgeAward = pgTable(
       'badge_award_revoked_shape',
       sql`(${t.status} = 'revoked') = (${t.revokedAt} is not null)`,
     ),
-    profileKeyCheck('badge_award_profile_key_check', t.profileKey),
     uniqueIndex('badge_award_one_active')
-      .on(t.tenantId, t.personId, t.skillId, t.profileKey, t.level)
+      .on(t.tenantId, t.personId, t.skillId, t.level)
       .where(sql`${t.status} = 'awarded'`),
     index('badge_award_skill_idx').on(t.tenantId, t.skillId, t.status),
   ],
@@ -411,27 +402,5 @@ export const badgeAwardCredit = pgTable(
       columns: [t.tenantId, t.creditEntryId],
       foreignColumns: [creditEntry.tenantId, creditEntry.id],
     }),
-  ],
-);
-
-/** An audited exception to one badge criterion (e.g. only one eligible observer). */
-export const badgeWaiver = pgTable(
-  'badge_waiver',
-  {
-    id: text('id').$type<BadgeWaiverId>().primaryKey(),
-    tenantId: tenantIdColumn(),
-    personId: text('person_id').$type<PersonId>().notNull(),
-    criterion: text('criterion').notNull(),
-    grantedById: text('granted_by_id').$type<PersonId>().notNull(),
-    reasonCode: text('reason_code').notNull(),
-    validFrom: isoDate('valid_from').notNull(),
-    validTo: isoDate('valid_to'),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    personFk('badge_waiver_person_fk', t.tenantId, t.personId),
-    personFk('badge_waiver_granted_by_fk', t.tenantId, t.grantedById),
-    oneOf('badge_waiver_criterion_check', t.criterion, ['observers', 'firstHand']),
-    check('badge_waiver_not_self', sql`${t.personId} <> ${t.grantedById}`),
   ],
 );

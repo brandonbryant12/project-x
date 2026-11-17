@@ -51,11 +51,6 @@ const RESERVED: Readonly<Record<string, string>> = {
   skillIndicator: 'catalog is seeded; catalog management is not built',
   activityTemplate: 'catalog is seeded; catalog management is not built',
   activityTemplateSkill: 'catalog is seeded; catalog management is not built',
-  skillProfile: 'columns only until HR signs off profiles (ADR 0017)',
-  secondRead: 'blind calibration reads are designed, not built',
-  secondReadRating: 'blind calibration reads are designed, not built',
-  badgeWaiver: 'audited criterion exceptions are designed, not built',
-  legalHold: 'the purge job that honours holds is not built',
 };
 
 describe('architecture', () => {
