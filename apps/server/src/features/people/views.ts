@@ -271,7 +271,7 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
       awardedAt: badge.awardedAt.toISOString(),
     },
     holder: personFrom(people, badge.personId),
-    facts: `${demonstrations} demonstrations · ${observers} observers · ${firstHand} seen first-hand · over ${weeks(span)} weeks`,
+    facts: `Observed ${demonstrations} ${demonstrations === 1 ? 'time' : 'times'} · ${observers} observers · ${firstHand} seen first-hand · over ${weeks(span)} weeks`,
     narrativesVisible: visibleCount > 0,
     observations: credits.map((c) => {
       const obs = observations.find((o) => o.id === c.observationId);

@@ -98,9 +98,7 @@ export const createPlan = Effect.fn('useCase.createPlan')(function* (input: Crea
     input.focusSkills.map((f) => f.skillId),
   );
   if (yield* currentPlanOf(actor.tenantId, actor.personId)) {
-    return yield* Effect.fail(
-      new Conflict({ message: 'You already have a current development plan.' }),
-    );
+    return yield* Effect.fail(new Conflict({ message: 'You already have a current plan.' }));
   }
   const id = PlanId.generate();
   yield* transactionally(
@@ -242,7 +240,7 @@ export const planEvent = Effect.fn('useCase.planEvent')(function* (
         ? 'Plans are agreed by the owner’s coach, or by their leader if they have no coach.'
         : 'You cannot change this plan.',
     ...(event === 'PROPOSE' && {
-      explain: 'Add one to three focus skills and at least one activity before proposing.',
+      explain: 'Add one to three focus skills and at least one piece of work before proposing.',
     }),
   });
   const at = yield* now;
@@ -292,7 +290,7 @@ export const addActivity = Effect.fn('useCase.addActivity')(function* (
     planAgreers(facts, plan.ownerId, on).includes(actor.personId);
   if (!canEdit)
     return yield* Effect.fail(
-      new Forbidden({ message: 'Only the owner or their coach can add activities.' }),
+      new Forbidden({ message: 'Only the owner or their coach can add work to a plan.' }),
     );
   if (PlanLifecycle.isTerminal(plan.status as PlanStatus)) {
     return yield* Effect.fail(new Unprocessable({ message: 'This plan is closed.' }));
@@ -419,7 +417,9 @@ export const logInteraction = Effect.fn('useCase.logInteraction')(function* (
       null
     ) {
       return yield* Effect.fail(
-        new Unprocessable({ message: 'This activity is closed. Log it as other work instead.' }),
+        new Unprocessable({
+          message: 'This planned work is closed. Log it as something not in your plan instead.',
+        }),
       );
     }
   } else if (!input.adHocTitle || input.adHocTitle.trim().length < 3) {

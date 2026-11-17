@@ -36,7 +36,7 @@ const day = (iso: IsoDate) =>
     timeZone: 'UTC',
   });
 
-/** "1 of your 3 reports was observed…"; one shared sentence for Home and the digest. */
+/** "1 of your 3 reports was observed…" for the digest. */
 export const coverageSentence = (observed: number, of: number): string => {
   if (of === 1) {
     return observed === 1
@@ -84,7 +84,7 @@ export const renderNotification = (
       };
     case 'plan_proposed':
       return {
-        subject: `${someone(p.actorName)} proposed a development plan`,
+        subject: `${someone(p.actorName)} proposed a plan`,
         lines: [
           `Hi ${p.firstName},`,
           `${someone(p.actorName)} would like you to agree their plan.`,

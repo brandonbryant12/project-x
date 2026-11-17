@@ -58,7 +58,7 @@ export const AssistantPreRead = ({
       >
         <ScanSearchIcon aria-hidden className="size-4 text-info-ink" />
         <span className="flex-1">
-          <span className="block text-ui font-medium text-info-ink">Assistant pre-read</span>
+          <span className="block text-ui font-medium text-info-ink">Automated privacy check</span>
           <span className="block text-meta text-ink-3">An automated check. You decide.</span>
         </span>
         <ChevronDownIcon

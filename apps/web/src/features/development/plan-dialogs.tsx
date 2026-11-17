@@ -55,7 +55,7 @@ const SkillToggle = ({
   </button>
 );
 
-/** Start a development plan: one to three focus skills, each with a target level. */
+/** Start a plan: one to three focus skills, each with a target level. */
 export const CreatePlanDialog = ({
   open,
   onClose,
@@ -70,7 +70,7 @@ export const CreatePlanDialog = ({
   const [focus, setFocus] = useState<ReadonlyArray<{ skillId: SkillId; targetLevel: Level }>>([]);
   const create = useApiMutation('development', 'createPlan', {
     onSuccess: () => {
-      toast.success('Plan started. Add the real work that will develop it.');
+      toast.success('Plan started. Add the work that will develop it.');
       onClose();
     },
   });
@@ -85,7 +85,7 @@ export const CreatePlanDialog = ({
     <ResponsiveDialog
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title="Start a development plan"
+      title="Start a plan"
       description="Choose up to three skills and the level you are aiming for. Your coach agrees it with you."
     >
       <form
@@ -269,7 +269,7 @@ const CommitmentFields = ({
   </div>
 );
 
-/** Add real work to a plan, with the observation commitment: who will see it, and how. */
+/** Add work to a plan, with the observation commitment: who will see it, and how. */
 export const AddActivityDialog = ({
   plan,
   open,
@@ -295,7 +295,7 @@ export const AddActivityDialog = ({
   const [dueOn, setDueOn] = useState(plusMonths(1));
   const add = useApiMutation('development', 'addActivity', {
     onSuccess: () => {
-      toast.success('Activity added.');
+      toast.success('Work added.');
       onClose();
     },
   });
@@ -306,7 +306,7 @@ export const AddActivityDialog = ({
     <ResponsiveDialog
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title="Add real work"
+      title="Add work"
       description="Work you will do anyway: a meeting, a review, a conversation."
     >
       <form
@@ -384,7 +384,7 @@ export const AddActivityDialog = ({
             Cancel
           </Button>
           <Button type="submit" variant="primary" disabled={!valid || add.isPending}>
-            {add.isPending ? 'Adding…' : 'Add activity'}
+            {add.isPending ? 'Adding…' : 'Add work'}
           </Button>
         </div>
       </form>

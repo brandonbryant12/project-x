@@ -88,7 +88,7 @@ const ProposeEngagementDialog = ({
 };
 
 /** Profile relation labels that make the viewer a designator (ADR 0020). */
-const DESIGNATORS = new Set(['Your report', 'Your coachee']);
+const DESIGNATORS = new Set(['Your report', 'You coach them']);
 
 const SharedWith = ({ text }: { readonly text: string }) => (
   <span className="inline-flex items-center gap-1 text-meta text-ink-3" title={text}>
@@ -130,14 +130,14 @@ export const ProfileScreen = ({ profile }: { readonly profile: ProfileView }) =>
           {profile.canObserve ? (
             <Button variant="primary" asChild>
               <Link to="/observations/new" search={{ for: profile.person.id }}>
-                Observe {first}
+                I saw this
               </Link>
             </Button>
           ) : null}
           {profile.developmentVisible && !self ? (
             <Button variant="secondary" asChild>
               <Link to="/team/$personId" params={{ personId: profile.person.id }}>
-                Development plan
+                {first}’s plan
               </Link>
             </Button>
           ) : null}
@@ -244,7 +244,7 @@ export const BadgeReceiptScreen = ({ receipt }: { readonly receipt: BadgeReceipt
       </header>
       <p className="mt-6 text-body text-ink-2">{receipt.facts}</p>
       <section className="mt-10 grid gap-4" aria-labelledby="receipt">
-        <SectionLabel id="receipt">The observations behind it</SectionLabel>
+        <SectionLabel id="receipt">How this was earned</SectionLabel>
         <ol className="grid gap-4">
           {receipt.observations.map((o) => (
             <li key={`${o.id}`}>

@@ -38,7 +38,7 @@ const statusLine = (view: ObservationView) => {
     case 'withdrawn':
       return 'This request was withdrawn.';
     case 'expired':
-      return 'This request closed without a signature. Your interaction is still in your plan. You can ask again, or ask someone else.';
+      return 'This request closed without a signature. The work is still in your plan. You can ask again, or ask someone else.';
     case 'voided':
       return 'This observation was voided and its credit reversed.';
   }

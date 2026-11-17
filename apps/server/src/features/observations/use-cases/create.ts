@@ -185,7 +185,7 @@ export const startObservation = Effect.fn('useCase.startObservation')(function* 
       null
     ) {
       return yield* Effect.fail(
-        new Unprocessable({ message: 'That activity is closed. Describe the work instead.' }),
+        new Unprocessable({ message: 'That planned work is closed. Describe the work instead.' }),
       );
     }
   } else if (input.title && input.title.trim().length > 0 && input.title.trim().length < 3) {

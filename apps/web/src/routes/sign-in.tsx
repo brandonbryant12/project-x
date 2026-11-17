@@ -30,7 +30,7 @@ const SignIn = () => {
         <div className="grid gap-2">
           <h1 className="font-serif text-display font-medium">{PRODUCT_NAME}</h1>
           <p className="text-body text-ink-2">
-            Skills that grow through real work, observed and confirmed.
+            Skills that grow through work, observed and confirmed.
           </p>
         </div>
         <Card className="grid gap-5 p-6">

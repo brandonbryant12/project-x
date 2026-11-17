@@ -188,7 +188,7 @@ export const SkillScreen = ({ skill }: { readonly skill: SkillDetail }) => {
             </Tabs>
           </section>
           <section className="grid gap-3" aria-labelledby="templates">
-            <SectionLabel id="templates">Activities that build this</SectionLabel>
+            <SectionLabel id="templates">Work that builds this</SectionLabel>
             {skill.templates.length > 0 ? (
               <Card>
                 <ul className="divide-y divide-line">
@@ -198,7 +198,7 @@ export const SkillScreen = ({ skill }: { readonly skill: SkillDetail }) => {
                 </ul>
               </Card>
             ) : (
-              <p className="text-ui text-ink-3">Any real work can show this skill.</p>
+              <p className="text-ui text-ink-3">Any work can show this skill.</p>
             )}
           </section>
         </div>

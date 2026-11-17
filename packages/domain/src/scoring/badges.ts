@@ -105,7 +105,7 @@ export const evaluateBadge = (
       'demonstrations',
       demonstrations,
       config.minDemonstrations,
-      `${Math.min(demonstrations, config.minDemonstrations)} of ${config.minDemonstrations} demonstrations at ${levelName} or above`,
+      `${Math.min(demonstrations, config.minDemonstrations)} of ${config.minDemonstrations} times observed at ${levelName} or above`,
     ),
     criterion(
       'observers',
@@ -145,7 +145,7 @@ export const nextStepSentence = (evaluation: BadgeEvaluation, skillName: string)
   const demos = unmet('demonstrations');
   if (demos) {
     const n = gap(demos);
-    return `${say(n)} more ${plural(n, 'demonstration')} at ${LEVEL_NAMES[evaluation.level].toLowerCase()} or above to earn ${badge}.`;
+    return `Be observed ${say(n).toLowerCase()} more ${plural(n, 'time')} at ${LEVEL_NAMES[evaluation.level].toLowerCase()} or above to earn ${badge}.`;
   }
   const observers = unmet('observers');
   if (observers) {

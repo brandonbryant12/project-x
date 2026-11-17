@@ -43,7 +43,7 @@ export const AdoptionScreen = ({ data }: { readonly data: AdoptionView }) => {
       />
       <Card className="px-5">
         <dl className="divide-y divide-line">
-          <Measure label="People with a plan" hint="An active or paused development plan">
+          <Measure label="People with a plan" hint="An active or paused plan">
             {data.withPlan}
           </Measure>
           <Measure

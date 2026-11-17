@@ -50,7 +50,7 @@ const ObserverPicker = ({
       [
         ['leader', 'Your leader'],
         ['coach', 'Your coaches'],
-        ['designated', 'Named to observe you'],
+        ['designated', 'Asked to observe you'],
       ] as const
     ).map(([basis, label]) => {
       const people = observers.filter((o) => o.basis === basis);

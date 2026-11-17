@@ -80,7 +80,7 @@ export const PLAN_EVENT_LABEL: Record<string, string> = {
 
 export const ACTIVITY_EVENT_LABEL: Record<string, string> = {
   COMPLETE: 'Mark done',
-  CANCEL: 'Cancel activity',
+  CANCEL: 'Drop this work',
 };
 
 export const ENGAGEMENT_EVENT_LABEL: Record<string, string> = {
@@ -89,17 +89,17 @@ export const ENGAGEMENT_EVENT_LABEL: Record<string, string> = {
   WITHDRAW: 'Withdraw',
   PAUSE: 'Pause',
   RESUME: 'Resume',
-  END: 'End engagement',
+  END: 'Stop coaching',
 };
 
 /** Why an observer may observe: the label beside their name (ADR 0020 adds `designated`). */
 export const BASIS_LABEL: Record<ObserverBasis, string> = {
   leader: 'Leader',
   coach: 'Coach',
-  designated: 'Named observer',
+  designated: 'Asked to observe',
 };
 
-/** "You lead Maya", "Sam is your coach", "Priya was named to observe Maya". */
+/** "You lead Maya", "Sam is your coach", "Priya was asked to observe Maya". */
 export const basisSentence = (
   basis: ObserverBasis,
   viewer: 'observer' | 'subject' | 'viewer',
@@ -107,9 +107,9 @@ export const basisSentence = (
   subject: string,
 ) => {
   if (basis === 'designated') {
-    if (viewer === 'observer') return `You were named to observe ${subject}`;
-    if (viewer === 'subject') return `${observer} was named to observe you`;
-    return `${observer} was named to observe ${subject}`;
+    if (viewer === 'observer') return `You were asked to observe ${subject}`;
+    if (viewer === 'subject') return `${observer} was asked to observe you`;
+    return `${observer} was asked to observe ${subject}`;
   }
   const verb = basis === 'leader' ? 'lead' : 'coach';
   if (viewer === 'observer') return `You ${verb} ${subject}`;

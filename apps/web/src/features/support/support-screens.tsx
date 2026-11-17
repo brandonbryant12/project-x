@@ -52,7 +52,7 @@ const SupportTable = ({
             <th className="px-3 py-3 font-medium">Plan</th>
             <th className="px-3 py-3 font-medium">Waiting on you</th>
             <th className="px-3 py-3 font-medium">Last observed</th>
-            <th className="px-5 py-3 font-medium">Coverage</th>
+            <th className="px-5 py-3 font-medium">Observed in the last 6 weeks</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -201,7 +201,10 @@ const EngagementCard = ({
     <Card className="grid gap-3 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link to="/people/$id" params={{ id: other.id }}>
-          <PersonChip person={other} subtitle={perspective === 'coach' ? 'Coachee' : 'Coach'} />
+          <PersonChip
+            person={other}
+            subtitle={perspective === 'coach' ? 'You coach them' : 'Your coach'}
+          />
         </Link>
         <StatusPill {...ENGAGEMENT_STATUS[engagement.status]} />
       </div>

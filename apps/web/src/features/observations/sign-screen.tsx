@@ -135,7 +135,7 @@ const summaryOf = (draft: Draft) =>
     ...draft.ratings.flatMap((r) => (r.level ? [levelName(r.level)] : [])).slice(0, 1),
   ].join(' · ');
 
-/** What happened, earlier observations and the assistant pre-read; collapsible on phones. */
+/** What happened, earlier observations and any privacy finding; collapsible on phones. */
 const EvidencePane = ({
   view,
   desktop,

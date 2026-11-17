@@ -76,7 +76,7 @@ const KindField = ({
 );
 
 /**
- * Log interaction (ux-brief §2): one screen, four fields, ~30 seconds.
+ * Log work I did (ux-brief §2): one screen, four fields, ~30 seconds.
  * Logging is self-report of the *event*; it never credits.
  */
 export const LogInteractionDialog = () => {
@@ -139,7 +139,7 @@ export const LogInteractionDialog = () => {
       <ResponsiveDialog
         open={dialog.open}
         onOpenChange={(o) => (o ? dialog.show(dialog.activityId) : dialog.hide())}
-        title="Log interaction"
+        title="Log work I did"
         description="Logging adds this to your plan. Credit comes when someone who saw it signs."
       >
         <form
@@ -150,7 +150,7 @@ export const LogInteractionDialog = () => {
           }}
         >
           <Field>
-            <Label htmlFor="log-activity">Activity</Label>
+            <Label htmlFor="log-activity">Which work</Label>
             <NativeSelect
               id="log-activity"
               value={selectedActivity}
@@ -209,7 +209,7 @@ export const LogInteractionDialog = () => {
               Save
             </Button>
             <Button type="submit" variant="primary" disabled={!canSave || log.isPending}>
-              {log.isPending ? 'Saving…' : 'Save and request observation'}
+              {log.isPending ? 'Saving…' : 'Save and ask someone who saw it'}
             </Button>
           </div>
         </form>

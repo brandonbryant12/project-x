@@ -8,6 +8,7 @@ import {
   leaderOf,
   type IsoDate,
   type Level,
+  type ObserverBasis,
   type PersonId,
   type PlanStatus,
   type RelationshipFacts,
@@ -34,6 +35,13 @@ const highestPerSkill = <B extends { personId: string; skillId: string; level: n
         (o) => o.personId === b.personId && o.skillId === b.skillId && o.level > b.level,
       ),
   );
+
+/** How the observer relates to the person who asked, in plain words. */
+const BASIS_RELATION: Record<ObserverBasis, string> = {
+  leader: 'Your report',
+  coach: 'You coach them',
+  designated: 'You were asked to observe them',
+};
 
 /** "Thu, Nov 12": the queue reads like a person wrote it. */
 const humanDate = (iso: string) =>
@@ -143,10 +151,10 @@ const toQueue = (
       title:
         o.status === 'drafting'
           ? `Finish your observation of ${personFrom(people, o.subjectId).displayName}`
-          : `Observe ${personFrom(people, o.subjectId).displayName}`,
+          : `${personFrom(people, o.subjectId).displayName} asked you to observe`,
       detail: null,
       person: personFrom(people, o.subjectId),
-      relation: o.basis === 'leader' ? 'Your report' : 'Your coachee',
+      relation: BASIS_RELATION[o.basis as ObserverBasis],
       dueAt: o.dueAt.toISOString(),
       href: `/observations/${o.id}`,
       actionLabel: o.status === 'drafting' ? 'Continue' : 'Open',
@@ -165,10 +173,10 @@ const toQueue = (
     ...plansToAgree.map((p): QueueItem => ({
       kind: 'agree_plan',
       id: p.id,
-      title: `${personFrom(people, p.ownerId).displayName} proposed a development plan`,
+      title: `${personFrom(people, p.ownerId).displayName} proposed a plan`,
       detail: p.title,
       person: personFrom(people, p.ownerId),
-      relation: coacheesOf(facts, me, on).includes(p.ownerId) ? 'Your coachee' : 'Your report',
+      relation: coacheesOf(facts, me, on).includes(p.ownerId) ? 'You coach them' : 'Your report',
       dueAt: null,
       href: `/team/${p.ownerId}`,
       actionLabel: 'Review plan',
