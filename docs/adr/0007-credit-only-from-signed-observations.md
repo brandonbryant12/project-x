@@ -138,11 +138,14 @@ decisions.**
   the signing transaction by `resolveCreditValue`
   (`packages/domain/src/scoring/values.ts`), most specific first:
   1. the activity's own value for that skill (source `activity`), applied only
-     to work done on or after the business date the value was set
-     (`activity_skill.points_override_at`), so it never values work that had
-     already happened, and only while the tenant allows individual values and
-     the value lies inside the range in force at signing; otherwise it is
-     ignored, never clamped;
+     to work done on or after the business date the value was set AND logged
+     at or after the moment it was set (`interaction.created_at` against
+     `activity_skill.points_override_at`, both server time), so it never
+     values work already logged, even earlier the same day, and only while the
+     tenant allows individual values and the value lies inside the range in
+     force at signing; otherwise it is ignored, never clamped. One value is
+     kept per skill: a new value, or a clear, sends work logged under the old
+     one back to the next source below;
   2. the template's value, copied onto the activity when the work was added,
      when the credit's role equals the skill's role on the activity (source
      `template`); the live template is never read at signing;

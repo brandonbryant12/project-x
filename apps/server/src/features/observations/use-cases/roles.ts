@@ -14,6 +14,7 @@ import {
   type SkillId,
   type SkillRole,
   type TenantId,
+  type WorkTiming,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { and, asc, eq, gt, isNull, lte, or } from 'drizzle-orm';
@@ -101,22 +102,22 @@ export const requireSkillLimit = (policy: CreditPolicy, count: number) =>
       );
 
 /**
- * What each credit of this work (done on `workOn`) is worth, by skill and
- * role. Call only inside the signing transaction.
+ * What each credit of this work (done on `work.on`, logged at `work.loggedAt`)
+ * is worth, by skill and role. Call only inside the signing transaction.
  */
 export const creditValues = Effect.fn('observations.creditValues')(function* (
   tenantId: TenantId,
   policy: CreditPolicy,
   listed: ReadonlyArray<ListedSkill>,
   skillIds: ReadonlyArray<SkillId>,
-  workOn: IsoDate,
+  work: WorkTiming,
 ) {
   const skills = yield* loadSkills(tenantId, skillIds);
   return (skillId: SkillId, role: SkillRole): CreditValue =>
     resolveCreditValue({
       role,
       policy,
-      workOn,
+      work,
       activity: listed.find((s) => s.skillId === skillId),
       skill: skills.get(skillId),
     });

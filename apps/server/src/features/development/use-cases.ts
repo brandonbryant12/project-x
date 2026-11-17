@@ -709,8 +709,11 @@ export const updateActivity = Effect.fn('useCase.updateActivity')(function* (
 /**
  * Set or clear one skill's individual value on planned work (design §6). It is
  * written before the work is observed, and applies only to work done on or
- * after the business date it is set (signing compares the work's date with
- * `points_override_at`), so it never values work that had already happened.
+ * after the business date it is set and logged at or after the moment it is set
+ * (signing compares the work's date and `interaction.created_at` with
+ * `points_override_at`), so it never values work already logged, even earlier
+ * the same day (I38). One column holds one value: a new value or a clear sends
+ * work logged under the old one back to the template, skill or tenant value.
  * The reason is kept as a note and the change is audited with before and after.
  */
 export const setActivityValue = Effect.fn('useCase.setActivityValue')(function* (

@@ -202,8 +202,9 @@ export const activitySkill = pgTable(
     role: text('role').notNull(),
     /**
      * This activity's own value for the skill. It applies only to work done on
-     * or after the business date it was set (`points_override_at`), so a value
-     * never reaches work that had already happened.
+     * or after the business date it was set AND logged (`interaction.created_at`)
+     * at or after the moment it was set (`points_override_at`), so a value never
+     * reaches work already logged, even earlier the same day (I38).
      */
     pointsOverride: integer('points_override'),
     pointsOverrideById: text('points_override_by_id').$type<PersonId>(),

@@ -197,7 +197,7 @@ const writeDraft = Effect.fn('observations.writeDraft')(function* (
 const appendCredits = Effect.fn('observations.appendCredits')(function* (
   actor: Actor,
   row: ObservationRow,
-  interaction: { readonly occurredOn: IsoDate },
+  interaction: { readonly occurredOn: IsoDate; readonly createdAt: Date },
   mode: ObservationMode,
   policy: CreditPolicy,
 ) {
@@ -217,7 +217,7 @@ const appendCredits = Effect.fn('observations.appendCredits')(function* (
     policy,
     yield* skillsOfWork(actor.tenantId, row.interactionId),
     ratings.map((r) => r.skillId),
-    interaction.occurredOn,
+    { on: interaction.occurredOn, loggedAt: interaction.createdAt },
   );
   const subjectPositionId = yield* positionOn(
     actor.tenantId,

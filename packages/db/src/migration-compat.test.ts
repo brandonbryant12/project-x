@@ -299,7 +299,7 @@ layer(Harness, { timeout: 120_000 })('migration to weighted credit', (it) => {
           .from(schema.activitySkill)
           .orderBy(asc(schema.activitySkill.skillId));
         // An individual value stored before values were dated takes the time of
-        // the migration, so it reaches only work from then on (I38).
+        // the migration, so it reaches only work logged from then on (I38).
         assert.deepStrictEqual(
           activitySkills.map((s) => [
             s.skillId,

@@ -63,7 +63,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('same work once; how this was earned'
         const skillId = planning.id as SkillId;
 
         // Sam, Maya's coach, valued her goals conversations a month ago, before any
-        // was done (a value applies only to work from the day it is set).
+        // was done or logged (a value applies only to work logged after it is set).
         yield* TestClock.setTime(SCENARIO_NOW - 30 * 86_400_000);
         yield* signInAs('Sam Rivera');
         const annual = (yield* api.development.of({

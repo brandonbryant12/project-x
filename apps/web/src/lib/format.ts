@@ -19,6 +19,10 @@ export const formatDate = (iso: string, opts: Intl.DateTimeFormatOptions = {}) =
 export const humanizeDates = (text: string) =>
   text.replaceAll(/\b(\d{4}-\d{2}-\d{2})\b/g, (iso) => formatDate(iso));
 
+/** A moment as a date and a time of day ("17 Nov, 11:04"). */
+export const formatDateTime = (iso: string) =>
+  formatDate(iso, { hour: 'numeric', minute: '2-digit' });
+
 export const formatLongDate = (iso: string) =>
   formatDate(iso, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 

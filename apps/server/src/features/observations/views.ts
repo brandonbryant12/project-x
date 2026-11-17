@@ -325,10 +325,10 @@ const draftValues = Effect.fn('observations.draftValues')(function* (
     const row = listed.find((s) => s.skillId === skillId);
     const skill = parts.skills.get(skillId);
     const activity = row ? activitySkillValue(row, timeZone) : null;
-    const workOn = parts.interaction.occurredOn;
+    const work = { on: parts.interaction.occurredOn, loggedAt: parts.interaction.createdAt };
     return {
-      primary: resolveCreditValue({ role: 'primary', policy, workOn, activity, skill }).points,
-      secondary: resolveCreditValue({ role: 'secondary', policy, workOn, activity, skill }).points,
+      primary: resolveCreditValue({ role: 'primary', policy, work, activity, skill }).points,
+      secondary: resolveCreditValue({ role: 'secondary', policy, work, activity, skill }).points,
     };
   };
   return { maxSkills: policy.maxSkillsPerObservation, valuesOf };

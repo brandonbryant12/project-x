@@ -63,12 +63,18 @@ export const ActivitySkillView = Schema.Struct({
   /** What one signed observation of this skill in this role would add today. */
   value: ResolvedValue,
   /**
-   * The activity's own value, with who set it and the date of the work it
-   * applies from (the business date it was set; earlier work never gets it);
-   * null when there is none.
+   * The activity's own value, with who set it and when: it reaches only work
+   * logged at or after `setAt` and done on or after `appliesFrom` (the
+   * business date of `setAt`), so work already logged never gets it, even
+   * earlier the same day. Null when there is none.
    */
   override: Schema.NullOr(
-    Schema.Struct({ points: Schema.Number, setBy: PersonSummary, appliesFrom: IsoDate }),
+    Schema.Struct({
+      points: Schema.Number,
+      setBy: PersonSummary,
+      setAt: Instant,
+      appliesFrom: IsoDate,
+    }),
   ),
   /** The value the skill would get without the activity's own value. */
   valueWithoutOverride: ResolvedValue,

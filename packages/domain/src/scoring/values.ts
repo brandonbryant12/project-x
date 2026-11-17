@@ -7,7 +7,9 @@ export interface ActivitySkillValue {
   readonly role: SkillRole;
   /** The activity's own value, set by a plan agreer or program owner. */
   readonly pointsOverride: number | null;
-  /** The business date the activity's own value was set; it applies to work from then on. */
+  /** The moment the activity's own value was set (server time). */
+  readonly pointsOverrideAt: Date | null;
+  /** The business date of `pointsOverrideAt` in the tenant's zone. */
   readonly pointsOverrideFrom: IsoDate | null;
   /** The template's value, copied when the work was added; never read live from the template. */
   readonly templatePoints: number | null;
@@ -18,21 +20,40 @@ export interface ActivitySkillValue {
  * frozen on the credit row. Most specific wins:
  *
  * 1. the activity's own value for this skill (`activity`), only for work done
- *    on or after the business date the value was set (a value never reaches
- *    work that had already happened), only while the tenant allows individual
- *    values AND the value lies inside the range in force at signing; otherwise
- *    it is not applied (never clamped: a value nobody chose is never written to
- *    the ledger) and resolution falls through;
+ *    on or after the business date the value was set AND logged at or after
+ *    the moment it was set (server time, which nobody can backdate), so a value
+ *    never reaches work that was already logged, even earlier the same day;
+ *    only while the tenant allows individual values AND the value lies inside
+ *    the range in force at signing; otherwise it is not applied (never clamped:
+ *    a value nobody chose is never written to the ledger) and resolution falls
+ *    through;
  * 2. the template's value copied onto the activity, when the credit's role
  *    equals the skill's role on the activity (`template`);
  * 3. the skill's value for the role (`skill`);
  * 4. the tenant's value for the role (`tenant`).
  */
+export interface WorkTiming {
+  readonly on: IsoDate;
+  readonly loggedAt: Date;
+}
+
+/** Whether the activity's own value was set early enough to reach this work. */
+const valueReaches = (activity: ActivitySkillValue, work: WorkTiming | null): boolean =>
+  work !== null &&
+  activity.pointsOverrideFrom !== null &&
+  activity.pointsOverrideAt !== null &&
+  work.on >= activity.pointsOverrideFrom &&
+  work.loggedAt.getTime() >= activity.pointsOverrideAt.getTime();
+
 export interface CreditValueInput {
   readonly role: SkillRole;
   readonly policy: CreditPolicy;
-  /** The date of the work being valued; null when there is no work (a value in general). */
-  readonly workOn: IsoDate | null;
+  /**
+   * The work being valued: the date it was done (chosen by the person) and
+   * when it was logged (`interaction.created_at`, server time). Null when there
+   * is no work (a value in general).
+   */
+  readonly work: WorkTiming | null;
   readonly activity?: ActivitySkillValue | null | undefined;
   readonly skill?:
     | { readonly primaryPoints: number | null; readonly secondaryPoints: number | null }
@@ -48,19 +69,17 @@ export interface CreditValue {
 export const resolveCreditValue = ({
   role,
   policy,
-  workOn,
+  work,
   activity,
   skill,
 }: CreditValueInput): CreditValue => {
   const overrides = policy.activityOverrides;
   const override = activity?.pointsOverride;
-  const from = activity?.pointsOverrideFrom;
   if (
     overrides.enabled &&
+    activity != null &&
     override != null &&
-    from != null &&
-    workOn !== null &&
-    workOn >= from &&
+    valueReaches(activity, work) &&
     override >= overrides.minPoints &&
     override <= overrides.maxPoints
   ) {
@@ -82,8 +101,8 @@ export const roleValues = (
   policy: CreditPolicy,
   skill?: { readonly primaryPoints: number | null; readonly secondaryPoints: number | null } | null,
 ): Readonly<Record<SkillRole, number>> => ({
-  primary: resolveCreditValue({ role: 'primary', policy, workOn: null, skill }).points,
-  secondary: resolveCreditValue({ role: 'secondary', policy, workOn: null, skill }).points,
+  primary: resolveCreditValue({ role: 'primary', policy, work: null, skill }).points,
+  secondary: resolveCreditValue({ role: 'secondary', policy, work: null, skill }).points,
 });
 
 export interface RatedSkill {

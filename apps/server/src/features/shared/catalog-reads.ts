@@ -97,8 +97,9 @@ export const loadPlanSkills = Effect.fn('plan.skills')(function* (
 export type ActivitySkillRow = typeof schema.activitySkill.$inferSelect;
 
 /**
- * A skill row as value resolution reads it. An individual value applies from
- * the business date it was set, in the tenant's time zone (I38).
+ * A skill row as value resolution reads it. An individual value reaches work
+ * done on or after the business date it was set (in the tenant's time zone)
+ * and logged at or after the moment it was set (I38).
  */
 export const activitySkillValue = (
   row: Pick<ActivitySkillRow, 'role' | 'pointsOverride' | 'pointsOverrideAt' | 'templatePoints'>,
@@ -106,6 +107,7 @@ export const activitySkillValue = (
 ): ActivitySkillValue => ({
   role: row.role as SkillRole,
   pointsOverride: row.pointsOverride,
+  pointsOverrideAt: row.pointsOverrideAt,
   pointsOverrideFrom: row.pointsOverrideAt ? businessDateIn(row.pointsOverrideAt, timeZone) : null,
   templatePoints: row.templatePoints,
 });

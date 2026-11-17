@@ -12,10 +12,11 @@ import { assert, layer } from '@effect/vitest';
 import { and, eq } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { HttpApiTest } from 'effect/http-api';
+import { TestClock } from 'effect/testing';
 import { inspectTenantCreditPolicy, saveCreditPolicy } from '../features/shared/recognition.ts';
 import { addDaysIso, today } from '../platform/time.ts';
 import { seedWorld } from '../scripts/seed-world.ts';
-import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
+import { SCENARIO_NOW, ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
 import { OUTSIDER, seedSecondTenant } from '../test/second-tenant.ts';
 
 /**
@@ -27,9 +28,10 @@ import { OUTSIDER, seedSecondTenant } from '../test/second-tenant.ts';
  * other edits and leaves only with its skill; an individual value is set by an
  * agreer or a program owner, never the subject whatever grants they hold,
  * within the tenant's range, with a reason, before the work is observed, and a
- * credit signed afterwards for work done from the day it was set carries it,
- * while earlier credit, and work done before it was set, are unchanged. The
- * tests share one seeded tenant and run in order.
+ * credit signed afterwards for work done from the day it was set and logged
+ * after it carries it, while earlier credit, work done before it was set, and
+ * work logged earlier the same day are unchanged (I38). The tests share one
+ * seeded tenant and run in order.
  */
 const client = HttpApiTest.groups(Api, ['development', 'observations']);
 
@@ -399,6 +401,21 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
             reflection: 'Prepared the annual review and asked them to bring last year’s goals.',
           },
         });
+        // And this morning at 10:00, still before anyone valued it.
+        const thisMorning = yield* api.development.logInteraction({
+          payload: {
+            activityId: annual.id,
+            adHocTitle: null,
+            adHocSkillIds: [],
+            occurredOn: on,
+            kind: 'client_meeting',
+            clientRef: null,
+            reflection: 'Called the couple to agree what the annual review would cover.',
+          },
+        });
+        // The values below are set an hour later, at 11:00 the same business day.
+        yield* TestClock.adjust(3_600_000);
+        const valuesSetAt = new Date(SCENARIO_NOW + 3_600_000).toISOString();
         const set = (points: number | null, reason = REASON, activityId = annual.id) =>
           Effect.gen(function* () {
             return yield* api.development.setActivityValue({
@@ -477,7 +494,10 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
         );
         assert.deepStrictEqual(seen?.value, { points: 14, source: 'activity' });
         assert.strictEqual(seen?.override?.setBy.id, ids.sam);
-        assert.strictEqual(seen?.override?.appliesFrom, on);
+        assert.deepStrictEqual(
+          [seen?.override?.appliesFrom, seen?.override?.setAt],
+          [on, valuesSetAt],
+        );
         assert.deepStrictEqual(seen?.valueWithoutOverride, {
           points: DEFAULT_CREDIT_POLICY.primaryPoints,
           source: 'tenant',
@@ -601,6 +621,35 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
         });
         assert.deepStrictEqual(
           lateSigned.credits.map((c) => [c.role, c.points, c.pointsSource]),
+          [['primary', DEFAULT_CREDIT_POLICY.primaryPoints, 'tenant']],
+        );
+
+        // Nor does work done the same day but logged before the value was set.
+        const sameDay = yield* api.observations.start({
+          payload: {
+            subjectId: ids.maya,
+            interactionId: thisMorning.id,
+            activityId: null,
+            title: null,
+            occurredOn: on,
+            kind: 'client_meeting',
+            mode: 'saw_it',
+            skillIds: [planning],
+          },
+        });
+        const sameDaySigned = yield* api.observations.sign({
+          params: { id: sameDay.id },
+          payload: {
+            version: sameDay.version,
+            mode: 'saw_it',
+            ratings: [{ skillId: planning, level: 2, indicatorIds: [], credit: true }],
+            narrativeSaw:
+              'Maya agreed the agenda with the couple and checked they could both attend.',
+            narrativeNext: 'Send the agenda in writing after the call.',
+          },
+        });
+        assert.deepStrictEqual(
+          sameDaySigned.credits.map((c) => [c.role, c.points, c.pointsSource]),
           [['primary', DEFAULT_CREDIT_POLICY.primaryPoints, 'tenant']],
         );
       }),

@@ -35,7 +35,7 @@ import { ResponsiveDialog } from '@/components/responsive-dialog.tsx';
 import { Page, SkillChip } from '@/components/page.tsx';
 import { useLogDialog } from '@/components/shell/log-dialog-context.tsx';
 import { queryOptions, useApiMutation } from '@/lib/api.ts';
-import { formatDate, kindLabel, levelName } from '@/lib/format.ts';
+import { formatDate, formatDateTime, kindLabel, levelName } from '@/lib/format.ts';
 import {
   ACTIVITY_EVENT_LABEL,
   ACTIVITY_STATUS,
@@ -238,8 +238,8 @@ const ValueSource = ({ skill }: { readonly skill: ActivitySkillView }) => {
   if (skill.override) {
     return (
       <span className="text-meta text-ink-3">
-        Set for this work by {skill.override.setBy.displayName}; applies to work from{' '}
-        {formatDate(skill.override.appliesFrom)}
+        Set for this work by {skill.override.setBy.displayName}; applies to work logged from{' '}
+        {formatDateTime(skill.override.setAt)}
         {skill.value.source === 'activity'
           ? ''
           : ` (not in use: ${VALUE_SOURCE[skill.value.source]} applies)`}

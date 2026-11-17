@@ -365,6 +365,8 @@ export const startObservation = Effect.fn('useCase.startObservation')(function* 
           occurredOn,
           kind: input.kind,
           clientRef: null,
+          // The Effect clock, as logInteraction: an individual value compares it (I38).
+          createdAt: yield* now,
         });
       }
       yield* db.insert(schema.observation).values({

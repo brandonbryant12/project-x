@@ -108,8 +108,9 @@ const snapshotCriteria = (thresholds: Readonly<Record<string, number>>): BadgeCr
   return reading.criteria;
 };
 
-/** An activity value, when given, was set on 2026-11-10. */
+/** An activity value, when given, was set at 10:00 on 2026-11-10 (New York). */
 const VALUE_SET_ON = '2026-11-10' as IsoDate;
+const VALUE_SET_AT = new Date('2026-11-10T15:00:00Z');
 const onActivity = (
   role: 'primary' | 'secondary',
   pointsOverride: number | null,
@@ -117,8 +118,14 @@ const onActivity = (
 ) => ({
   role,
   pointsOverride,
+  pointsOverrideAt: pointsOverride === null ? null : VALUE_SET_AT,
   pointsOverrideFrom: pointsOverride === null ? null : VALUE_SET_ON,
   templatePoints,
+});
+/** Work done on `on` and logged at `loggedAt`; by default, logged well after any value was set. */
+const workDone = (on: string, loggedAt = '2026-11-16T15:00:00Z') => ({
+  on: on as IsoDate,
+  loggedAt: new Date(loggedAt),
 });
 
 describe('one piece of work counts once per skill (the projection)', () => {
@@ -433,15 +440,33 @@ describe('what a credit is worth', () => {
       value: { points: 15, source: 'activity' },
     },
     {
-      rule: 'the activity’s own value applies to work on the day it was set',
+      rule: 'the activity’s own value applies to work of the day it was set, logged after it',
       input: { role: 'primary', activity: onActivity('primary', 15, 8), skill },
-      workOn: VALUE_SET_ON,
+      work: workDone(VALUE_SET_ON, '2026-11-10T16:00:00Z'),
+      value: { points: 15, source: 'activity' },
+    },
+    {
+      rule: 'the activity’s own value applies to work logged at the very moment it was set',
+      input: { role: 'primary', activity: onActivity('primary', 15, 8), skill },
+      work: workDone(VALUE_SET_ON, VALUE_SET_AT.toISOString()),
       value: { points: 15, source: 'activity' },
     },
     {
       rule: 'the activity’s own value never reaches work done before it was set',
       input: { role: 'primary', activity: onActivity('primary', 15, 8), skill },
-      workOn: '2026-11-09' as IsoDate,
+      work: workDone('2026-11-09'),
+      value: { points: 8, source: 'template' },
+    },
+    {
+      rule: 'the activity’s own value never reaches work logged earlier the same day',
+      input: { role: 'primary', activity: onActivity('primary', 15, 8), skill },
+      work: workDone(VALUE_SET_ON, '2026-11-10T14:00:00Z'),
+      value: { points: 8, source: 'template' },
+    },
+    {
+      rule: 'the activity’s own value never applies to a value in general (no work)',
+      input: { role: 'primary', activity: onActivity('primary', 15, 8), skill },
+      work: null,
       value: { points: 8, source: 'template' },
     },
     {
@@ -470,8 +495,8 @@ describe('what a credit is worth', () => {
       value: { points: 3, source: 'tenant' },
     },
   ] as const)('$rule', ({ input, value, ...rest }) => {
-    const workOn = 'workOn' in rest ? rest.workOn : ('2026-11-16' as IsoDate);
-    expect(resolveCreditValue({ policy, workOn, ...input })).toEqual(value);
+    const timing = 'work' in rest ? rest.work : workDone('2026-11-16');
+    expect(resolveCreditValue({ policy, work: timing, ...input })).toEqual(value);
   });
 
   it('ignores an activity’s own value while the tenant does not allow them, falling through', () => {
@@ -483,7 +508,7 @@ describe('what a credit is worth', () => {
       resolveCreditValue({
         policy: closed,
         role: 'primary',
-        workOn: '2026-11-16' as IsoDate,
+        work: workDone('2026-11-16'),
         activity: onActivity('primary', 15, null),
       }),
     ).toEqual({ points: 10, source: 'tenant' });
