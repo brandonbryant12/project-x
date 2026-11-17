@@ -1,14 +1,17 @@
 import { Conflict, CurrentActor, Forbidden, NotFound, Unprocessable } from '@repo/api';
 import {
   ENGAGEMENT_PROPOSAL_DAYS,
+  ENGAGEMENT_PROPOSAL_REASON_TEXT,
   EngagementId,
   EngagementLifecycle,
+  checkEngagementProposal,
   hasCoachGrantOn,
   type EngagementStatus,
   type PersonId,
+  type TenantId,
 } from '@repo/domain';
 import { Db, schema, transactionally } from '@repo/db';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, or } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { addDays, now, today } from '../../platform/time.ts';
 import { recordAudit } from '../shared/audit.ts';
@@ -30,7 +33,34 @@ export const loadEngagement = Effect.fn('engagements.load')(function* (id: Engag
   return row;
 });
 
-/** Anyone may propose an engagement with a coach; a coach may propose to anyone (the mesh). */
+/** Live engagements between two people, in either direction (proposed, active or paused). */
+const liveBetween = Effect.fn('engagements.liveBetween')(function* (
+  tenantId: TenantId,
+  a: PersonId,
+  b: PersonId,
+) {
+  const db = yield* Db;
+  return yield* db
+    .select({ coachId: schema.engagement.coachId, coacheeId: schema.engagement.coacheeId })
+    .from(schema.engagement)
+    .where(
+      and(
+        eq(schema.engagement.tenantId, tenantId),
+        inArray(schema.engagement.status, ['proposed', 'active', 'paused']),
+        or(
+          and(eq(schema.engagement.coachId, a), eq(schema.engagement.coacheeId, b)),
+          and(eq(schema.engagement.coachId, b), eq(schema.engagement.coacheeId, a)),
+        ),
+      ),
+    );
+});
+
+/**
+ * Either party may propose, in either direction, when `checkEngagementProposal`
+ * allows it: the coach holds the coach grant, is not the coachee's direct
+ * leader, and the pair has no live engagement either way. The profile offers
+ * exactly these directions (`proposableDirections`).
+ */
 export const proposeEngagement = Effect.fn('useCase.proposeEngagement')(function* (input: {
   readonly coachId: PersonId;
   readonly coacheeId: PersonId;
@@ -43,31 +73,41 @@ export const proposeEngagement = Effect.fn('useCase.proposeEngagement')(function
       new Forbidden({ message: 'You can only propose an engagement you are part of.' }),
     );
   }
-  if (input.coachId === input.coacheeId) {
-    return yield* Effect.fail(new Unprocessable({ message: 'Coaching needs two people.' }));
-  }
-  const facts = yield* loadRelationshipFacts(actor.tenantId);
-  if (!hasCoachGrantOn(facts, input.coachId, yield* today)) {
-    return yield* Effect.fail(
-      new Unprocessable({ message: 'That person is not a coach.', field: 'coachId' }),
-    );
-  }
-  const open = yield* db
-    .select({ id: schema.engagement.id })
-    .from(schema.engagement)
+  const otherId = actor.personId === input.coachId ? input.coacheeId : input.coachId;
+  const [other] = yield* db
+    .select({ id: schema.person.id })
+    .from(schema.person)
     .where(
       and(
-        eq(schema.engagement.coachId, input.coachId),
-        eq(schema.engagement.coacheeId, input.coacheeId),
-        inArray(schema.engagement.status, ['proposed', 'active', 'paused']),
+        eq(schema.person.tenantId, actor.tenantId),
+        eq(schema.person.id, otherId),
+        eq(schema.person.status, 'active'),
       ),
     );
-  if (open.length > 0)
-    return yield* Effect.fail(new Conflict({ message: 'There is already an open engagement.' }));
+  if (!other) return yield* Effect.fail(new NotFound({ entity: 'person', id: otherId }));
+  const facts = yield* loadRelationshipFacts(actor.tenantId);
+  const on = yield* today;
   const id = EngagementId.generate();
   const at = yield* now;
   yield* transactionally(
     Effect.gen(function* () {
+      const check = checkEngagementProposal(facts, {
+        coachId: input.coachId,
+        coacheeId: input.coacheeId,
+        on,
+        live: yield* liveBetween(actor.tenantId, input.coachId, input.coacheeId),
+      });
+      if (!check.ok) {
+        const message = ENGAGEMENT_PROPOSAL_REASON_TEXT[check.reason];
+        return yield* Effect.fail(
+          check.reason === 'already_engaged'
+            ? new Conflict({ message })
+            : new Unprocessable({
+                message,
+                ...(check.reason === 'not_a_coach' && { field: 'coachId' }),
+              }),
+        );
+      }
       yield* db.insert(schema.engagement).values({
         id,
         tenantId: actor.tenantId,
@@ -85,7 +125,7 @@ export const proposeEngagement = Effect.fn('useCase.proposeEngagement')(function
         to: 'proposed',
       });
       yield* notify(actor.tenantId, {
-        recipientId: actor.personId === input.coachId ? input.coacheeId : input.coachId,
+        recipientId: otherId,
         kind: 'engagement_proposed',
         entityType: 'engagement',
         entityId: id,

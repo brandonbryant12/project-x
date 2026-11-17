@@ -11,6 +11,8 @@ import {
   PersonAvatar,
   Pill,
   SectionLabel,
+  SegmentedControl,
+  SegmentedItem,
   Textarea,
   toast,
 } from '@repo/ui';
@@ -25,6 +27,36 @@ import { useSession } from '@/lib/session.ts';
 import { ProgressBlock } from '@/features/development/development-screen.tsx';
 import { DesignationsSection } from './designations.tsx';
 
+type CoachingDirection = ProfileView['coachingDirections'][number];
+
+/** Each direction, from the viewer's side, in plain words. */
+const DIRECTION_COPY: Record<
+  CoachingDirection,
+  {
+    readonly button: string;
+    readonly choice: (first: string) => string;
+    readonly title: (first: string) => string;
+  }
+> = {
+  coach_them: {
+    button: 'Offer coaching',
+    choice: (first) => `I coach ${first}`,
+    title: (first) => `Offer to coach ${first}`,
+  },
+  coach_me: {
+    button: 'Ask to coach me',
+    choice: (first) => `${first} coaches me`,
+    title: (first) => `Ask ${first} to coach you`,
+  },
+};
+
+/** The profile's coaching button: one direction names itself; two open a choice. */
+const proposeLabel = (directions: ProfileView['coachingDirections']) =>
+  directions.length === 1 && directions[0]
+    ? DIRECTION_COPY[directions[0]].button
+    : 'Propose coaching';
+
+/** Offers only the directions the server says are possible for this viewer and person. */
 const ProposeEngagementDialog = ({
   profile,
   open,
@@ -36,19 +68,25 @@ const ProposeEngagementDialog = ({
 }) => {
   const session = useSession();
   const [note, setNote] = useState('');
-  const iCoach = session.relations.isCoach;
-  const first = profile.person.displayName.split(' ')[0];
+  const directions = profile.coachingDirections;
+  const [chosen, setChosen] = useState<CoachingDirection | null>(null);
+  const direction = chosen && directions.includes(chosen) ? chosen : (directions[0] ?? null);
+  const first = profile.person.displayName.split(' ')[0] ?? profile.person.displayName;
   const propose = useApiMutation('support', 'proposeEngagement', {
     onSuccess: () => {
       toast.success(`Proposed. ${first} can accept or decline.`);
       onClose();
     },
   });
+  if (!direction) return null;
+  const iCoach = direction === 'coach_them';
   return (
     <ResponsiveDialog
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title={iCoach ? `Offer to coach ${first}` : `Ask ${first} to coach you`}
+      title={
+        directions.length > 1 ? `Coaching with ${first}` : DIRECTION_COPY[direction].title(first)
+      }
       description="Coaching carries no reporting relationship. Either of you can end it."
     >
       <form
@@ -64,6 +102,23 @@ const ProposeEngagementDialog = ({
           });
         }}
       >
+        {directions.length > 1 ? (
+          <Field>
+            <Label>Who coaches whom</Label>
+            <SegmentedControl
+              type="single"
+              value={direction}
+              onValueChange={(v) => v && setChosen(v as CoachingDirection)}
+              aria-label="Who coaches whom"
+            >
+              {directions.map((d) => (
+                <SegmentedItem key={d} value={d}>
+                  {DIRECTION_COPY[d].choice(first)}
+                </SegmentedItem>
+              ))}
+            </SegmentedControl>
+          </Field>
+        ) : null}
         <Field>
           <Label htmlFor="engagement-note">What you would like to work on · optional</Label>
           <Textarea
@@ -79,7 +134,7 @@ const ProposeEngagementDialog = ({
             Cancel
           </Button>
           <Button type="submit" variant="primary" disabled={propose.isPending}>
-            Propose
+            {DIRECTION_COPY[direction].title(first)}
           </Button>
         </div>
       </form>
@@ -141,9 +196,9 @@ export const ProfileScreen = ({ profile }: { readonly profile: ProfileView }) =>
               </Link>
             </Button>
           ) : null}
-          {profile.canProposeEngagement ? (
+          {profile.coachingDirections.length > 0 ? (
             <Button variant="secondary" onClick={() => setProposing(true)}>
-              {session.relations.isCoach ? 'Offer coaching' : 'Ask to coach me'}
+              {proposeLabel(profile.coachingDirections)}
             </Button>
           ) : null}
         </div>

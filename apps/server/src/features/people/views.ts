@@ -5,7 +5,7 @@ import {
   checkObserverEligibility,
   developmentAccess,
   projectWork,
-  hasCoachGrantOn,
+  proposableDirections,
   type BadgeAwardId,
   type Level,
   type ObservationMode,
@@ -147,8 +147,8 @@ export const buildProfile = Effect.fn('people.profile')(function* (id: PersonId)
     : [];
   const credited = visible ? [...(yield* netCreditsBySkill(actor.tenantId, person.id)).keys()] : [];
   const relation = relationLabel(facts, actor.personId, person.id, on);
-  const openEngagement = yield* db
-    .select({ id: schema.engagement.id })
+  const live = yield* db
+    .select({ coachId: schema.engagement.coachId, coacheeId: schema.engagement.coacheeId })
     .from(schema.engagement)
     .where(
       and(
@@ -166,8 +166,6 @@ export const buildProfile = Effect.fn('people.profile')(function* (id: PersonId)
         ),
       ),
     );
-  const iCoach = hasCoachGrantOn(facts, actor.personId, on);
-  const theyCoach = hasCoachGrantOn(facts, person.id, on);
   return {
     person: toPersonSummary(person),
     email: person.email,
@@ -199,8 +197,15 @@ export const buildProfile = Effect.fn('people.profile')(function* (id: PersonId)
       subjectId: person.id,
       on,
     }).eligible,
-    canProposeEngagement:
-      person.id !== actor.personId && openEngagement.length === 0 && (iCoach || theyCoach),
+    coachingDirections:
+      person.status === 'active'
+        ? proposableDirections(facts, {
+            viewerId: actor.personId,
+            otherId: person.id,
+            on,
+            live,
+          })
+        : [],
   };
 });
 

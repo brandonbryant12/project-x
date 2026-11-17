@@ -1,4 +1,11 @@
-import { EngagementId, EngagementLifecycle, IsoDate, PlanId, PlanLifecycle } from '@repo/domain';
+import {
+  EngagementId,
+  EngagementLifecycle,
+  IsoDate,
+  ObservationId,
+  PlanId,
+  PlanLifecycle,
+} from '@repo/domain';
 import { Schema } from 'effect';
 import { Instant, PersonSummary, SkillRef } from './common.ts';
 
@@ -50,11 +57,27 @@ export const ObserveSuggestion = Schema.Struct({
   href: Schema.String,
 });
 
-/** Home has three parts: waiting on you, your plan (with the next step), and recently. */
+/**
+ * Home has three parts: waiting on you, your plan, and recently. "Your plan"
+ * leads with what to practise ("Try next time"), then one quiet progress line.
+ */
 export const HomeView = Schema.Struct({
   firstName: Schema.String,
   needsYou: Schema.Array(QueueItem),
   needsYouTotal: Schema.Number,
+  /**
+   * The viewer's latest signed "What next" (a signed or under-review observation
+   * of the viewer; never a draft, never a voided one). Null when there is none.
+   */
+  tryNextTime: Schema.NullOr(
+    Schema.Struct({
+      sentence: Schema.String,
+      observer: PersonSummary,
+      signedAt: Instant,
+      observationId: ObservationId,
+    }),
+  ),
+  /** The progress line: the next badge's sentence for the first focus skill with an unmet criterion. */
   nextStep: Schema.NullOr(Schema.Struct({ skill: SkillRef, sentence: Schema.String })),
   recently: Schema.Array(FeedItem),
   plan: Schema.NullOr(
