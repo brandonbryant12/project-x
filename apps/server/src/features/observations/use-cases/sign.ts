@@ -14,7 +14,9 @@ import {
   isFirstHand,
   screenLocally,
   type CreditPolicy,
+  type IsoDate,
   type ObservationId,
+  type ObservationMode,
   type ObservationStatus,
   type SkillId,
   type SkillIndicatorId,
@@ -38,6 +40,10 @@ import { creditValues, positionOn, requireSkillLimit, rolesFor, skillsOfWork } f
 import { currentVersions, loadVisible, requireEligible } from './shared.ts';
 
 type ObservationRow = typeof schema.observation.$inferSelect;
+
+/** A role stored on an unsigned rating; `unclassified` (legacy, signed only) is treated as none. */
+const storedRole = (role: string | undefined): SkillRole | undefined =>
+  role === 'primary' || role === 'secondary' ? role : undefined;
 
 const requireObserver = (actor: Actor, row: ObservationRow) =>
   row.observerId === actor.personId
@@ -80,7 +86,7 @@ const writeDraft = Effect.fn('observations.writeDraft')(function* (
     input.ratings.map((r) => ({
       skillId: r.skillId,
       chosen: r.role,
-      stored: existing.find((x) => x.skillId === r.skillId)?.role as SkillRole | undefined,
+      stored: storedRole(existing.find((x) => x.skillId === r.skillId)?.role),
     })),
   );
   const pinned = new Map<SkillId, SkillVersionId>(
@@ -160,6 +166,72 @@ const writeDraft = Effect.fn('observations.writeDraft')(function* (
     );
   }
   return updated;
+});
+
+/**
+ * Appends one credit per credited rating, inside the signing transaction: the
+ * stored rating role, the points resolved now (and frozen), their source, the
+ * composed policy version and the subject's position on the interaction date.
+ */
+const appendCredits = Effect.fn('observations.appendCredits')(function* (
+  actor: Actor,
+  row: ObservationRow,
+  interaction: { readonly occurredOn: IsoDate },
+  mode: ObservationMode,
+  policy: CreditPolicy,
+) {
+  const db = yield* Db;
+  const policyVersion = creditPolicyVersion(policy);
+  const ratings = yield* db
+    .select()
+    .from(schema.observationRating)
+    .where(eq(schema.observationRating.observationId, row.id));
+  const valueOf = yield* creditValues(
+    actor.tenantId,
+    policy,
+    yield* skillsOfWork(actor.tenantId, row.interactionId),
+    ratings.map((r) => r.skillId),
+  );
+  const subjectPositionId = yield* positionOn(
+    actor.tenantId,
+    row.subjectId,
+    interaction.occurredOn,
+  );
+  const creditable = ratings
+    .filter((r) => r.credit && r.level !== null)
+    .toSorted((a, b) => a.position - b.position);
+  // writeDraft just stored a primary or secondary role on every rating.
+  if (creditable.some((r) => !storedRole(r.role))) {
+    return yield* Effect.die('invariant: a rating has no role at signing');
+  }
+  const credited = creditable.map((r) => {
+    const role = storedRole(r.role) as SkillRole;
+    return { rating: r, role, ...valueOf(r.skillId, role) };
+  });
+  if (credited.length > 0) {
+    yield* db.insert(schema.creditEntry).values(
+      credited.map(({ rating, role, points, source }) => ({
+        id: CreditId.generate(),
+        tenantId: actor.tenantId,
+        personId: row.subjectId,
+        skillId: rating.skillId,
+        observationId: row.id,
+        interactionId: row.interactionId,
+        observerId: actor.personId,
+        skillVersionId: rating.skillVersionId,
+        level: rating.level as number,
+        subjectPositionId,
+        mode,
+        isFirstHand: isFirstHand(mode),
+        demonstratedOn: interaction.occurredOn,
+        role,
+        points,
+        pointsSource: source,
+        policyVersion,
+      })),
+    );
+  }
+  return { ratings, credited };
 });
 
 export const saveDraft = Effect.fn('useCase.saveObservationDraft')(function* (
@@ -256,51 +328,7 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
         )
         .returning({ id: schema.observation.id })
         .pipe(Effect.flatMap(requireUpdated('observation')));
-      const ratings = yield* db
-        .select()
-        .from(schema.observationRating)
-        .where(eq(schema.observationRating.observationId, row.id));
-      const valueOf = yield* creditValues(
-        actor.tenantId,
-        policy,
-        yield* skillsOfWork(actor.tenantId, row.interactionId),
-        ratings.map((r) => r.skillId),
-      );
-      const subjectPositionId = yield* positionOn(
-        actor.tenantId,
-        row.subjectId,
-        interaction.occurredOn,
-      );
-      const credited = ratings
-        .filter((r) => r.credit && r.level !== null)
-        .toSorted((a, b) => a.position - b.position)
-        .map((r) => {
-          const role = r.role as SkillRole;
-          return { rating: r, role, ...valueOf(r.skillId, role) };
-        });
-      if (credited.length > 0) {
-        yield* db.insert(schema.creditEntry).values(
-          credited.map(({ rating, role, points, source }) => ({
-            id: CreditId.generate(),
-            tenantId: actor.tenantId,
-            personId: row.subjectId,
-            skillId: rating.skillId,
-            observationId: row.id,
-            interactionId: row.interactionId,
-            observerId: actor.personId,
-            skillVersionId: rating.skillVersionId,
-            level: rating.level as number,
-            subjectPositionId,
-            mode,
-            isFirstHand: isFirstHand(mode),
-            demonstratedOn: interaction.occurredOn,
-            role,
-            points,
-            pointsSource: source,
-            policyVersion,
-          })),
-        );
-      }
+      const { ratings, credited } = yield* appendCredits(actor, row, interaction, mode, policy);
       yield* recordAudit(actor, {
         entityType: 'observation',
         entityId: row.id,

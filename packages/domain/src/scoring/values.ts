@@ -15,8 +15,10 @@ export interface ActivitySkillValue {
  * What one credit is worth, resolved once inside the signing transaction and
  * frozen on the credit row. Most specific wins:
  *
- * 1. the activity's own value for this skill (`activity`), while the tenant
- *    allows individual values, kept inside the tenant's current range;
+ * 1. the activity's own value for this skill (`activity`), only while the
+ *    tenant allows individual values AND the value lies inside the range in
+ *    force at signing; otherwise it is not applied (never clamped: a value
+ *    nobody chose is never written to the ledger) and resolution falls through;
  * 2. the template's value copied onto the activity, when the credit's role
  *    equals the skill's role on the activity (`template`);
  * 3. the skill's value for the role (`skill`);
@@ -37,8 +39,6 @@ export interface CreditValue {
   readonly source: Exclude<PointsSource, 'legacy'>;
 }
 
-const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
-
 export const resolveCreditValue = ({
   role,
   policy,
@@ -46,11 +46,14 @@ export const resolveCreditValue = ({
   skill,
 }: CreditValueInput): CreditValue => {
   const overrides = policy.activityOverrides;
-  if (overrides.enabled && activity?.pointsOverride != null) {
-    return {
-      points: clamp(activity.pointsOverride, overrides.minPoints, overrides.maxPoints),
-      source: 'activity',
-    };
+  const override = activity?.pointsOverride;
+  if (
+    overrides.enabled &&
+    override != null &&
+    override >= overrides.minPoints &&
+    override <= overrides.maxPoints
+  ) {
+    return { points: override, source: 'activity' };
   }
   if (activity?.templatePoints != null && activity.role === role) {
     return { points: activity.templatePoints, source: 'template' };

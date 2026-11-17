@@ -2,13 +2,13 @@
 -- Guarded by packages/db/src/integrity.test.ts.
 
 -- I2 extended: a credit is a copy of a signed rating, including the rating's
--- role (which decides its points), and no new credit may claim to be legacy.
--- Same rule as *_integrity rule 10, plus the role and source conditions. The
--- trigger fires on INSERT only, so legacy credits are not re-validated; they
--- and their signed ratings were both filled as 'primary'.
+-- role (which decides its points), and no new credit may claim to be legacy:
+-- neither source 'legacy' nor role 'unclassified'. Same rule as *_integrity
+-- rule 10, plus the role and source conditions. The trigger fires on INSERT
+-- only, so legacy credits are not re-validated.
 CREATE OR REPLACE FUNCTION credit_matches_signature() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  IF NEW.points_source = 'legacy' THEN
+  IF NEW.points_source = 'legacy' OR NEW.role = 'unclassified' THEN
     RAISE EXCEPTION 'credit for observation % cannot be written as legacy', NEW.observation_id
       USING ERRCODE = 'restrict_violation';
   END IF;

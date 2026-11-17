@@ -4,9 +4,10 @@
 -- WITHOUT an UPDATE on append-only or frozen rows (credit_entry, signed
 -- observation_rating): ADD COLUMN ... DEFAULT fills them without firing row
 -- triggers, and the default is dropped straight after, so every new row must
--- state its value. Legacy credits and signed ratings are all primary: they
--- counted in full. Legacy equivalence: a legacy credit is worth 10 and a legacy
--- threshold of N demonstrations becomes N interactions and N * 10 points.
+-- state its value. Legacy credits and signed ratings carry no role
+-- ('unclassified'): the data never asserts primary focus. A legacy credit is
+-- worth 10, and a legacy threshold of N demonstrations becomes N pieces of work
+-- and N * 10 points, so a legacy-only ledger decides exactly as before.
 -- Guarded by packages/db/src/migration-compat.test.ts.
 
 -- 1. Per-skill values over the tenant policy (null: use the policy).
@@ -47,20 +48,20 @@ ALTER TABLE "plan" ADD COLUMN "review_recorded_at" timestamp with time zone;--> 
 ALTER TABLE "plan" ADD COLUMN "review_confirmed_by_id" text;--> statement-breakpoint
 ALTER TABLE "plan" ADD COLUMN "review_confirmed_at" timestamp with time zone;--> statement-breakpoint
 
--- 4. The ledger and ratings: legacy credits read as primary, worth 10, source
---    'legacy'; legacy ratings as primary. No UPDATE on the ledger.
-ALTER TABLE "credit_entry" ADD COLUMN "role" text DEFAULT 'primary' NOT NULL;--> statement-breakpoint
+-- 4. The ledger and ratings: legacy credits read as unclassified, worth 10,
+--    source 'legacy'; legacy ratings as unclassified. No UPDATE on the ledger.
+ALTER TABLE "credit_entry" ADD COLUMN "role" text DEFAULT 'unclassified' NOT NULL;--> statement-breakpoint
 ALTER TABLE "credit_entry" ALTER COLUMN "role" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "credit_entry" ADD COLUMN "points" integer DEFAULT 10 NOT NULL;--> statement-breakpoint
 ALTER TABLE "credit_entry" ALTER COLUMN "points" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "credit_entry" ADD COLUMN "points_source" text DEFAULT 'legacy' NOT NULL;--> statement-breakpoint
 ALTER TABLE "credit_entry" ALTER COLUMN "points_source" DROP DEFAULT;--> statement-breakpoint
-ALTER TABLE "observation_rating" ADD COLUMN "role" text DEFAULT 'primary' NOT NULL;--> statement-breakpoint
+ALTER TABLE "observation_rating" ADD COLUMN "role" text DEFAULT 'unclassified' NOT NULL;--> statement-breakpoint
 ALTER TABLE "observation_rating" ALTER COLUMN "role" DROP DEFAULT;--> statement-breakpoint
 
 -- 5. Ratings of observations not yet signed follow the one-primary rule: lowest
 --    position primary, the rest secondary. The frozen-ratings trigger allows
---    these rows because their observation is unsigned; signed ones stay primary.
+--    these rows because their observation is unsigned; signed ones stay unclassified.
 UPDATE "observation_rating" r SET "role" = CASE WHEN ranked.rn = 1 THEN 'primary' ELSE 'secondary' END
 FROM (
   SELECT x."observation_id", x."skill_id",
@@ -71,45 +72,67 @@ FROM (
 ) ranked
 WHERE r."observation_id" = ranked."observation_id" AND r."skill_id" = ranked."skill_id";--> statement-breakpoint
 
--- 6. Every tenant gets a COMPLETE credit policy (working defaults embedded here,
---    so a later change to the code defaults never moves a tenant's values).
---    Legacy badge criteria convert: minInteractions = minDemonstrations,
---    badgePoints = minInteractions * 10, the other three copied; missing values
---    take the defaults; every value is clamped into its valid range (structural
---    floors: two interactions, two observers, one day). The old badgeCriteria
+-- 6. Every tenant gets a COMPLETE credit policy, version 1 (working defaults
+--    embedded here, so a later change to the code defaults never moves a
+--    tenant's values). Legacy badge criteria convert EXACTLY as stored, with no
+--    clamping: minInteractions = minDemonstrations, badgePoints =
+--    minDemonstrations * 10, observers, first-hand share and span copied. A
+--    legacy key that is absent takes the value the old code used for it (3, 2,
+--    0.5, 28). A legacy value the policy cannot represent fails the migration
+--    loudly, naming the tenant, instead of being changed. The old badgeCriteria
 --    key stays, unused, for one release. Other settings are untouched.
-UPDATE "tenant" t SET "settings" = t."settings" || jsonb_build_object('creditPolicy', jsonb_build_object(
-  'version', 1,
-  'primaryPoints', 10,
-  'secondaryPoints', 3,
-  'badgePoints', c.interactions * 10,
-  'minInteractions', c.interactions,
-  'minObservers', c.observers,
-  'minFirstHandShare', c.share,
-  'minSpanDays', c.span,
-  'minPrimaryPoints', 0,
-  'maxSkillsPerObservation', 3,
-  'activityOverrides', jsonb_build_object('enabled', true, 'minPoints', 1, 'maxPoints', 20)
-))
-FROM (
-  SELECT "id",
-    least(50, greatest(2, round(coalesce(v.demonstrations, 3))))::integer AS interactions,
-    least(10, greatest(2, round(coalesce(v.observers, 2))))::integer AS observers,
-    least(1, greatest(0, coalesce(v.share, 0.5))) AS share,
-    least(3650, greatest(1, round(coalesce(v.span, 28))))::integer AS span
-  FROM "tenant",
-  LATERAL (SELECT
-    CASE WHEN jsonb_typeof("settings" #> '{badgeCriteria,minDemonstrations}') = 'number'
-      THEN ("settings" #>> '{badgeCriteria,minDemonstrations}')::numeric END AS demonstrations,
-    CASE WHEN jsonb_typeof("settings" #> '{badgeCriteria,minObservers}') = 'number'
-      THEN ("settings" #>> '{badgeCriteria,minObservers}')::numeric END AS observers,
-    CASE WHEN jsonb_typeof("settings" #> '{badgeCriteria,minFirstHandShare}') = 'number'
-      THEN ("settings" #>> '{badgeCriteria,minFirstHandShare}')::numeric END AS share,
-    CASE WHEN jsonb_typeof("settings" #> '{badgeCriteria,minSpanDays}') = 'number'
-      THEN ("settings" #>> '{badgeCriteria,minSpanDays}')::numeric END AS span
-  ) v
-) c
-WHERE c."id" = t."id" AND NOT (t."settings" ? 'creditPolicy');--> statement-breakpoint
+DO $$
+DECLARE
+  t record;
+  bc jsonb;
+  k text;
+  n numeric;
+  observers numeric;
+  share numeric;
+  span numeric;
+BEGIN
+  FOR t IN SELECT "id", "settings" FROM "tenant" WHERE NOT ("settings" ? 'creditPolicy') LOOP
+    bc := t."settings" -> 'badgeCriteria';
+    IF bc IS NOT NULL AND jsonb_typeof(bc) <> 'object' THEN
+      RAISE EXCEPTION 'tenant %: settings.badgeCriteria is %, not an object; convert it by hand', t."id", bc;
+    END IF;
+    FOREACH k IN ARRAY ARRAY['minDemonstrations', 'minObservers', 'minFirstHandShare', 'minSpanDays'] LOOP
+      IF bc ? k AND jsonb_typeof(bc -> k) <> 'number' THEN
+        RAISE EXCEPTION 'tenant %: settings.badgeCriteria.% is %, not a number; convert it by hand', t."id", k, bc -> k;
+      END IF;
+    END LOOP;
+    n := coalesce((bc ->> 'minDemonstrations')::numeric, 3);
+    observers := coalesce((bc ->> 'minObservers')::numeric, 2);
+    share := coalesce((bc ->> 'minFirstHandShare')::numeric, 0.5);
+    span := coalesce((bc ->> 'minSpanDays')::numeric, 28);
+    IF n <> trunc(n) OR n < 1 OR n > 50 THEN
+      RAISE EXCEPTION 'tenant %: badgeCriteria.minDemonstrations = % cannot be represented (a whole number from 1 to 50); convert it by hand', t."id", n;
+    END IF;
+    IF observers <> trunc(observers) OR observers < 1 OR observers > 10 THEN
+      RAISE EXCEPTION 'tenant %: badgeCriteria.minObservers = % cannot be represented (a whole number from 1 to 10); convert it by hand', t."id", observers;
+    END IF;
+    IF share < 0 OR share > 1 THEN
+      RAISE EXCEPTION 'tenant %: badgeCriteria.minFirstHandShare = % cannot be represented (a share from 0 to 1); convert it by hand', t."id", share;
+    END IF;
+    IF span <> trunc(span) OR span < 0 OR span > 3650 THEN
+      RAISE EXCEPTION 'tenant %: badgeCriteria.minSpanDays = % cannot be represented (a whole number from 0 to 3650); convert it by hand', t."id", span;
+    END IF;
+    UPDATE "tenant" SET "settings" = "settings" || jsonb_build_object('creditPolicy', jsonb_build_object(
+      'version', 1,
+      'primaryPoints', 10,
+      'secondaryPoints', 3,
+      'badgePoints', n::integer * 10,
+      'minInteractions', n::integer,
+      'minObservers', observers::integer,
+      'minFirstHandShare', share,
+      'minSpanDays', span::integer,
+      'minPrimaryPoints', 0,
+      'maxSkillsPerObservation', 3,
+      'activityOverrides', jsonb_build_object('enabled', true, 'minPoints', 1, 'maxPoints', 20)
+    ))
+    WHERE "id" = t."id";
+  END LOOP;
+END $$;--> statement-breakpoint
 
 -- 7. Constraints, checked against the filled rows.
 ALTER TABLE "activity_skill" ADD CONSTRAINT "activity_skill_points_override_by_fk" FOREIGN KEY ("tenant_id","points_override_by_id") REFERENCES "person"("tenant_id","id");--> statement-breakpoint
@@ -129,10 +152,10 @@ ALTER TABLE "plan" ADD CONSTRAINT "plan_review_recorded_pair" CHECK (("review_re
 ALTER TABLE "plan" ADD CONSTRAINT "plan_review_confirmed_pair" CHECK (("review_confirmed_by_id" is null) = ("review_confirmed_at" is null));--> statement-breakpoint
 ALTER TABLE "plan" ADD CONSTRAINT "plan_review_confirmed_after_recorded" CHECK ("review_confirmed_at" is null or "review_recorded_at" is not null);--> statement-breakpoint
 ALTER TABLE "plan" ADD CONSTRAINT "plan_review_not_self_confirmed" CHECK ("review_confirmed_by_id" is null or "review_confirmed_by_id" <> "owner_id");--> statement-breakpoint
-ALTER TABLE "credit_entry" ADD CONSTRAINT "credit_entry_role_check" CHECK ("role" in ('primary', 'secondary'));--> statement-breakpoint
+ALTER TABLE "credit_entry" ADD CONSTRAINT "credit_entry_role_check" CHECK ("role" in ('primary', 'secondary', 'unclassified'));--> statement-breakpoint
 ALTER TABLE "credit_entry" ADD CONSTRAINT "credit_entry_points_source_check" CHECK ("points_source" in ('activity', 'template', 'skill', 'tenant', 'legacy'));--> statement-breakpoint
 ALTER TABLE "credit_entry" ADD CONSTRAINT "credit_entry_points" CHECK ("points" between 1 and 1000);--> statement-breakpoint
-ALTER TABLE "observation_rating" ADD CONSTRAINT "observation_rating_role_check" CHECK ("role" in ('primary', 'secondary'));--> statement-breakpoint
+ALTER TABLE "observation_rating" ADD CONSTRAINT "observation_rating_role_check" CHECK ("role" in ('primary', 'secondary', 'unclassified'));--> statement-breakpoint
 -- An observation may rate up to six skills (the policy's hard ceiling).
 ALTER TABLE "observation_rating" DROP CONSTRAINT "observation_rating_position", ADD CONSTRAINT "observation_rating_position" CHECK ("position" between 0 and 5);--> statement-breakpoint
 -- Reasons the new value, policy, catalog and plan-review changes record.

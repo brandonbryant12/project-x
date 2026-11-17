@@ -5,10 +5,11 @@ import {
   BADGE_LEVELS,
   type BadgeLevel,
   type Level,
+  type CreditRole,
   type ObservationMode,
   type SkillRole,
 } from '../vocabulary.ts';
-import { DEFAULT_CREDIT_POLICY, LEGACY_CREDIT_POINTS, type CreditPolicy } from './policy.ts';
+import { LEGACY_CREDIT_POINTS, type CreditPolicy } from './policy.ts';
 
 /**
  * Badge criteria over a person's net credits in one skill (credits that have
@@ -25,7 +26,8 @@ export interface CreditFact {
   readonly demonstratedOn: IsoDate;
   /** Frozen at signing. */
   readonly points: number;
-  readonly role: SkillRole;
+  /** `unclassified` for credits signed before roles existed: never primary. */
+  readonly role: CreditRole;
 }
 
 /** The thresholds one badge is judged by, resolved for its skill; saved on every award. */
@@ -34,7 +36,7 @@ export interface BadgeCriteria {
   readonly badgePoints: number;
   readonly minInteractions: number;
   readonly minObservers: number;
-  /** Share of the points that must have been seen first-hand. */
+  /** Share of the pieces of work that must have been seen first-hand. */
   readonly minFirstHandShare: number;
   readonly minSpanDays: number;
   /** 0 is off. */
@@ -57,28 +59,60 @@ export const badgeCriteriaFor = (
   };
 };
 
-export const DEFAULT_BADGE_CRITERIA: BadgeCriteria = badgeCriteriaFor(DEFAULT_CREDIT_POLICY);
+const CRITERIA_KEYS = [
+  'badgePoints',
+  'minInteractions',
+  'minObservers',
+  'minFirstHandShare',
+  'minSpanDays',
+  'minPrimaryPoints',
+] as const satisfies ReadonlyArray<keyof BadgeCriteria>;
+const LEGACY_KEYS = [
+  'minDemonstrations',
+  'minObservers',
+  'minFirstHandShare',
+  'minSpanDays',
+] as const;
+
+export type SnapshotReading =
+  | { readonly ok: true; readonly criteria: BadgeCriteria }
+  | { readonly ok: false; readonly missing: ReadonlyArray<string> };
 
 /**
- * The criteria an award was made under, from its saved snapshot. A legacy
- * snapshot (`minDemonstrations`, no `badgePoints`) reads as N interactions and
- * N × 10 points, the value every legacy credit carries, so a badge is always
- * corrected against the rule it was awarded under.
+ * The criteria an award was made under, read from its saved snapshot, never
+ * from defaults. A legacy snapshot (`minDemonstrations`, no `badgePoints`)
+ * converts deterministically from its own numbers: N pieces of work and N × 10
+ * points (every legacy credit is worth 10), no primary-points requirement. A
+ * snapshot that lacks a field is reported, not filled.
  */
 export const criteriaFromSnapshot = (
   thresholds: Readonly<Record<string, number | undefined>>,
-): BadgeCriteria => {
-  const legacy = thresholds['minDemonstrations'];
-  const fallback = DEFAULT_BADGE_CRITERIA;
+): SnapshotReading => {
+  const isNumber = (key: string) =>
+    typeof thresholds[key] === 'number' && Number.isFinite(thresholds[key]);
+  if (thresholds['badgePoints'] === undefined && thresholds['minDemonstrations'] !== undefined) {
+    const missing = LEGACY_KEYS.filter((k) => !isNumber(k));
+    if (missing.length > 0) return { ok: false, missing };
+    const n = thresholds['minDemonstrations'] as number;
+    return {
+      ok: true,
+      criteria: {
+        badgePoints: n * LEGACY_CREDIT_POINTS,
+        minInteractions: n,
+        minObservers: thresholds['minObservers'] as number,
+        minFirstHandShare: thresholds['minFirstHandShare'] as number,
+        minSpanDays: thresholds['minSpanDays'] as number,
+        minPrimaryPoints: 0,
+      },
+    };
+  }
+  const missing = CRITERIA_KEYS.filter((k) => !isNumber(k));
+  if (missing.length > 0) return { ok: false, missing };
   return {
-    badgePoints:
-      thresholds['badgePoints'] ??
-      (legacy === undefined ? fallback.badgePoints : legacy * LEGACY_CREDIT_POINTS),
-    minInteractions: thresholds['minInteractions'] ?? legacy ?? fallback.minInteractions,
-    minObservers: thresholds['minObservers'] ?? fallback.minObservers,
-    minFirstHandShare: thresholds['minFirstHandShare'] ?? fallback.minFirstHandShare,
-    minSpanDays: thresholds['minSpanDays'] ?? fallback.minSpanDays,
-    minPrimaryPoints: thresholds['minPrimaryPoints'] ?? 0,
+    ok: true,
+    criteria: Object.fromEntries(
+      CRITERIA_KEYS.map((k) => [k, thresholds[k] as number]),
+    ) as unknown as BadgeCriteria,
   };
 };
 
@@ -88,9 +122,9 @@ export interface WorkValue {
   readonly on: IsoDate;
   /** The highest points among its credits: what the work is worth. */
   readonly value: number;
-  /** The highest points among its first-hand credits (0 if none). */
-  readonly firstHandValue: number;
-  /** The highest points among its primary credits (0 if none). */
+  /** At least one of its credits was first-hand (saw it, reviewed the work). */
+  readonly firstHand: boolean;
+  /** The highest points among its primary credits (0 if none; unclassified is not primary). */
   readonly primaryValue: number;
   /** The credit whose points counted as `value`; the others are the same work. */
   readonly countedCreditId: CreditId;
@@ -99,9 +133,9 @@ export interface WorkValue {
 
 /**
  * THE projection of credits onto points: one piece of work counts once per
- * skill. Value, first-hand value and primary value are each the highest points
- * among the relevant credits, computed independently, so a secondary credit
- * that outranks a primary one never hides it. Badge evaluation, progress and
+ * skill. Its value and its primary value are each the highest points among the
+ * relevant credits, computed independently, so a secondary credit that outranks
+ * a primary one never hides it; it is first-hand when any credit was. Badge evaluation, progress and
  * the badge receipt all read points through this; nothing sums credit rows.
  * Ties for the counted credit prefer primary, then first-hand, then the earlier id.
  */
@@ -125,7 +159,7 @@ export const projectWork = (credits: ReadonlyArray<CreditFact>): ReadonlyArray<W
         interactionId,
         on: counted.demonstratedOn,
         value: counted.points,
-        firstHandValue: highest(list.filter((c) => isFirstHand(c.mode))),
+        firstHand: list.some((c) => isFirstHand(c.mode)),
         primaryValue: highest(list.filter((c) => c.role === 'primary')),
         countedCreditId: counted.id,
         creditIds: list.map((c) => c.id),
@@ -182,22 +216,22 @@ const criterion = (
 export const evaluateBadge = (
   credits: ReadonlyArray<CreditFact>,
   level: BadgeLevel,
-  required: BadgeCriteria = DEFAULT_BADGE_CRITERIA,
+  required: BadgeCriteria,
 ): BadgeEvaluation => {
   const kept = credits.filter((c) => c.level >= level);
   const work = projectWork(kept);
   const demonstrations = work.length;
   const points = sum(work.map((w) => w.value));
   const primaryPoints = sum(work.map((w) => w.primaryValue));
-  const firstHandPoints = sum(work.map((w) => w.firstHandValue));
+  const firstHandWork = work.filter((w) => w.firstHand).length;
   const observers = new Set(kept.map((c) => c.observerId)).size;
-  // Points-weighted with a stable target: the share applies to the larger of
-  // the points so far and the badge's points, so a high-value discussed credit
-  // never lowers what must be seen first-hand. At least one first-hand piece of
-  // work always (any first-hand credit is worth at least one point).
+  // A share of the pieces of work, never fewer than one, against a stable
+  // target: the larger of the work so far and the work a badge needs. Points do
+  // not weigh in (the rule from before points, with minInteractions in place of
+  // the old minimum number of demonstrations).
   const firstHandNeeded = Math.max(
     1,
-    Math.ceil(required.minFirstHandShare * Math.max(points, required.badgePoints)),
+    Math.ceil(required.minFirstHandShare * Math.max(demonstrations, required.minInteractions)),
   );
   const first = work[0]?.on;
   const last = work.at(-1)?.on;
@@ -238,9 +272,9 @@ export const evaluateBadge = (
     ),
     criterion(
       'firstHand',
-      firstHandPoints,
+      firstHandWork,
       firstHandNeeded,
-      `${upTo(firstHandPoints, firstHandNeeded)} of ${firstHandNeeded} points seen first-hand`,
+      `${upTo(firstHandWork, firstHandNeeded)} of ${firstHandNeeded} times observed first-hand`,
     ),
     criterion(
       'span',
@@ -316,7 +350,7 @@ export const nextStepSentence = (
   const firstHand = unmet('firstHand');
   if (firstHand) {
     const n = gap(firstHand);
-    return `${say(n)} more ${plural(n, 'point')} from observations where your observer saw the work or reviewed it to earn ${badge}.`;
+    return `${say(n)} more ${plural(n, 'observation')} where your observer saw the work or reviewed it to earn ${badge}.`;
   }
   const span = unmet('span');
   if (span) {

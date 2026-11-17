@@ -18,6 +18,7 @@ import {
   SkillVersionId,
   ActivityId,
   BadgeAwardId,
+  CreditRole,
   MAX_SKILLS_CEILING,
   POINTS_SOURCES,
   SkillRole,
@@ -53,8 +54,11 @@ export const RatingView = Schema.Struct({
   level: Schema.NullOr(Level),
   indicatorIds: Schema.Array(SkillIndicatorId),
   credit: Schema.Boolean,
-  /** The skill's place in this work; decides what its credit is worth. */
-  role: SkillRole,
+  /**
+   * The skill's place in this work; decides what its credit is worth.
+   * `unclassified` only on ratings signed before roles existed.
+   */
+  role: CreditRole,
   /** True only for the observer of unsigned work that lists no skills: they pick the primary one. */
   roleChoosable: Schema.Boolean,
 });
@@ -109,7 +113,8 @@ export const ObservationView = Schema.Struct({
       firstHand: Schema.Boolean,
       /** Frozen at signing. */
       points: Schema.Number,
-      role: SkillRole,
+      /** `unclassified`: observed before roles existed (label it so). */
+      role: CreditRole,
       /** Where the points came from (`legacy` for credits signed before points). */
       pointsSource: PointsSource,
     }),

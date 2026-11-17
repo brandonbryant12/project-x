@@ -14,11 +14,16 @@ import {
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { assert, layer } from '@effect/vitest';
-import { and, asc, eq, inArray } from 'drizzle-orm';
-import { Effect } from 'effect';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { Cause, Effect, Exit } from 'effect';
 import { HttpApiTest } from 'effect/http-api';
 import { addDaysIso, today } from '../platform/time.ts';
-import { saveCreditPolicy } from '../features/shared/recognition.ts';
+import {
+  CreditPolicyConfigurationError,
+  inspectTenantCreditPolicy,
+  saveCreditPolicy,
+  tenantCreditPolicy,
+} from '../features/shared/recognition.ts';
 import { seedWorld } from '../scripts/seed-world.ts';
 import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
 
@@ -28,8 +33,11 @@ import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
  * points resolved once and frozen), the value precedence (activity's own value,
  * the template value copied onto the activity, the skill's, the tenant's), the
  * observer owning roles, one piece of work counting once however many observers
- * sign it, a badge earned from secondary credit alone, and a void judged by the
- * award's saved thresholds, then re-awarded under the current policy.
+ * sign it, a badge earned from secondary credit alone, a void judged by the
+ * award's saved thresholds then re-awarded under the current policy, a policy
+ * save that never awards in bulk, and a broken stored policy that stops
+ * policy-dependent reads instead of falling back to defaults. The tests share
+ * one seeded tenant and run in order; the last two change its policy.
  */
 const client = HttpApiTest.groups(Api, ['observations', 'development']);
 
@@ -402,6 +410,112 @@ layer(ScenarioLayer, { timeout: 120_000 })('weighted credit', (it) => {
             ),
           );
         assert.deepStrictEqual(events.map((e) => e.event).toSorted(), ['AWARD', 'AWARD', 'REVOKE']);
+      }),
+  );
+
+  it.effect(
+    'a loosened policy awards nothing when saved; progress says when; the next signed credit awards it',
+    () =>
+      Effect.gen(function* () {
+        const { db, api, ids, tenantId, skill } = yield* setup;
+        const coaching = skill('behavioral-coaching');
+        const awardsOf = (personId?: PersonId, skillId?: SkillId) =>
+          db
+            .select()
+            .from(schema.badgeAward)
+            .where(
+              and(
+                eq(schema.badgeAward.tenantId, tenantId),
+                ...(personId ? [eq(schema.badgeAward.personId, personId)] : []),
+                ...(skillId ? [eq(schema.badgeAward.skillId, skillId)] : []),
+              ),
+            );
+        const before = yield* awardsOf();
+        // Loosened to one piece of work, one observer, no span, ten points: Maya's
+        // single signed behavioral-coaching observation (seed) now meets level 2.
+        const { version } = yield* inspectTenantCreditPolicy(tenantId);
+        yield* saveCreditPolicy(
+          tenantId,
+          version,
+          policy({ badgePoints: 10, minInteractions: 1, minObservers: 1, minSpanDays: 0 }),
+        );
+        // Saving a policy awards nothing, to anyone.
+        assert.deepStrictEqual(
+          (yield* awardsOf()).map((a) => a.id).toSorted(),
+          before.map((a) => a.id).toSorted(),
+        );
+        assert.lengthOf(yield* awardsOf(ids.maya, coaching), 0);
+
+        yield* signInAs('Maya Chen');
+        const progress = (yield* api.development.mine()).plan?.progress.find(
+          (p) => p.skill.slug === 'behavioral-coaching',
+        );
+        assert.strictEqual(progress?.targetLevel, 2);
+        assert.isTrue(progress?.criteria.every((c) => c.met));
+        assert.strictEqual(
+          progress?.nextStep,
+          "You've met every criterion for Behavioral coaching · Doing with support. It is awarded with your next signed observation of Behavioral coaching.",
+        );
+
+        // Her next signed credit for that skill (Leo's open request from the seed) awards it.
+        yield* signInAs('Leo Okonkwo');
+        const request = (yield* api.observations.inbox()).requests.find((r) =>
+          r.skills.some((x) => x.id === coaching),
+        );
+        assert.isDefined(request);
+        const view = yield* api.observations.get({ params: { id: request.id } });
+        const signed = yield* api.observations.sign({
+          params: { id: view.id },
+          payload: {
+            version: view.version,
+            mode: 'reviewed_work',
+            ratings: [{ skillId: coaching, level: 2, indicatorIds: [], credit: true }],
+            narrativeSaw: NARRATIVE,
+            narrativeNext: 'Agree the checkpoint date before ending the call.',
+          },
+        });
+        assert.deepStrictEqual(
+          signed.badgesEarned.map((b) => [b.skill.slug, b.level]),
+          [['behavioral-coaching', 2]],
+        );
+        assert.lengthOf(yield* awardsOf(ids.maya, coaching), 1);
+      }),
+  );
+
+  it.effect(
+    'a broken stored policy stops policy-dependent reads with a configuration error until repaired',
+    () =>
+      Effect.gen(function* () {
+        const { db, api, tenantId } = yield* setup;
+        const { version } = yield* inspectTenantCreditPolicy(tenantId);
+        // Someone edits the stored policy by hand and removes a field.
+        yield* db
+          .update(schema.tenant)
+          .set({ settings: sql`${schema.tenant.settings} #- '{creditPolicy,minObservers}'` })
+          .where(eq(schema.tenant.id, tenantId));
+
+        const exit = yield* Effect.exit(tenantCreditPolicy(tenantId));
+        assert.isTrue(Exit.isFailure(exit));
+        const defect = Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined;
+        assert.instanceOf(defect, CreditPolicyConfigurationError);
+        assert.match(String((defect as Error).message), new RegExp(`${tenantId}.*minObservers`));
+        // Never a default in its place: progress fails rather than run on values nobody chose.
+        yield* signInAs('Maya Chen');
+        assert.isTrue(Exit.isFailure(yield* Effect.exit(api.development.mine())));
+
+        // The administration path reads the problems and repairs it with compare-and-set.
+        const broken = yield* inspectTenantCreditPolicy(tenantId);
+        assert.deepStrictEqual(
+          broken.reading.ok ? [] : broken.reading.problems.map((p) => p.field),
+          ['minObservers'],
+        );
+        assert.strictEqual(broken.version, version);
+        yield* saveCreditPolicy(tenantId, version, policy({}));
+        assert.deepStrictEqual(yield* tenantCreditPolicy(tenantId), {
+          ...policy({}),
+          version: version + 1,
+        });
+        assert.isDefined((yield* api.development.mine()).plan);
       }),
   );
 });

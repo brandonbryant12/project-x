@@ -10,8 +10,8 @@ import {
   SkillIndicatorId,
   SkillVersionId,
   TenantId,
-  DEFAULT_CREDIT_POLICY,
   defaultSkillRole,
+  initialCreditPolicy,
   type ActivityId,
   type GrantRole,
   type InteractionKind,
@@ -191,8 +191,8 @@ const seedDirectoryAndCatalog = Effect.gen(function* () {
     name: 'Northwind Wealth Partners',
     slug: TENANT_SLUG,
     timeZone: 'America/New_York',
-    // Stored complete, as the migration and every save store it (design §2).
-    settings: { creditPolicy: DEFAULT_CREDIT_POLICY },
+    // Every new tenant stores the complete working defaults as version 1 (design §2).
+    settings: { creditPolicy: initialCreditPolicy() },
   });
   const functions = new Map<string, BusinessFunctionId>();
   for (const name of new Set(PEOPLE.map((p) => p.fn))) {

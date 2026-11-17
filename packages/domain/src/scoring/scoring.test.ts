@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { CreditId, InteractionId, IsoDate, PersonId, SkillId } from '../ids.ts';
 import type { BadgeLevel } from '../vocabulary.ts';
 import {
-  DEFAULT_BADGE_CRITERIA,
   DEFAULT_CREDIT_POLICY,
   badgeCriteriaFor,
   creditPolicyVersion,
@@ -12,22 +11,25 @@ import {
   nextStepSentence,
   projectWork,
   replaceCreditPolicy,
-  resolveCreditPolicy,
+  initialCreditPolicy,
+  readStoredCreditPolicy,
   resolveCreditValue,
   resolveRatingRoles,
   roleValues,
   validateCreditPolicy,
   type BadgeCriteria,
   type CreditFact,
+  type CreditPolicy,
 } from './index.ts';
 
 /**
- * Protects the weighted credit rules (design 2026-11-17 rev. 2, §2, §4, §5):
+ * Protects the weighted credit rules (design 2026-11-17 rev. 3, §2, §4, §5):
  * what a credit is worth, which role a rated skill takes, the one projection of
  * credits onto points, and when points, pieces of work, observers, first-hand
- * points and time earn a badge. Also proves legacy equivalence: with every
- * credit worth 10, N pieces of work and 10N points needed, the rule decides
- * exactly as the old N-demonstration rule did.
+ * share of the work and time earn a badge; that a stored policy is read exactly
+ * as stored. Also proves legacy equivalence: over unclassified credits worth 10,
+ * with N pieces of work and 10N points needed, the rule decides exactly as the
+ * old N-demonstration rule did, for any legacy settings.
  */
 const coach = 'per_coach00000000000' as PersonId;
 const leader = 'per_leader0000000000' as PersonId;
@@ -50,7 +52,7 @@ const credit = (n: number, overrides: Partial<CreditFact> = {}): CreditFact => (
 });
 
 const criteria = (overrides: Partial<BadgeCriteria> = {}): BadgeCriteria => ({
-  ...DEFAULT_BADGE_CRITERIA,
+  ...badgeCriteriaFor(DEFAULT_CREDIT_POLICY),
   ...overrides,
 });
 
@@ -66,20 +68,44 @@ const measured = (credits: ReadonlyArray<CreditFact>, level: BadgeLevel, c = cri
 const criterionKeys = (c: BadgeCriteria) =>
   evaluateBadge([credit(1)], 3, c).criteria.map((x) => x.key);
 const firstHandOf = (credits: ReadonlyArray<CreditFact>) =>
-  evaluateBadge(credits, 3).criteria.find((c) => c.key === 'firstHand');
+  evaluateBadge(credits, 3, criteria()).criteria.find((c) => c.key === 'firstHand');
+
+interface LegacyCriteria {
+  readonly minDemonstrations: number;
+  readonly minObservers: number;
+  readonly minFirstHandShare: number;
+  readonly minSpanDays: number;
+}
 
 /** The rule before points (scoring/2026-11-16.2), kept here as the oracle. */
-const oldRuleMet = (credits: ReadonlyArray<CreditFact>, level: BadgeLevel, n: number) => {
+const oldRuleMet = (credits: ReadonlyArray<CreditFact>, level: BadgeLevel, old: LegacyCriteria) => {
   const atLevel = credits.filter((c) => c.level >= level);
   const demonstrations = new Set(atLevel.map((c) => c.interactionId)).size;
   const observers = new Set(atLevel.map((c) => c.observerId)).size;
   const firstHand = new Set(
     atLevel.filter((c) => c.mode !== 'discussed').map((c) => c.interactionId),
   ).size;
-  const needed = Math.max(1, Math.ceil(Math.max(demonstrations, n) * 0.5));
+  const needed = Math.max(
+    1,
+    Math.ceil(Math.max(demonstrations, old.minDemonstrations) * old.minFirstHandShare),
+  );
   const dates = atLevel.map((c) => Date.parse(c.demonstratedOn)).toSorted((a, b) => a - b);
   const span = dates.length ? Math.round(((dates.at(-1) ?? 0) - (dates[0] ?? 0)) / 86_400_000) : 0;
-  return demonstrations >= n && observers >= 2 && firstHand >= needed && span >= 28;
+  return (
+    demonstrations >= old.minDemonstrations &&
+    observers >= old.minObservers &&
+    firstHand >= needed &&
+    span >= old.minSpanDays
+  );
+};
+
+const unclassified = (credits: ReadonlyArray<CreditFact>) =>
+  credits.map((c) => ({ ...c, role: 'unclassified' as const }));
+
+const snapshotCriteria = (thresholds: Readonly<Record<string, number>>): BadgeCriteria => {
+  const reading = criteriaFromSnapshot(thresholds);
+  if (!reading.ok) throw new Error(`snapshot lacks ${reading.missing.join(', ')}`);
+  return reading.criteria;
 };
 
 const onActivity = (
@@ -119,18 +145,18 @@ describe('one piece of work counts once per skill (the projection)', () => {
       demonstrations: 3,
     },
   ])('$rule', ({ credits, points, demonstrations }) => {
-    const evaluation = evaluateBadge(credits, 3);
+    const evaluation = evaluateBadge(credits, 3, criteria());
     expect(evaluation.points).toBe(points);
     expect(evaluation.demonstrations).toBe(demonstrations);
   });
 
-  it('computes value, first-hand value and primary value independently', () => {
+  it('computes value and primary value independently, and first-hand from any credit', () => {
     const discussedHigh = credit(1, { points: 12, role: 'secondary', mode: 'discussed' });
     const sawPrimary = credit(1, { observerId: leader, points: 10 });
     const [only] = projectWork([discussedHigh, sawPrimary]);
     expect(only).toMatchObject({
       value: 12,
-      firstHandValue: 10,
+      firstHand: true,
       primaryValue: 10,
       countedCreditId: discussedHigh.id,
     });
@@ -235,15 +261,17 @@ describe('badge criteria', () => {
       credit(2, { level: 2, observerId: leader }),
     ];
     // Level 3: only the leader's lower-valued credit on work 1 counts.
-    expect(evaluateBadge(credits, 3)).toMatchObject({ points: 3, demonstrations: 1 });
+    expect(evaluateBadge(credits, 3, criteria())).toMatchObject({ points: 3, demonstrations: 1 });
     // Level 2: both pieces of work, each once at its highest value.
-    expect(evaluateBadge(credits, 2)).toMatchObject({ points: 20, demonstrations: 2 });
-    const observers = evaluateBadge(credits, 3).criteria.find((c) => c.key === 'observers');
+    expect(evaluateBadge(credits, 2, criteria())).toMatchObject({ points: 20, demonstrations: 2 });
+    const observers = evaluateBadge(credits, 3, criteria()).criteria.find(
+      (c) => c.key === 'observers',
+    );
     expect(observers?.current).toBe(1);
   });
 
-  it('weighs first-hand by points against a stable target, counting each piece of work once', () => {
-    // Three first-hand credits on one piece of work count once: 10 of the 15 needed (half of 30).
+  it('counts first-hand as a share of the pieces of work, against a stable target', () => {
+    // Three first-hand credits on one piece of work count once: 1 of the 2 needed (half of 3).
     expect(
       firstHandOf([
         credit(1),
@@ -251,11 +279,42 @@ describe('badge criteria', () => {
         credit(1, { observerId: peer }),
         ...[2, 3].map((n) => credit(n, { mode: 'discussed', observerId: leader })),
       ]),
-    ).toMatchObject({ current: 10, required: 15, met: false });
-    // A high-value discussed credit raises the target instead of lowering it: half of 60.
-    expect(
-      firstHandOf([credit(1), credit(2, { mode: 'discussed', points: 50, observerId: leader })]),
-    ).toMatchObject({ current: 10, required: 30, met: false });
+    ).toMatchObject({ current: 1, required: 2, met: false });
+    // Fewer pieces of work than a badge needs never lower the target: half of three, not of one.
+    expect(firstHandOf([credit(1)])).toMatchObject({ current: 1, required: 2 });
+  });
+
+  it('does not weigh first-hand by points, in either direction', () => {
+    // A high-value discussed credit does not change how many pieces of work must be first-hand.
+    const evenly = [credit(1), credit(2, { mode: 'discussed' }), credit(3, { mode: 'discussed' })];
+    const heavyDiscussed = [
+      credit(1),
+      credit(2, { mode: 'discussed', points: 50 }),
+      credit(3, { mode: 'discussed' }),
+    ];
+    expect(firstHandOf(heavyDiscussed)).toEqual(firstHandOf(evenly));
+    expect(firstHandOf(heavyDiscussed)).toMatchObject({ current: 1, required: 2, met: false });
+    // One high-value first-hand credit does not satisfy the share alone when more work is needed.
+    const heavyFirstHand = [
+      credit(1, { points: 100 }),
+      ...[2, 3, 4].map((n) => credit(n, { mode: 'discussed', observerId: leader })),
+    ];
+    expect(firstHandOf(heavyFirstHand)).toMatchObject({ current: 1, required: 2, met: false });
+  });
+
+  it('does not count unclassified (legacy) credits toward primary points', () => {
+    const legacy = [credit(1), credit(2, { observerId: leader }), credit(4)].map((c) => ({
+      ...c,
+      role: 'unclassified' as const,
+    }));
+    // Off: a legacy-only ledger evaluates as before, at full value.
+    expect(measured(legacy, 3)).toEqual({ met: true, points: 30, unmet: [] });
+    // On: legacy credits alone never satisfy it.
+    expect(measured(legacy, 3, criteria({ minPrimaryPoints: 10 }))).toEqual({
+      met: false,
+      points: 30,
+      unmet: ['primaryPoints'],
+    });
   });
 
   it('targets the lowest badge level not yet held', () => {
@@ -270,6 +329,7 @@ describe('legacy equivalence', () => {
     [1, 2, 3, 4, 5].map((n) => credit(n, { demonstratedOn: day(n) })),
     [credit(1), credit(2, { observerId: leader, mode: 'discussed' }), credit(4)],
     [credit(1), credit(2, { observerId: leader }), credit(3, { mode: 'discussed' }), credit(5)],
+    [credit(1), credit(2, { observerId: leader }), credit(3, { observerId: peer })],
     [credit(1), credit(1, { observerId: leader })],
     [1, 2, 3].map((n) => credit(n, { mode: 'discussed', observerId: n === 1 ? leader : coach })),
     [credit(1, { level: 2 })],
@@ -296,23 +356,24 @@ describe('legacy equivalence', () => {
     );
   });
 
-  it.each([
-    [2, 3],
-    [3, 3],
-    [3, 4],
-  ] as const)(
-    'with credits worth 10, level %i under %i demonstrations decides as the old rule did',
-    (level, n) => {
-      const legacy = criteriaFromSnapshot({
-        minDemonstrations: n,
-        minObservers: 2,
-        minFirstHandShare: 0.5,
-        minSpanDays: 28,
+  const settings: ReadonlyArray<LegacyCriteria> = [
+    { minDemonstrations: 3, minObservers: 2, minFirstHandShare: 0.5, minSpanDays: 28 },
+    { minDemonstrations: 4, minObservers: 2, minFirstHandShare: 0.5, minSpanDays: 28 },
+    { minDemonstrations: 1, minObservers: 1, minFirstHandShare: 0.5, minSpanDays: 0 },
+    { minDemonstrations: 2, minObservers: 3, minFirstHandShare: 1, minSpanDays: 10 },
+    { minDemonstrations: 2, minObservers: 1, minFirstHandShare: 0, minSpanDays: 0 },
+  ];
+
+  it.each(settings.flatMap((old) => [2, 3].map((level) => ({ old, level: level as BadgeLevel }))))(
+    'legacy credits under $old at level $level decide as the old rule did',
+    ({ old, level }) => {
+      const decisions = [...oldCases, ...generated].map((ledger) => {
+        const credits = unclassified(ledger);
+        return [
+          evaluateBadge(credits, level, snapshotCriteria({ ...old })).met,
+          oldRuleMet(credits, level, old),
+        ];
       });
-      const decisions = [...oldCases, ...generated].map((credits) => [
-        evaluateBadge(credits, level, legacy).met,
-        oldRuleMet(credits, level, n),
-      ]);
       expect(decisions.filter(([now, before]) => now !== before)).toEqual([]);
       // The cases are not trivial: both outcomes occur.
       expect(new Set(decisions.map(([now]) => now)).size).toBe(2);
@@ -321,7 +382,7 @@ describe('legacy equivalence', () => {
 
   it('reads a legacy award snapshot as N pieces of work and N × 10 points', () => {
     expect(
-      criteriaFromSnapshot({
+      snapshotCriteria({
         minDemonstrations: 4,
         minObservers: 3,
         minFirstHandShare: 0.6,
@@ -339,7 +400,18 @@ describe('legacy equivalence', () => {
       badgePoints: 50,
       minPrimaryPoints: null,
     });
-    expect(criteriaFromSnapshot({ ...saved })).toEqual(saved);
+    expect(snapshotCriteria({ ...saved })).toEqual(saved);
+  });
+
+  it('reports a snapshot that lacks a field instead of filling it from defaults', () => {
+    expect(
+      criteriaFromSnapshot({ minDemonstrations: 3, minObservers: 2, minSpanDays: 28 }),
+    ).toEqual({ ok: false, missing: ['minFirstHandShare'] });
+    const { minInteractions: _, ...withoutInteractions } = criteria();
+    expect(criteriaFromSnapshot({ ...withoutInteractions })).toEqual({
+      ok: false,
+      missing: ['minInteractions'],
+    });
   });
 });
 
@@ -358,9 +430,9 @@ describe('what a credit is worth', () => {
       value: { points: 15, source: 'activity' },
     },
     {
-      rule: 'the activity’s value stays inside the tenant’s range',
-      input: { role: 'primary', activity: onActivity('primary', 500, null) },
-      value: { points: 20, source: 'activity' },
+      rule: 'an activity value outside the range in force is not applied, never clamped',
+      input: { role: 'primary', activity: onActivity('primary', 500, 8), skill },
+      value: { points: 8, source: 'template' },
     },
     {
       rule: 'then the template value copied onto the activity, for the same role',
@@ -386,11 +458,11 @@ describe('what a credit is worth', () => {
     expect(resolveCreditValue({ policy, ...input })).toEqual(value);
   });
 
-  it('ignores an activity’s own value while the tenant does not allow them', () => {
-    const closed = resolveCreditPolicy({
+  it('ignores an activity’s own value while the tenant does not allow them, falling through', () => {
+    const closed: CreditPolicy = {
       ...DEFAULT_CREDIT_POLICY,
       activityOverrides: { enabled: false, minPoints: 1, maxPoints: 20 },
-    });
+    };
     expect(
       resolveCreditValue({
         policy: closed,
@@ -489,65 +561,90 @@ describe('which role a rated skill takes (the observer owns it)', () => {
 });
 
 describe('credit policy', () => {
-  it('merges a stored policy over the working defaults, defensively', () => {
-    expect(resolveCreditPolicy({ version: 4, badgePoints: 40 })).toEqual({
-      ...DEFAULT_CREDIT_POLICY,
-      version: 4,
-      badgePoints: 40,
-    });
-    expect(resolveCreditPolicy(undefined)).toEqual(DEFAULT_CREDIT_POLICY);
+  const stored: CreditPolicy = {
+    version: 7,
+    primaryPoints: 12,
+    secondaryPoints: 5,
+    badgePoints: 45,
+    minInteractions: 4,
+    minObservers: 3,
+    minFirstHandShare: 0.75,
+    minSpanDays: 21,
+    minPrimaryPoints: 12,
+    maxSkillsPerObservation: 4,
+    activityOverrides: { enabled: false, minPoints: 2, maxPoints: 30 },
+  };
+
+  const { minObservers: _missing, ...withoutObservers } = stored;
+
+  it('reads a stored policy exactly as stored, nothing merged in', () => {
+    expect(readStoredCreditPolicy(stored)).toEqual({ ok: true, policy: stored });
+    expect(initialCreditPolicy()).toEqual({ ...DEFAULT_CREDIT_POLICY, version: 1 });
   });
 
   it.each([
-    { field: 'primaryPoints', stored: { primaryPoints: 0 } },
-    { field: 'primaryPoints', stored: { primaryPoints: 2.5 } },
-    { field: 'badgePoints', stored: { badgePoints: 100_001 } },
-    { field: 'minInteractions', stored: { minInteractions: 1 } },
-    { field: 'minObservers', stored: { minObservers: 1 } },
-    { field: 'minObservers', stored: { minObservers: 11 } },
-    { field: 'minFirstHandShare', stored: { minFirstHandShare: 1.5 } },
-    { field: 'minSpanDays', stored: { minSpanDays: 0 } },
-    { field: 'minPrimaryPoints', stored: { minPrimaryPoints: 31 } },
-    { field: 'maxSkillsPerObservation', stored: { maxSkillsPerObservation: 7 } },
+    { rule: 'nothing stored', value: undefined, fields: ['creditPolicy'] },
+    {
+      rule: 'a missing field',
+      value: withoutObservers,
+      fields: ['minObservers'],
+    },
+    { rule: 'a mistyped field', value: { ...stored, badgePoints: '45' }, fields: ['badgePoints'] },
+    {
+      rule: 'a missing override switch',
+      value: { ...stored, activityOverrides: { minPoints: 2, maxPoints: 30 } },
+      fields: ['activityOverrides.enabled'],
+    },
+  ])('reports $rule as a problem, never a default', ({ value, fields }) => {
+    const reading = readStoredCreditPolicy(value);
+    expect(reading.ok).toBe(false);
+    expect(reading.ok ? [] : reading.problems.map((p) => p.field)).toEqual(fields);
+  });
+
+  it('allows the smallest values a criterion can mean: one piece of work, one observer, no span', () => {
+    expect(
+      validateCreditPolicy({ ...stored, minInteractions: 1, minObservers: 1, minSpanDays: 0 }),
+    ).toEqual([]);
+    expect(
+      validateCreditPolicy({ ...stored, minInteractions: 0, minObservers: 0, minSpanDays: -1 }).map(
+        (p) => p.field,
+      ),
+    ).toEqual(['minInteractions', 'minObservers', 'minSpanDays']);
+  });
+
+  it.each([
+    { field: 'primaryPoints', change: { primaryPoints: 0 } },
+    { field: 'primaryPoints', change: { primaryPoints: 2.5 } },
+    { field: 'badgePoints', change: { badgePoints: 100_001 } },
+    { field: 'minObservers', change: { minObservers: 11 } },
+    { field: 'minFirstHandShare', change: { minFirstHandShare: 1.5 } },
+    { field: 'minPrimaryPoints', change: { minPrimaryPoints: 46 } },
+    { field: 'maxSkillsPerObservation', change: { maxSkillsPerObservation: 7 } },
     {
       field: 'activityOverrides.maxPoints',
-      stored: { activityOverrides: { enabled: true, minPoints: 10, maxPoints: 5 } },
+      change: { activityOverrides: { enabled: true, minPoints: 10, maxPoints: 5 } },
     },
-  ] as const)(
-    'refuses $field out of range, and falls back to its default when read',
-    ({ field, stored }) => {
-      const merged = {
-        ...DEFAULT_CREDIT_POLICY,
-        ...stored,
-        activityOverrides: {
-          ...DEFAULT_CREDIT_POLICY.activityOverrides,
-          ...('activityOverrides' in stored ? stored.activityOverrides : {}),
-        },
-      };
-      expect(validateCreditPolicy(merged).map((p) => p.field)).toEqual([field]);
-      expect(validateCreditPolicy(resolveCreditPolicy(stored))).toEqual([]);
-    },
-  );
+  ] as const)('refuses $field outside its input limits', ({ field, change }) => {
+    expect(validateCreditPolicy({ ...stored, ...change }).map((p) => p.field)).toEqual([field]);
+  });
 
   it('allows secondary points above primary points', () => {
-    expect(
-      validateCreditPolicy({ ...DEFAULT_CREDIT_POLICY, primaryPoints: 3, secondaryPoints: 10 }),
-    ).toEqual([]);
+    expect(validateCreditPolicy({ ...stored, primaryPoints: 3, secondaryPoints: 10 })).toEqual([]);
   });
 
   it('replaces a policy only from the version the editor saw, bumping it', () => {
-    const { version: _, ...proposed } = { ...DEFAULT_CREDIT_POLICY, badgePoints: 40 };
-    expect(replaceCreditPolicy(DEFAULT_CREDIT_POLICY, 1, proposed)).toEqual({
+    const { version: _, ...proposed } = { ...stored, badgePoints: 40 };
+    expect(replaceCreditPolicy(7, 7, proposed)).toEqual({
       ok: true,
-      policy: { ...proposed, version: 2 },
+      policy: { ...proposed, version: 8 },
     });
-    expect(replaceCreditPolicy({ ...DEFAULT_CREDIT_POLICY, version: 2 }, 1, proposed)).toEqual({
+    expect(replaceCreditPolicy(8, 7, proposed)).toEqual({ ok: false, reason: 'stale' });
+    expect(replaceCreditPolicy(7, 7, { ...proposed, minObservers: 0 })).toMatchObject({
       ok: false,
-      reason: 'stale',
+      reason: 'invalid',
     });
-    expect(
-      replaceCreditPolicy(DEFAULT_CREDIT_POLICY, 1, { ...proposed, minObservers: 1 }),
-    ).toMatchObject({ ok: false, reason: 'invalid' });
+    // A broken policy with no valid version is repaired from version 0.
+    expect(replaceCreditPolicy(0, 0, proposed)).toMatchObject({ ok: true, policy: { version: 1 } });
   });
 
   it('composes the version recorded on credits and awards', () => {

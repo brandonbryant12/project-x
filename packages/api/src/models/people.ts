@@ -3,8 +3,8 @@ import {
   GrantRole,
   IsoDate,
   ObservationId,
+  CreditRole,
   ObservationMode,
-  SkillRole,
 } from '@repo/domain';
 import { Schema } from 'effect';
 import { Instant, PersonSummary, ProgressView, SkillRef } from './common.ts';
@@ -60,7 +60,8 @@ export const BadgeReceiptView = Schema.Struct({
       narrativeSaw: Schema.NullOr(Schema.String),
       /** "How this was earned": what this credit was worth, its role and where the value came from. */
       points: Schema.Number,
-      role: SkillRole,
+      /** `unclassified`: observed before roles existed. */
+      role: CreditRole,
       pointsSource: PointsSource,
       /** False when another credit for the same work counted (one piece of work counts once). */
       counted: Schema.Boolean,

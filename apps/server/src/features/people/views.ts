@@ -12,7 +12,7 @@ import {
   type PersonId,
   type PointsSource,
   type SkillId,
-  type SkillRole,
+  type CreditRole,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { and, desc, eq, gte, ilike, inArray, or } from 'drizzle-orm';
@@ -297,7 +297,7 @@ export const buildBadgeReceipt = Effect.fn('people.badgeReceipt')(function* (
         mode: c.mode as ObservationMode,
         narrativeSaw: readable ? (obs?.narrativeSaw ?? null) : null,
         points: c.points,
-        role: c.role as SkillRole,
+        role: c.role as CreditRole,
         pointsSource: c.pointsSource as PointsSource,
         counted: counted.has(c.id),
       };

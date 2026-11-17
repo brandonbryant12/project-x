@@ -108,8 +108,8 @@ export const transitionObservation = Effect.fn('useCase.transitionObservation')(
 /**
  * VOID: append a reversal per credit, then revoke badges whose criteria no
  * longer hold. Each badge is judged by the thresholds saved on its award (a
- * legacy snapshot reads as N interactions and N × 10 points), never by the
- * policy of the day. A revoked badge is then judged once more under the
+ * legacy snapshot reads as N pieces of work and N × 10 points), never by the
+ * policy of the day or by defaults. A revoked badge is then judged once more under the
  * current policy and, if still met, awarded again as a new award with the
  * current thresholds, so nobody who qualifies today is left without it.
  */
@@ -157,10 +157,17 @@ const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
   for (const badge of badges.filter(
     (b) => skills.includes(b.skillId) && (b.level === 2 || b.level === 3),
   )) {
+    const saved = criteriaFromSnapshot(badge.criteria.thresholds);
+    if (!saved.ok) {
+      // Never judged by defaults: an unreadable snapshot is data to repair by hand.
+      return yield* Effect.die(
+        new Error(`badge award ${badge.id} snapshot lacks ${saved.missing.join(', ')}`),
+      );
+    }
     const evaluation = evaluateBadge(
       (net.get(badge.skillId) ?? []).map(toCreditFact),
       badge.level as BadgeLevel,
-      criteriaFromSnapshot(badge.criteria.thresholds),
+      saved.criteria,
     );
     if (evaluation.met || BadgeAwardLifecycle.next('awarded', {}, { type: 'REVOKE' }) === null)
       continue;

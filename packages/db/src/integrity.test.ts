@@ -233,7 +233,7 @@ layer(layerTestDb)('database integrity', (it) => {
   );
 
   it.effect(
-    'I2: a credit carries its rating’s role and a real source, so it cannot claim primary or legacy points',
+    'I2: a credit carries its rating’s role and a real source, so it cannot claim primary points or be legacy',
     () =>
       Effect.gen(function* () {
         const db = yield* Db;
@@ -259,6 +259,18 @@ layer(layerTestDb)('database integrity', (it) => {
           ),
         );
         yield* db.insert(schema.creditEntry).values({ ...f.credit, role: 'secondary', points: 3 });
+        // Nor an unclassified role, even copied from an unclassified rating.
+        const g = yield* fixture;
+        yield* db
+          .update(schema.observationRating)
+          .set({ role: 'unclassified' })
+          .where(eq(schema.observationRating.observationId, g.observationId));
+        yield* sign(g.observationId);
+        assert.isTrue(
+          yield* rejected(
+            db.insert(schema.creditEntry).values({ ...g.credit, role: 'unclassified' }),
+          ),
+        );
       }),
   );
 

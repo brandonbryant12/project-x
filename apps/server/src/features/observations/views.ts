@@ -23,7 +23,7 @@ import {
   type PointsSource,
   type QuestionSetId,
   type SkillId,
-  type SkillRole,
+  type CreditRole,
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
@@ -262,7 +262,7 @@ const ratingViews = (
           ? []
           : ticks.filter((t) => t.skillId === r.skillId).map((t) => t.indicatorId),
         credit: r.credit,
-        role: r.role as SkillRole,
+        role: r.role as CreditRole,
         roleChoosable,
       },
     ];
@@ -294,7 +294,7 @@ const outcomeViews = ({
               levelName: LEVEL_NAMES[c.level as Level],
               firstHand: c.isFirstHand,
               points: c.points,
-              role: c.role as SkillRole,
+              role: c.role as CreditRole,
               pointsSource: c.pointsSource as PointsSource,
             },
           ]

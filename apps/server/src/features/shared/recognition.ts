@@ -8,36 +8,80 @@ import {
   evaluateBadge,
   nextBadgeLevel,
   nextStepSentence,
+  readStoredCreditPolicy,
   replaceCreditPolicy,
-  resolveCreditPolicy,
   roleValues,
   type BadgeLevel,
   type CreditFact,
   type CreditPolicy,
+  type CreditRole,
+  type PolicyProblem,
   type IsoDate,
   type Level,
   type ObservationId,
   type ObservationMode,
   type PersonId,
   type SkillId,
-  type SkillRole,
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { Effect } from 'effect';
+import { Data, Effect } from 'effect';
 import { now } from '../../platform/time.ts';
 import { recordAudit } from './audit.ts';
 import { loadSkills, toSkillRef } from './skills.ts';
 
-/** The tenant's credit policy (points and badge rules), merged over the working defaults. */
-export const tenantCreditPolicy = Effect.fn('tenant.creditPolicy')(function* (tenantId: TenantId) {
+/**
+ * A tenant whose stored credit policy is missing or invalid. Signing and every
+ * policy-dependent read stop on it (a defect, so a 500) rather than run on
+ * values nobody chose; the administration screen reads the problems through
+ * `inspectTenantCreditPolicy` and repairs it with `saveCreditPolicy`.
+ */
+export class CreditPolicyConfigurationError extends Data.TaggedError(
+  'CreditPolicyConfigurationError',
+)<{
+  readonly tenantId: TenantId;
+  readonly problems: ReadonlyArray<PolicyProblem>;
+}> {
+  override get message() {
+    return `The credit policy of tenant ${this.tenantId} is not valid (${this.problems
+      .map((p) => p.field)
+      .join(', ')}); a program owner must repair it.`;
+  }
+}
+
+/** The stored policy exactly as stored, valid or not, with its problems (for administration). */
+export const inspectTenantCreditPolicy = Effect.fn('tenant.inspectCreditPolicy')(function* (
+  tenantId: TenantId,
+) {
   const db = yield* Db;
   const [row] = yield* db
     .select({ settings: schema.tenant.settings })
     .from(schema.tenant)
     .where(eq(schema.tenant.id, tenantId));
-  return resolveCreditPolicy(row?.settings.creditPolicy);
+  const raw: unknown = row?.settings.creditPolicy;
+  const reading = readStoredCreditPolicy(raw);
+  const rawVersion =
+    raw !== null && typeof raw === 'object' ? (raw as { version?: unknown }).version : undefined;
+  return {
+    reading,
+    /** The version a save must name: the stored one when valid, else 0. */
+    version:
+      Number.isInteger(rawVersion) && (rawVersion as number) >= 1 ? (rawVersion as number) : 0,
+    /** Exactly what is stored, for the compare-and-set. */
+    rawVersion: rawVersion === undefined ? null : rawVersion,
+  };
+});
+
+/** The tenant's credit policy, exactly as stored; dies with `CreditPolicyConfigurationError` if broken. */
+export const tenantCreditPolicy = Effect.fn('tenant.creditPolicy')(function* (tenantId: TenantId) {
+  const { reading } = yield* inspectTenantCreditPolicy(tenantId);
+  if (!reading.ok) {
+    return yield* Effect.die(
+      new CreditPolicyConfigurationError({ tenantId, problems: reading.problems }),
+    );
+  }
+  return reading.policy;
 });
 
 type CreditRow = typeof schema.creditEntry.$inferSelect;
@@ -80,7 +124,7 @@ export const toCreditFact = (row: CreditRow): CreditFact => ({
   mode: row.mode as ObservationMode,
   demonstratedOn: row.demonstratedOn,
   points: row.points,
-  role: row.role as SkillRole,
+  role: row.role as CreditRole,
 });
 
 export const heldBadges = Effect.fn('badges.held')(function* (
@@ -251,8 +295,9 @@ export const lockPersonLedger = Effect.fn('credits.lock')(function* (
  * Replaces the tenant's credit policy, compared and set on its stored version
  * (design §2): a stale editor gets `Conflict`, an invalid policy
  * `Unprocessable`; the stored policy is always complete and the version bumps.
- * The caller audits it (before and after, with a reason) in the same
- * transaction. Never re-evaluates or awards anything.
+ * A broken stored policy can be repaired (its version reads as 0). The caller
+ * audits it (before and after, with a reason) in the same transaction. It never
+ * re-evaluates or awards anything.
  */
 export const saveCreditPolicy = Effect.fn('tenant.saveCreditPolicy')(function* (
   tenantId: TenantId,
@@ -260,14 +305,15 @@ export const saveCreditPolicy = Effect.fn('tenant.saveCreditPolicy')(function* (
   proposed: Omit<CreditPolicy, 'version'>,
 ) {
   const db = yield* Db;
-  const before = yield* tenantCreditPolicy(tenantId);
-  const change = replaceCreditPolicy(before, expectedVersion, proposed);
+  const { reading, version, rawVersion } = yield* inspectTenantCreditPolicy(tenantId);
+  const change = replaceCreditPolicy(version, expectedVersion, proposed);
+  const stale = new Conflict({
+    message: 'The credit policy changed since you opened it. Reload to continue.',
+  });
   if (!change.ok) {
     return yield* Effect.fail(
       change.reason === 'stale'
-        ? new Conflict({
-            message: 'The credit policy changed since you opened it. Reload to continue.',
-          })
+        ? stale
         : new Unprocessable({
             message: change.problems[0]?.message ?? 'Check the values.',
             field: change.problems[0]?.field ?? 'creditPolicy',
@@ -275,20 +321,19 @@ export const saveCreditPolicy = Effect.fn('tenant.saveCreditPolicy')(function* (
     );
   }
   const after = change.policy;
-  const stored = sql`coalesce((${schema.tenant.settings} #>> '{creditPolicy,version}')::integer, 1)`;
+  // Set only if the stored version is still exactly what was read.
   const [updated] = yield* db
     .update(schema.tenant)
     .set({
       settings: sql`jsonb_set(${schema.tenant.settings}, '{creditPolicy}', ${JSON.stringify(after)}::jsonb)`,
     })
-    .where(and(eq(schema.tenant.id, tenantId), eq(stored, expectedVersion)))
+    .where(
+      and(
+        eq(schema.tenant.id, tenantId),
+        sql`coalesce(${schema.tenant.settings} -> 'creditPolicy' -> 'version', 'null'::jsonb) = ${JSON.stringify(rawVersion)}::jsonb`,
+      ),
+    )
     .returning({ id: schema.tenant.id });
-  if (!updated) {
-    return yield* Effect.fail(
-      new Conflict({
-        message: 'The credit policy changed since you opened it. Reload to continue.',
-      }),
-    );
-  }
-  return { before, after };
+  if (!updated) return yield* Effect.fail(stale);
+  return { before: reading, after };
 });
