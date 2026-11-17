@@ -26,6 +26,7 @@ import {
   PlusIcon,
   SearchIcon,
   SproutIcon,
+  UserIcon,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { LogInteractionDialog } from '@/features/development/log-interaction-dialog.tsx';
@@ -60,6 +61,11 @@ const AccountMenu = ({ session }: { readonly session: SessionView }) => {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
+          <Link to="/people/$id" params={{ id: session.person.id }}>
+            <UserIcon /> Your profile
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link to="/settings">
             <BellIcon /> Notifications
           </Link>
@@ -92,25 +98,25 @@ const MobileTabs = ({
       <Link to="/" activeOptions={{ exact: true }} className={`${tab} h-[60px]`}>
         <HomeIcon className="size-5" /> Home
       </Link>
-      <Link to="/inbox" className={`${tab} h-[60px]`}>
-        <span className="relative">
-          <InboxIcon className="size-5" />
-          {count > 0 ? (
-            <span className="absolute -top-1 -right-2.5 rounded-full bg-sunken px-1 text-[10px] text-ink-2 tabular">
-              {count}
-            </span>
-          ) : null}
-        </span>
-        Inbox
-      </Link>
+      {session.relations.canObserve ? (
+        <Link to="/inbox" className={`${tab} h-[60px]`}>
+          <span className="relative">
+            <InboxIcon className="size-5" />
+            {count > 0 ? (
+              <span className="absolute -top-1 -right-2.5 rounded-full bg-sunken px-1 text-[10px] text-ink-2 tabular">
+                {count}
+              </span>
+            ) : null}
+          </span>
+          To sign
+        </Link>
+      ) : null}
       <div className="flex h-[60px] flex-1 items-center justify-center">
         <Button
           variant="primary"
           size="icon"
           className="size-11 rounded-full"
-          aria-label={
-            session.relations.canObserve ? 'I saw this, or log an interaction' : 'Log interaction'
-          }
+          aria-label={session.relations.canObserve ? 'I saw this' : 'Log work I did'}
           onClick={() =>
             session.relations.canObserve ? void navigate({ to: '/observations/new' }) : log.show()
           }
@@ -119,7 +125,7 @@ const MobileTabs = ({
         </Button>
       </div>
       <Link to="/development" className={`${tab} h-[60px]`}>
-        <SproutIcon className="size-5" /> Growth
+        <SproutIcon className="size-5" /> My plan
       </Link>
       <button type="button" onClick={onMore} className={`${tab} h-[60px] cursor-pointer`}>
         <MenuIcon className="size-5" /> More
@@ -168,7 +174,7 @@ export const AppShell = ({
           </button>
           <div className="ml-auto hidden items-center gap-2 md:flex">
             <Button variant="secondary" size="sm" onClick={() => log.show()}>
-              <NotebookPenIcon /> Log interaction
+              <NotebookPenIcon /> Log work I did
             </Button>
             {canObserve ? (
               <Button
@@ -176,7 +182,7 @@ export const AppShell = ({
                 size="sm"
                 onClick={() => void navigate({ to: '/observations/new' })}
               >
-                <EyeIcon /> Observe
+                <EyeIcon /> I saw this
               </Button>
             ) : null}
           </div>
@@ -212,7 +218,6 @@ const MoreSheet = ({
           <Link
             key={item.key}
             to={item.to}
-            {...(item.params ? { params: item.params as never } : {})}
             onClick={() => onOpenChange(false)}
             className="flex h-11 items-center gap-3 rounded-control px-2 text-body text-ink hover:bg-sunken"
           >

@@ -131,7 +131,12 @@ export const TeamScreen = ({ team }: { readonly team: TeamView }) => {
     <Page>
       <PageHeader
         title="My team"
-        description="Coverage and what is waiting on you. Never a ranking."
+        description="Who was observed lately and what is waiting on you. Never a ranking."
+        actions={
+          <Link to="/people" className="text-ui text-primary-ink hover:underline">
+            Find anyone in the firm
+          </Link>
+        }
       />
       {team.rows.length === 0 ? (
         <EmptyState>Nobody reports to you in the directory.</EmptyState>
@@ -258,7 +263,7 @@ export const CoachingScreen = ({ coaching }: { readonly coaching: CoachingView }
   return (
     <Page>
       <PageHeader
-        title={coaching.isCoach ? 'Coachees' : 'Coaching'}
+        title={coaching.isCoach ? 'People I coach' : 'Coaching'}
         description="Coaching is a relationship between two people. It carries no reporting line."
       />
       <div className="grid gap-10">
@@ -298,7 +303,11 @@ export const CoachingScreen = ({ coaching }: { readonly coaching: CoachingView }
             </div>
           ) : (
             <EmptyState>
-              You don’t have a coach yet. Find one in People and ask them from their profile.
+              You don’t have a coach yet. Find one in{' '}
+              <Link to="/people" className="text-primary-ink hover:underline">
+                People
+              </Link>{' '}
+              and ask them from their profile.
             </EmptyState>
           )}
         </section>

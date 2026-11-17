@@ -17,10 +17,8 @@ import { Route as AppCoachingRouteImport } from './routes/_app/coaching'
 import { Route as AppDevelopmentRouteImport } from './routes/_app/development'
 import { Route as AppInboxRouteImport } from './routes/_app/inbox'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
-import { Route as AppTimelineRouteImport } from './routes/_app/timeline'
 import { Route as AppAdminAiUsageRouteImport } from './routes/_app/admin/ai-usage'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
-import { Route as AppCatalogActivitiesRouteImport } from './routes/_app/catalog/activities'
 import { Route as AppConversationsIndexRouteImport } from './routes/_app/conversations/index'
 import { Route as AppConversationsIdRouteImport } from './routes/_app/conversations/$id'
 import { Route as AppObservationsIdRouteImport } from './routes/_app/observations/$id'
@@ -72,11 +70,6 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
-const AppTimelineRoute = AppTimelineRouteImport.update({
-  id: '/timeline',
-  path: '/timeline',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppAdminAiUsageRoute = AppAdminAiUsageRouteImport.update({
   id: '/admin/ai-usage',
   path: '/admin/ai-usage',
@@ -85,11 +78,6 @@ const AppAdminAiUsageRoute = AppAdminAiUsageRouteImport.update({
 const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   id: '/admin/audit',
   path: '/admin/audit',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCatalogActivitiesRoute = AppCatalogActivitiesRouteImport.update({
-  id: '/catalog/activities',
-  path: '/catalog/activities',
   getParentRoute: () => AppRoute,
 } as any)
 const AppConversationsIndexRoute = AppConversationsIndexRouteImport.update({
@@ -157,10 +145,8 @@ export interface FileRoutesByFullPath {
   '/development': typeof AppDevelopmentRoute
   '/inbox': typeof AppInboxRoute
   '/settings': typeof AppSettingsRoute
-  '/timeline': typeof AppTimelineRoute
   '/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/admin/audit': typeof AppAdminAuditRoute
-  '/catalog/activities': typeof AppCatalogActivitiesRoute
   '/conversations/$id': typeof AppConversationsIdRoute
   '/observations/$id': typeof AppObservationsIdRoute
   '/observations/new': typeof AppObservationsNewRoute
@@ -180,11 +166,9 @@ export interface FileRoutesByTo {
   '/development': typeof AppDevelopmentRoute
   '/inbox': typeof AppInboxRoute
   '/settings': typeof AppSettingsRoute
-  '/timeline': typeof AppTimelineRoute
   '/': typeof AppIndexRoute
   '/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/admin/audit': typeof AppAdminAuditRoute
-  '/catalog/activities': typeof AppCatalogActivitiesRoute
   '/conversations/$id': typeof AppConversationsIdRoute
   '/observations/$id': typeof AppObservationsIdRoute
   '/observations/new': typeof AppObservationsNewRoute
@@ -206,11 +190,9 @@ export interface FileRoutesById {
   '/_app/development': typeof AppDevelopmentRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/settings': typeof AppSettingsRoute
-  '/_app/timeline': typeof AppTimelineRoute
   '/_app/': typeof AppIndexRoute
   '/_app/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
-  '/_app/catalog/activities': typeof AppCatalogActivitiesRoute
   '/_app/conversations/$id': typeof AppConversationsIdRoute
   '/_app/observations/$id': typeof AppObservationsIdRoute
   '/_app/observations/new': typeof AppObservationsNewRoute
@@ -233,10 +215,8 @@ export interface FileRouteTypes {
     | '/development'
     | '/inbox'
     | '/settings'
-    | '/timeline'
     | '/admin/ai-usage'
     | '/admin/audit'
-    | '/catalog/activities'
     | '/conversations/$id'
     | '/observations/$id'
     | '/observations/new'
@@ -256,11 +236,9 @@ export interface FileRouteTypes {
     | '/development'
     | '/inbox'
     | '/settings'
-    | '/timeline'
     | '/'
     | '/admin/ai-usage'
     | '/admin/audit'
-    | '/catalog/activities'
     | '/conversations/$id'
     | '/observations/$id'
     | '/observations/new'
@@ -281,11 +259,9 @@ export interface FileRouteTypes {
     | '/_app/development'
     | '/_app/inbox'
     | '/_app/settings'
-    | '/_app/timeline'
     | '/_app/'
     | '/_app/admin/ai-usage'
     | '/_app/admin/audit'
-    | '/_app/catalog/activities'
     | '/_app/conversations/$id'
     | '/_app/observations/$id'
     | '/_app/observations/new'
@@ -362,13 +338,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/timeline': {
-      id: '/_app/timeline'
-      path: '/timeline'
-      fullPath: '/timeline'
-      preLoaderRoute: typeof AppTimelineRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/admin/ai-usage': {
       id: '/_app/admin/ai-usage'
       path: '/admin/ai-usage'
@@ -381,13 +350,6 @@ declare module '@tanstack/react-router' {
       path: '/admin/audit'
       fullPath: '/admin/audit'
       preLoaderRoute: typeof AppAdminAuditRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/catalog/activities': {
-      id: '/_app/catalog/activities'
-      path: '/catalog/activities'
-      fullPath: '/catalog/activities'
-      preLoaderRoute: typeof AppCatalogActivitiesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/conversations/': {
@@ -476,11 +438,9 @@ interface AppRouteChildren {
   AppDevelopmentRoute: typeof AppDevelopmentRoute
   AppInboxRoute: typeof AppInboxRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppTimelineRoute: typeof AppTimelineRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAdminAiUsageRoute: typeof AppAdminAiUsageRoute
   AppAdminAuditRoute: typeof AppAdminAuditRoute
-  AppCatalogActivitiesRoute: typeof AppCatalogActivitiesRoute
   AppConversationsIdRoute: typeof AppConversationsIdRoute
   AppObservationsIdRoute: typeof AppObservationsIdRoute
   AppObservationsNewRoute: typeof AppObservationsNewRoute
@@ -500,11 +460,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppDevelopmentRoute: AppDevelopmentRoute,
   AppInboxRoute: AppInboxRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppTimelineRoute: AppTimelineRoute,
   AppIndexRoute: AppIndexRoute,
   AppAdminAiUsageRoute: AppAdminAiUsageRoute,
   AppAdminAuditRoute: AppAdminAuditRoute,
-  AppCatalogActivitiesRoute: AppCatalogActivitiesRoute,
   AppConversationsIdRoute: AppConversationsIdRoute,
   AppObservationsIdRoute: AppObservationsIdRoute,
   AppObservationsNewRoute: AppObservationsNewRoute,

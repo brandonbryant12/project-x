@@ -1,21 +1,10 @@
-import type { AiUsageView, AuditEventView, PersonCard, TimelineItem } from '@repo/api';
-import {
-  BadgeSeal,
-  Card,
-  EmptyState,
-  Input,
-  NativeSelect,
-  PersonAvatar,
-  PersonChip,
-  Pill,
-  SectionLabel,
-} from '@repo/ui';
+import type { AiUsageView, AuditEventView, PersonCard } from '@repo/api';
+import { BadgeSeal, Card, EmptyState, Input, NativeSelect, PersonChip, Pill } from '@repo/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { SearchIcon } from 'lucide-react';
 import { useDeferredValue, useState } from 'react';
 import { Page, PageHeader } from '@/components/page.tsx';
-import { ServerLink } from '@/components/server-link.tsx';
 import { queryOptions } from '@/lib/api.ts';
 import { formatDate, levelName } from '@/lib/format.ts';
 
@@ -105,63 +94,6 @@ export const PeopleScreen = () => {
         <EmptyState>
           {people.isFetching ? 'Searching…' : 'No one matches. Try a different name or skill.'}
         </EmptyState>
-      )}
-    </Page>
-  );
-};
-
-const monthOf = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-
-export const TimelineScreen = ({ items }: { readonly items: ReadonlyArray<TimelineItem> }) => {
-  const months = [...new Set(items.map((i) => monthOf(i.at)))];
-  return (
-    <Page width="reading">
-      <PageHeader title="Timeline" description="Your development, as it happened." />
-      {items.length === 0 ? (
-        <EmptyState>Your timeline starts with your first logged interaction.</EmptyState>
-      ) : (
-        <div className="grid gap-10">
-          {months.map((m) => (
-            <section key={m} className="grid gap-3">
-              <SectionLabel>{m}</SectionLabel>
-              <ol className="relative grid gap-5 border-l border-line pl-6">
-                {items
-                  .filter((i) => monthOf(i.at) === m)
-                  .map((i) => (
-                    <li key={`${i.kind}-${i.at}-${i.title}`} className="relative">
-                      <span
-                        aria-hidden
-                        className={
-                          i.kind === 'badge_earned'
-                            ? 'absolute top-1.5 -left-[29px] size-2.5 rounded-full bg-brass ring-4 ring-canvas'
-                            : 'absolute top-1.5 -left-[28px] size-2 rounded-full border border-line-strong bg-surface ring-4 ring-canvas'
-                        }
-                      />
-                      <div className="flex items-start gap-3">
-                        {i.person ? (
-                          <PersonAvatar person={i.person} size="xs" className="mt-0.5" />
-                        ) : null}
-                        <div className="grid gap-0.5">
-                          {i.href ? (
-                            <ServerLink href={i.href} className="text-ui text-ink hover:underline">
-                              {i.title}
-                            </ServerLink>
-                          ) : (
-                            <p className="text-ui text-ink">{i.title}</p>
-                          )}
-                          <p className="text-meta text-ink-3">
-                            {formatDate(i.at)}
-                            {i.detail ? ` · ${i.detail}` : ''}
-                          </p>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-              </ol>
-            </section>
-          ))}
-        </div>
       )}
     </Page>
   );

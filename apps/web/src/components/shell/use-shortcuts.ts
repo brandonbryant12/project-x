@@ -5,7 +5,7 @@ const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 
-/** ⌘K palette, G-then-key navigation, L log, O observe. Disabled while typing. */
+/** ⌘K palette, G-then-key navigation, L log work, O "I saw this". Disabled while typing. */
 export const useShortcuts = (handlers: {
   readonly palette: () => void;
   readonly log: () => void;
@@ -24,7 +24,7 @@ export const useShortcuts = (handlers: {
       const key = e.key.toLowerCase();
       if (pendingG.current) {
         pendingG.current = false;
-        const to = { h: '/', i: '/inbox', d: '/development', t: '/timeline', p: '/people' }[key];
+        const to = { h: '/', i: '/inbox', d: '/development', p: '/people' }[key];
         if (to) void navigate({ to });
         return;
       }

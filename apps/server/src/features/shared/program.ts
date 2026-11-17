@@ -10,7 +10,7 @@ import { addDaysIso } from '../../platform/time.ts';
  */
 export const MIN_CELL = 5;
 
-const cell =(n: number) => (n >= MIN_CELL ? n : null);
+const cell = (n: number) => (n >= MIN_CELL ? n : null);
 
 /**
  * How many people have an active or paused plan, and how many of them were

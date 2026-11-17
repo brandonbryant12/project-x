@@ -180,19 +180,3 @@ export const InteractionView = Schema.Struct({
   suggestedSkills: Schema.Array(SkillRef),
 });
 export type InteractionView = typeof InteractionView.Type;
-
-export const TimelineItem = Schema.Struct({
-  at: Instant,
-  kind: Schema.Literals([
-    'interaction_logged',
-    'observation_requested',
-    'observation_signed',
-    'badge_earned',
-    'plan_agreed',
-  ]),
-  title: Schema.String,
-  detail: Schema.NullOr(Schema.String),
-  href: Schema.NullOr(Schema.String),
-  person: Schema.NullOr(PersonSummary),
-});
-export type TimelineItem = typeof TimelineItem.Type;

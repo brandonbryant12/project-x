@@ -155,8 +155,8 @@ export const InboxScreen = ({
   return (
     <Page width="reading">
       <PageHeader
-        title="Inbox"
-        description="Observations waiting on you, and the ones you have asked for."
+        title="To sign"
+        description="Observations waiting for your signature, and the ones you have asked for."
       />
       <div ref={ref}>
         <Tabs value={tab} onValueChange={(v) => onTab(v as InboxTab)}>
