@@ -76,12 +76,20 @@ Decisions behind this table:
   signal we have. One piece of work counts once per skill: badge criteria
   count distinct _interactions_, and a piece of work adds the highest points
   among its credits, never their sum.
-- **The same work logged twice.** A coachee can log a meeting and an observer
-  can separately record "I saw this" for it; today that creates two
-  interactions, and each counts. Letting "I saw this" attach to work the
-  subject already logged is not built yet. Two people deliberately logging one
-  event as two pieces of work would remain possible even then (see the
-  [backlog](../backlog.md)).
+- **The same work is recorded once.** "I saw this" first offers the work the
+  subject already logged for the chosen day, and an observation attached to it
+  takes that work's date and kind instead of creating a second interaction.
+  The server accepts only the subject's own work, inside the observe window,
+  and never a second open or signed observation of one piece of work by the
+  same observer. Two people deliberately logging one event as two pieces of
+  work is still possible (see the [backlog](../backlog.md)).
+- **A returned request is revised, then resent.** The subject reads the
+  return note, revises the reflection from the same screen, may write a new
+  note to the observer (an empty note keeps the earlier one) and resends; the
+  observer is notified again. The due date does not move. A reflection held
+  for privacy is never sent to an observer: asking for an observation and
+  resending are both refused until it clears. Escalated text does not block
+  either, because it is a compliance matter the author cannot revise.
 - **"Feedback only" is allowed.** A rating may be signed with no credit, so
   observers are not forced to choose between crediting and refusing.
 
@@ -102,7 +110,8 @@ Each one maps to its tests in [invariants.md](../testing/invariants.md).
 - **I6.** Every lifecycle transition is audited with actor, states, reason
   and policy version.
 - **I7.** Development records never hold client-identifying data. The only
-  client field is an opaque `client_ref`.
+  client field is an opaque `client_ref`. Text the local screen holds never
+  reaches a model or an observer.
 - **I8.** A signed attestation is immutable.
 
 Added in the hub round. The numbers are shared with
@@ -133,6 +142,8 @@ Added with weighted signed credit and run-time administration (2026-11-17):
   and never after the work has been observed.
 - **I39.** A closed plan is never edited, and a closing review never writes
   credit or a badge.
+- **I46.** One piece of work is observed at most once by each observer, and
+  "I saw this" attaches only to the subject's own work.
 
 ## Eligible observer
 
@@ -247,7 +258,7 @@ transitions that only a human can make.
 | **DevelopmentPlan** | draft → proposed → active ⇄ paused → completed · canceled · expired; proposed · active → draft (`REVISE`) | `PROPOSE` needs 1–3 focus skills (each with a target level) and at least one activity. `AGREE` (H): the coach, or the leader if the coachee has no coach. `ENDORSE` (H): the leader chain, which can never block the plan. `REVISE` (H, the owner or an agreer) returns the plan to a draft and clears the agreement, the endorsement and an unconfirmed closing review; it is refused once the review is confirmed. Every unfinished plan, drafts included, expires after the period ends plus a grace period. The owner edits title, intent and end date while the plan is not closed, and focus skills only in a draft. |
 | **Activity** | planned → underway → done · canceled · expired | Becomes underway on its first interaction. The owner or an agreer adds work while the plan is open, and edits planned work (skills with roles, at most one primary) while it is planned or underway. |
 | **Evidence**                 | screening → available · held · escalated; held → screening (`REVISE`) · available (`RELEASE`, H admin); escalated → available (`RESOLVE`, H compliance) | The local screen holds immediately and fails closed. Text that passes it is available at once. The AI may then only `HOLD` (suspected PII) or `ESCALATE` (complaint or specific recommendation); it never clears anything. Escalated evidence is never edited away.                                                  |
-| **Observation** | requested → drafting → signed · declined · returned · withdrawn · expired; signed → under_review → signed (`UPHOLD`) · voided | `SIGN` (H, never automated). `ACKNOWLEDGE` / `REQUEST_REVIEW` (H, the subject, once). `VOID` / `UPHOLD` (H, **compliance reviewer** only; void appends reversals, revokes any badge whose saved criteria no longer hold, then judges the skill again under the current rules). The observer sets the **mode** and the **roles** at signing, so neither first-hand status nor primary focus is the coachee's claim. |
+| **Observation** | requested → drafting → signed · declined · returned · withdrawn · expired; returned → requested (`RESUBMIT`); signed → under_review → signed (`UPHOLD`) · voided | `SIGN` (H, never automated). `RESUBMIT` (H, the requester) only while their reflection is not held for privacy. `ACKNOWLEDGE` / `REQUEST_REVIEW` (H, the subject, once). `VOID` / `UPHOLD` (H, **compliance reviewer** only; void appends reversals, revokes any badge whose saved criteria no longer hold, then judges the skill again under the current rules). The observer sets the **mode** and the **roles** at signing, so neither first-hand status nor primary focus is the coachee's claim. |
 | **BadgeAward** | awarded → revoked | Awarded by policy from signed credit, saving the criteria it was judged by; revoked only by a reversal, judged by those saved criteria. A badge earned again after a revocation is a new award. |
 | **AdvisoryCheck**            | pending → completed · failed · skipped                                                                                                                  | Written once. Failures never count as a pass.                                                                                                                                                                                                                                                                        |
 

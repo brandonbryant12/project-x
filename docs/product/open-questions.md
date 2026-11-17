@@ -47,5 +47,8 @@ change reverses an architectural decision, add an ADR as well.
 | 38 | **Should an agreed plan be revisable while it is paused?** | No: `REVISE` is allowed from proposed and active only. | `packages/domain/src/lifecycles/plan.ts` | Open |
 | 39 | **May a published skill be renamed?** The slug does not follow a rename, so old links keep working. | Yes: the name, summary, domain and outcome stay editable, and each edit is audited. The levels change only through a new published version. | `apps/server/src/features/program/skills.ts` | Open |
 | 40 | **Should a second observer of the same work add points?** | No: one piece of work counts once per skill, at the highest value among its credits. A second observer counts toward the observer criterion. | `projectWork` in `packages/domain/src/scoring/badges.ts` | Open |
+| 41 | **Should escalated (not held) reflection text block a request for observation or a resend?** | No. Only text held for suspected client details blocks them; escalated text is a compliance matter the author cannot revise. | `isEvidenceHeld` in `packages/domain/src/lifecycles/evidence.ts` | Open |
+| 42 | **Should resending a returned request move its due date?** | No: the request keeps its original signing window. | `transitionObservation` in `apps/server/src/features/observations/use-cases/transition.ts` | Open |
+| 43 | **Should a requester be able to clear the earlier note to the observer when resending?** | No: a new note takes the place of the earlier one, and an empty note keeps it. | `transitionObservation` | Open |
 
 See also [domain-expert-questions.md](domain-expert-questions.md) for questions only practitioners can answer.

@@ -87,13 +87,14 @@ Code and docs use the terms above. The UI uses plain words:
 | Internal term                    | In the UI                                                       |
 | -------------------------------- | --------------------------------------------------------------- |
 | Interaction                      | "work" ("Log work I did")                                       |
-| Observation (quick capture)      | "I saw this"; its narrative is "What I saw"                     |
+| Observation (quick capture) | "I saw this"; its narrative is "What I saw". Work already logged that day is offered first |
 | Development plan                 | "My plan"                                                       |
 | Coaching engagement              | coaching ("People I coach", "Stop coaching")                    |
 | Demonstration | "times observed" |
-| Role | "Primary" and "Secondary" |
+| Role | "Primary" and "Secondary"; credit from before roles is "Observed before roles" |
 | Points | "points" ("10 points") |
-| Points source | "set for this work", "from the template", "the skill's value", "the standard value" |
+| Points source | On a plan: "set for this work", "from the template", "the skill's value", "the standard value". On a signed credit: "value set for this work", "value from the template" (the others are not labelled) |
+| Feedback-only rating | "Feedback only, adds nothing"; the sign screen says what signing adds ("Signing adds …") |
 | Individual value | "Set value" |
 | Credit policy | "Credit rules" |
 | Program catalog administration | "Skill catalog" and "Activity templates" (the read-only catalog is "Skills") |

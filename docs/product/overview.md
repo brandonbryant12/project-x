@@ -83,13 +83,16 @@ sequenceDiagram
 Other journeys:
 
 - **"I saw this"**: an observer records an observation directly after
-  watching good work, in one screen.
+  watching good work, in one screen, attached to the work the person already
+  logged when there is some.
 - **Plan agreement**: a coachee proposes a plan; their coach agrees it; their
   leader may endorse it.
 - **My team**: a leader sees coverage (who has been observed recently) and
   what is waiting on them. Never rankings.
 - **Privacy hold**: a reflection with client details stays hidden until it is
   revised. A complaint or a specific recommendation goes to compliance.
+- **Returned request**: an observer can send a request back with a note; the
+  coachee revises the reflection and resends it.
 - **Contest**: a coachee can acknowledge an observation or ask for a review.
 
 ## Principles
@@ -155,5 +158,5 @@ Nothing here is deployed or used by a client yet; there has been no pilot.
 | Assistant privacy screen | Built. Runs on a deterministic mock unless configured otherwise (`DECISIONS_MODE` defaults to `mock`; `disabled` turns it off). Live mode needs an API key and the paid-tier confirmation, and waits for infosec and compliance (open question 15) |
 | Directory | CSV import with a dry run (API only); Graph sync waits for IT |
 | Behind a switch, off by default | Designated observers (`FEATURE_DESIGNATED_OBSERVERS`, [ADR 0020](../adr/0020-designated-observers.md)) |
-| Not built | Level 4 badges, waivers, reciprocal-pair exclusion, purge jobs, Graph directory sync, "I saw this" attaching to work already logged, coaching conversations (ADR 0019), skill profiles (ADR 0017), the AI learning loop (ADR 0016), calendar logging (ADR 0022). See the [backlog](../backlog.md) |
+| Not built | Level 4 badges, waivers, reciprocal-pair exclusion, purge jobs, Graph directory sync, coaching conversations (ADR 0019), skill profiles (ADR 0017), the AI learning loop (ADR 0016), calendar logging (ADR 0022). See the [backlog](../backlog.md) |
 | Needs a client decision | See [open questions](open-questions.md) and [questions for domain experts](domain-expert-questions.md) |

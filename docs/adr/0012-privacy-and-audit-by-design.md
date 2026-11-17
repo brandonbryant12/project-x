@@ -107,6 +107,9 @@ deprovisioning ticket (see the runbooks). Model it again with the purge jobs.
   purgeable note of kind `policy_change`, `catalog_change` or
   `value_override` ([ADR 0023](./0023-program-owners-administer-credit-rules-and-catalog.md)).
   The closing summary of a plan is content and stays on the plan; its audit
-  events record only the outcomes. The schema also allows a `plan_review`
-  note kind and four matching reason codes, which nothing writes yet: when a
-  note is attached, the audit row's reason code is `note`.
+  events record only the outcomes. An explicit reason code now survives an
+  attached note (an individual value records `value_override`); a note with
+  no explicit code still records `note`, which is what credit-rule and
+  catalog changes record today. The schema also allows a `plan_review` note
+  kind and the reason codes `policy_change`, `catalog_change` and
+  `plan_review`, which nothing writes yet.
