@@ -218,6 +218,7 @@ layer(ScenarioLayer, { timeout: 60_000 })('directory import and exceptions', (it
         assert.include(coachToCoach.detail, at('Sam Rivera'));
 
         // Re-running the same file changes nothing and reports the same findings.
+        yield* signInAs('Rhea Castillo');
         const rerun = yield* api.directory.importDirectory({
           payload: { csv: HR_FILE, dryRun: false },
         });
