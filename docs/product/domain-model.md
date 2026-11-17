@@ -30,7 +30,7 @@ here is our best current design and is open to domain experts (see
 | --------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | **Directory**   | Tenant, Person, ReportingLine, BusinessFunction, RoleGrant, JobFamily, PersonPosition                                       | Mirrors Entra ID. Effective-dated, never edited by product flows. See [identity and access](../architecture/identity-and-access.md). |
 | **Catalog**     | Skill, SkillVersion (levels and indicators), SkillProfile, ActivityTemplate                                                 | Curated by catalog keepers. Published versions are immutable. Each indicator has a lineage key that stays stable across versions.    |
-| **Coaching**    | CoachingEngagement, ObserverDesignation, CoachingConversation, Commitment                                                   | The mesh: any coach can engage anyone. Carries no reporting authority. Conversations and commitments never write credit (ADR 0019).  |
+| **Coaching**    | CoachingEngagement, ObserverDesignation                                                                                     | The mesh: any coach can engage anyone. Carries no reporting authority. Conversations and commitments are deferred (ADR 0019).        |
 | **Development** | DevelopmentPlan (focus skills with **target levels**), Activity (with an **observation commitment**), Interaction, Evidence | The coachee's workspace. Logging an event is never credit.                                                                           |
 | **Recognition** | Observation, Rating, CreditEntry, CreditReversal, BadgeAward, BadgeWaiver                                                   | The **only** context that writes credit.                                                                                             |
 | **Advisory**    | AdvisoryCheck, Exposure, Label, SecondRead, QuestionSetRelease                                                              | Gemini Decisions wrapper and the learning loop (ADR 0016).                                                                           |
@@ -47,8 +47,6 @@ here is our best current design and is open to domain experts (see
 | **Observation**            | "What my coach or leader saw": an eligible observer's account, with a level per skill and one specific comment | An eligible observer                    | Only when **signed**                               |
 | **Demonstration (credit)** | One skill at one level, seen by one observer, in one interaction                                               | The system, at signing                  | It _is_ the credit                                 |
 | **Badge**                  | Recognition that a level has been demonstrated enough, by enough people, over enough time                      | The system, by policy                   | n/a                                                |
-| **Commitment**             | "What I agreed to do next": from an observer's next step or a conversation                                     | Observer at signing, or a conversation  | **Never**                                          |
-| **Conversation**           | "When we talked": a scheduled meeting with a coach or leader                                                   | Either party                            | **Never**                                          |
 
 Decisions behind this table:
 
@@ -173,8 +171,6 @@ transitions that only a human can make.
 | **Observation**              | requested → drafting → signed · declined · returned · withdrawn · expired; signed → under_review → signed (`UPHOLD`) · voided                           | `SIGN` (H, never automated). `ACKNOWLEDGE` / `REQUEST_REVIEW` (H, the subject, once). `VOID` / `UPHOLD` (H, **compliance reviewer** only; void appends reversals and revokes any badge whose criteria no longer hold). The observer sets the **mode** at signing, so first-hand status is never the coachee's claim. |
 | **BadgeAward**               | awarded → revoked                                                                                                                                       | Awarded by policy from signed credit; revoked only by a reversal                                                                                                                                                                                                                                                     |
 | **AdvisoryCheck**            | pending → completed · failed · skipped                                                                                                                  | Written once. Failures never count as a pass.                                                                                                                                                                                                                                                                        |
-| **CoachingConversation**     | scheduled → held · missed · cancelled                                                                                                                   | `HOLD` / `MISS` (H) only once the scheduled time has arrived. `RESCHEDULE` keeps it scheduled. Marked missed if nobody closes it within 7 days. Built: `features/rhythm/`, journey `conversation-carries-commitments` (I27).                                                                                         |
-| **Commitment**               | open → done · dropped; done · dropped → open (`REOPEN`)                                                                                                 | Owned by the coachee. Never earns credit. Built: `features/rhythm/`; journey `conversation-carries-commitments` (I27).                                                                                                                                                                                               |
 
 These are deliberately **not** machines: `CreditEntry` and `CreditReversal`
 (immutable facts), badge progress (a projection), labels (facts),
@@ -197,8 +193,9 @@ outbox row: `pending → sent · skipped · failed`, set only by the dispatcher)
 
 ## Designed next
 
-- **Private coach notes** on a conversation, once compliance answers retention
-  and access (open question 23).
+- **Coaching conversations and commitments** (ADR 0019, deferred until pilot
+  feedback), with private coach notes once compliance answers retention and
+  access (open question 23).
 - **Program and Cohort**: a template plan plus an enrollment backed by an AD
   group (for example, new-advisor cohorts).
 - **Directory sync**: a scheduled Microsoft Graph sync of `manager` and app

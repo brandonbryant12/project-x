@@ -70,7 +70,6 @@ const routesFor = async (
     ['coaching', '/coaching'],
     ['observe-new', '/observations/new'],
     ['settings', '/settings'],
-    ['conversations', '/conversations'],
   ];
   const inbox = await get('/observations/inbox');
   const first = inbox.requests?.[0] ?? inbox.drafts?.[0] ?? inbox.mine?.[0] ?? inbox.signed?.[0];
@@ -78,9 +77,6 @@ const routesFor = async (
   const profile = await get(`/people/${personId}`);
   const badge = profile.badges?.[0];
   if (badge) routes.push(['badge-receipt', `/people/${personId}/badges/${badge.id}`]);
-  const conversations = await get('/conversations');
-  const talk = conversations.upcoming?.[0] ?? conversations.recent?.[0];
-  if (talk) routes.push(['conversation', `/conversations/${talk.id}`]);
   // Oversight screens only for the grants that may open them.
   const grants: ReadonlyArray<string> = (await get('/session')).grants ?? [];
   const has = (g: string) => grants.includes(g);

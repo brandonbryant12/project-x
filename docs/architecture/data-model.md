@@ -9,7 +9,7 @@ rules every table follows. The code lives in `packages/db/src/schema/`.
 | Kind                  | Examples                                                                                                 | Mutability              | Rules                                                                                                                                                                           |
 | --------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Directory mirrors** | `person`, `reporting_line`, `role_grant`, `person_position`                                              | Synced from Entra or HR | Effective-dated (`valid_from`, `valid_to`). Never edited by product flows. History is kept so eligibility can be evaluated _as of_ any date.                                    |
-| **Workflow entities** | `plan`, `activity`, `observation`, `engagement`, `evidence`, `coaching_conversation`, `commitment`       | Current state changes   | One `status` column, constrained to the lifecycle's states. A `version` integer for optimistic concurrency. Every transition also writes `audit_event` in the same transaction. |
+| **Workflow entities** | `plan`, `activity`, `observation`, `engagement`, `evidence`                                              | Current state changes   | One `status` column, constrained to the lifecycle's states. A `version` integer for optimistic concurrency. Every transition also writes `audit_event` in the same transaction. |
 | **Facts and ledgers** | `credit_entry`, `audit_event`, `advisory_check`, `advisory_label`, `badge_award`, `observer_designation` | **Append-only**         | Never `UPDATE`d to erase history; corrections are new rows that point at the old ones. Denormalized on purpose: each row explains itself without joins to mutable data.         |
 | **Operational**       | `session`, `notification`, `notification_preference`                                                     | Plumbing                | Hold no content and explain nothing to an auditor. Deleted 90 days after last use (`operational` class). A `notification` row's status changes only in the dispatcher.          |
 
@@ -59,7 +59,7 @@ Do not mix kinds. If a workflow entity needs history, the history belongs in
   - Analytics can follow an indicator across versions through `lineage_key`,
     for example to find indicators that are never ticked.
 - **Content is separate from facts.**
-  - Free text (reflections, narratives, notes, commitments) lives in a small
+  - Free text (reflections, narratives, notes) lives in a small
     number of columns. `packages/db/src/retention.ts` gives every table a
     retention class and lists every free-text column, and
     `packages/db/src/retention.test.ts` fails if a new one is unclassified.
@@ -95,8 +95,6 @@ tenant ─┬─ business_function
         ├─ activity_template ── activity_template_skill
         ├─ engagement (coach ↔ coachee, mesh)
         ├─ observer_designation (designator names an observer for a subject, ≤ 90 days)
-        ├─ coaching_conversation (host ↔ coachee, basis: engagement or reporting line)
-        ├─ commitment (owned by the coachee; from an observation or a conversation)
         ├─ plan ─┬─ plan_skill (focus skill, profile, target level, closing outcome)
         │        └─ activity ─┬─ activity_skill
         │                     └─ interaction ─┬─ evidence (screened text)
@@ -123,7 +121,6 @@ pinned correctly from the first real row.
 | `observer_designation`, `observation.basis_designation_id`                             | Built  | Designating, ending, and observing on the `designated` basis are built; the journey test `designated-observer-signs` is _planned_ |
 | `notification_preference`                                                              | Built  | Built                                                                                                                             |
 | `notification`                                                                         | Built  | Rows written in the transition's transaction; dispatcher with staleness check (`notification-carries-no-content`)                 |
-| `coaching_conversation`, `commitment`                                                  | Built  | _Being built in this round_ (the endpoints exist and return "not yet")                                                            |
 | `job_family`, `person_position`, `skill_profile`, `profile_key`, `subject_position_id` | Built  | Every pin is `core`; profile authoring and expectations wait for HR (ADR 0017)                                                    |
 
 Designed, not built:

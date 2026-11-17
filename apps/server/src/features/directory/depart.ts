@@ -8,11 +8,9 @@ import {
   type DepartureResult,
 } from '@repo/api';
 import {
-  ConversationLifecycle,
   EngagementLifecycle,
   OPEN_OBSERVATION_STATES,
   ObservationLifecycle,
-  type ConversationStatus,
   type EngagementStatus,
   type IsoDate,
   type ObservationStatus,
@@ -236,7 +234,7 @@ const endRelationships = Effect.fn('directory.depart.relationships')(function* (
   return { engagements: engagements.length, designations: designations.length };
 });
 
-/** Nobody is left waiting on the leaver: requests, conversations and their outbox. */
+/** Nobody is left waiting on the leaver: requests and their outbox. */
 const releaseWaiting = Effect.fn('directory.depart.waiting')(function* (leaving: Leaving) {
   const { actor, personId, at, audit } = leaving;
   const tenantId = actor.tenantId;
@@ -275,42 +273,6 @@ const releaseWaiting = Effect.fn('directory.depart.waiting')(function* (leaving:
     yield* audit({ entityType: 'observation', entityId: row.id, event: 'EXPIRE', from, to });
   }
 
-  const conversations = yield* db
-    .select()
-    .from(schema.coachingConversation)
-    .where(
-      and(
-        eq(schema.coachingConversation.tenantId, tenantId),
-        eq(schema.coachingConversation.status, 'scheduled'),
-        or(
-          eq(schema.coachingConversation.hostId, personId),
-          eq(schema.coachingConversation.coacheeId, personId),
-        ),
-      ),
-    );
-  for (const row of conversations) {
-    const from = row.status as ConversationStatus;
-    const to = yield* decide({
-      lifecycle: ConversationLifecycle,
-      from,
-      facts: { started: false },
-      event: { type: 'CANCEL' },
-      permitted: departurePolicy(actor),
-    });
-    yield* db
-      .update(schema.coachingConversation)
-      .set({ status: to, closedAt: at, version: row.version + 1, updatedAt: at })
-      .where(
-        and(
-          eq(schema.coachingConversation.id, row.id),
-          eq(schema.coachingConversation.version, row.version),
-        ),
-      )
-      .returning({ id: schema.coachingConversation.id })
-      .pipe(Effect.flatMap(requireUpdated('conversation')));
-    yield* audit({ entityType: 'conversation', entityId: row.id, event: 'CANCEL', from, to });
-  }
-
   const notifications = yield* db
     .update(schema.notification)
     .set({ status: 'skipped' })
@@ -324,7 +286,6 @@ const releaseWaiting = Effect.fn('directory.depart.waiting')(function* (leaving:
     .returning({ id: schema.notification.id });
   return {
     requests: requests.length,
-    conversations: conversations.length,
     notifications: notifications.length,
   };
 });
@@ -400,7 +361,6 @@ export const departWithin = Effect.fn('directory.depart')(function* (
       engagementsEnded: relationships.engagements,
       designationsEnded: relationships.designations,
       requestsExpired: waiting.requests,
-      conversationsCancelled: waiting.conversations,
       notificationsSkipped: waiting.notifications,
     },
     findings: dated.findings,

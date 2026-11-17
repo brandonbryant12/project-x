@@ -12,14 +12,9 @@ import {
   type SkillId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
-import { and, desc, eq, gte, inArray, isNotNull, lt, or } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNotNull, lt } from 'drizzle-orm';
 import { Effect } from 'effect';
-import {
-  BusinessTimeZone,
-  addDaysIso,
-  businessDateIn,
-  startOfBusinessDay,
-} from '../../platform/time.ts';
+import { BusinessTimeZone, addDaysIso, businessDateIn } from '../../platform/time.ts';
 import { coverageSentence } from '../shared/notification-templates.ts';
 import { mondayOf } from '../shared/weeks.ts';
 import { DEFAULT_PREFERENCES } from '../shared/notify.ts';
@@ -28,14 +23,13 @@ import { loadSkills, toSkillRef } from '../shared/skills.ts';
 
 /**
  * The daily brief (path-to-A § 2): "Today" and "This week" on Home. Needs no
- * calendar: plans already record due dates and intended observers, and
- * conversations are scheduled in the app.
+ * calendar: plans already record due dates and intended observers.
  */
 const SIGNED = ['signed', 'under_review'] as const;
 
 type BriefRows = Effect.Success<ReturnType<typeof loadBriefRows>>;
 
-/** What the brief reads: today's conversations, planned and due work, requests, observations. */
+/** What the brief reads: planned and due work, requests, observations. */
 const loadBriefRows = Effect.fn('support.brief.rows')(function* (
   actor: Actor,
   on: IsoDate,
@@ -43,25 +37,9 @@ const loadBriefRows = Effect.fn('support.brief.rows')(function* (
   supportedIds: ReadonlyArray<PersonId>,
 ) {
   const db = yield* Db;
-  const zone = yield* BusinessTimeZone;
   const me = actor.personId;
   const tenant = eq(schema.activity.tenantId, actor.tenantId);
-  const [conversations, plannedForMe, myDue, openRequests, pref] = yield* Effect.all([
-    db
-      .select()
-      .from(schema.coachingConversation)
-      .where(
-        and(
-          eq(schema.coachingConversation.tenantId, actor.tenantId),
-          eq(schema.coachingConversation.status, 'scheduled'),
-          or(
-            eq(schema.coachingConversation.hostId, me),
-            eq(schema.coachingConversation.coacheeId, me),
-          ),
-          gte(schema.coachingConversation.scheduledFor, startOfBusinessDay(on, zone)),
-          lt(schema.coachingConversation.scheduledFor, startOfBusinessDay(addDaysIso(on, 1), zone)),
-        ),
-      ),
+  const [plannedForMe, myDue, openRequests, pref] = yield* Effect.all([
     db
       .select()
       .from(schema.activity)
@@ -138,33 +116,17 @@ const loadBriefRows = Effect.fn('support.brief.rows')(function* (
           ),
         )
     : [];
-  return { conversations, plannedForMe, myDue, openRequests, pref, plans, observedRows };
+  return { plannedForMe, myDue, openRequests, pref, plans, observedRows };
 });
 
-/** "Today": conversations and planned observations for today, and the viewer's own due work. */
+/** "Today": planned observations for today, and the viewer's own due work. */
 const todayItems = (
   rows: BriefRows,
   people: ReadonlyMap<PersonId, PersonSummary>,
-  me: PersonId,
   on: IsoDate,
 ): Array<TodayItem> => {
-  const { conversations, plannedForMe, myDue } = rows;
+  const { plannedForMe, myDue } = rows;
   return [
-    ...conversations
-      .toSorted((a, b) => a.scheduledFor.getTime() - b.scheduledFor.getTime())
-      .map((c): TodayItem => {
-        const other = c.hostId === me ? c.coacheeId : c.hostId;
-        const name = personFrom(people, other).displayName;
-        return {
-          kind: 'conversation',
-          id: c.id,
-          title: `Conversation with ${name}`,
-          person: personFrom(people, other),
-          at: c.scheduledFor.toISOString(),
-          on,
-          href: `/conversations/${c.id}`,
-        };
-      }),
     ...plannedForMe
       .filter((a) => a.dueOn === on)
       .map((a): TodayItem => ({
@@ -172,7 +134,6 @@ const todayItems = (
         id: a.id,
         title: `Observe ${personFrom(people, a.ownerId).displayName}: ${a.title}`,
         person: personFrom(people, a.ownerId),
-        at: null,
         on,
         href: `/observe?person=${a.ownerId}&activity=${a.id}`,
       })),
@@ -181,7 +142,6 @@ const todayItems = (
       id: a.id,
       title: a.title,
       person: null,
-      at: null,
       on,
       href: `/log?activity=${a.id}`,
     })),
@@ -222,7 +182,7 @@ export const buildBrief = Effect.fn('support.brief')(function* (
   const supportedIds = [...new Set([...reports, ...coacheesOf(facts, me, on), ...designated])];
 
   const rows = yield* loadBriefRows(actor, on, weekEnd, supportedIds);
-  const { conversations, plannedForMe, openRequests, pref, plans, observedRows } = rows;
+  const { plannedForMe, openRequests, pref, plans, observedRows } = rows;
   const skills = yield* loadSkills(
     actor.tenantId,
     plans.map((p) => p.skillId),
@@ -231,7 +191,6 @@ export const buildBrief = Effect.fn('support.brief')(function* (
     ...supportedIds,
     ...openRequests.map((o) => o.subjectId),
     ...plannedForMe.map((a) => a.ownerId),
-    ...conversations.flatMap((c) => [c.hostId, c.coacheeId]),
   ]);
   const lastObserved = (personId: PersonId, skillId: SkillId) =>
     observedRows
@@ -275,11 +234,10 @@ export const buildBrief = Effect.fn('support.brief')(function* (
       sentence: s.sentence,
       href: `/people/${s.personId}`,
     })),
-    commitmentsDue: [],
     coverageSentence: coverageSentenceFor(reports, observedRows, on),
     observeCapacity: capacity,
   };
-  return { today: todayItems(rows, people, me, on), thisWeek };
+  return { today: todayItems(rows, people, on), thisWeek };
 });
 
 /** Closes the loop for observers: the subject read what they wrote (last 14 days). */

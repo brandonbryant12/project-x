@@ -11,9 +11,6 @@ import {
   SkillVersionId,
   TenantId,
   type ActivityId,
-  type CommitmentId,
-  type ConversationEventType,
-  type ConversationId,
   type GrantRole,
   type InteractionKind,
   type IsoDate,
@@ -34,13 +31,7 @@ import {
 import { requestObservation, startObservation } from '../features/observations/use-cases/create.ts';
 import { signObservation } from '../features/observations/use-cases/sign.ts';
 import { transitionObservation } from '../features/observations/use-cases/transition.ts';
-import {
-  commitmentEvent,
-  conversationEvent,
-  createCommitment,
-  scheduleConversation,
-} from '../features/rhythm/use-cases.ts';
-import { addDays, addDaysIso, fixedClock, now, today } from '../platform/time.ts';
+import { addDaysIso, fixedClock, today } from '../platform/time.ts';
 import { SEED_SKILLS, SEED_TEMPLATES } from './seed-catalog.ts';
 
 /**
@@ -555,7 +546,7 @@ const scenario = (world: Effect.Success<typeof seedDirectoryAndCatalog>) =>
       'client_meeting',
       'Called three anxious clients after the market drop. One wanted to move everything to cash.',
     );
-    const mayaVolatilityObs = yield* observe(
+    yield* observe(
       'maya',
       'sam',
       i3,
@@ -775,175 +766,6 @@ const scenario = (world: Effect.Success<typeof seedDirectoryAndCatalog>) =>
         narrativeSaw:
           'Leo opened the huddle with one advisor’s recorded call and asked the team what they noticed before giving his view. Two people left with a specific thing to try.',
         narrativeNext: 'Follow up on those two commitments at next week’s huddle.',
-      }),
-    );
-
-    // The weekly rhythm (ADR 0019): 1:1s and coaching sessions over six weeks,
-    // each scheduled the week before, and the commitments people made in them.
-    const at = yield* now;
-    const meeting = (host: Key, coachee: Key, daysAgo: number, close: ConversationEventType) =>
-      Effect.gen(function* () {
-        const conversationId: ConversationId = yield* onDay(
-          daysAgo + 6,
-          as(
-            host,
-            scheduleConversation({
-              withPersonId: world.id(coachee),
-              scheduledFor: `${ago(daysAgo)}T15:00:00.000Z`,
-            }),
-          ),
-        );
-        yield* onDay(
-          daysAgo,
-          as(host, conversationEvent(conversationId, { event: close, version: 1 })),
-        );
-        return conversationId;
-      });
-    const commit = (
-      owner: Key,
-      by: Key,
-      daysAgo: number,
-      body: string,
-      from: { conversationId?: ConversationId; sourceObservationId?: ObservationId } = {},
-      dueInDays: number | null = null,
-    ) =>
-      onDay(
-        daysAgo,
-        as(
-          by,
-          createCommitment({
-            ownerId: world.id(owner),
-            body,
-            dueOn: dueInDays === null ? null : ago(daysAgo - dueInDays),
-            conversationId: from.conversationId ?? null,
-            sourceObservationId: from.sourceObservationId ?? null,
-          }),
-        ),
-      );
-    const close = (owner: Key, daysAgo: number, id: CommitmentId, event: 'COMPLETE' | 'DROP') =>
-      onDay(daysAgo, as(owner, commitmentEvent(id, event)));
-
-    // Sam and Maya meet weekly; Leo holds a fortnightly 1:1 with her.
-    const samMaya28 = yield* meeting('sam', 'maya', 28, 'HOLD');
-    const checkpoints = yield* commit(
-      'maya',
-      'maya',
-      28,
-      'Send a short checkpoint summary within a day of each volatility call.',
-      { conversationId: samMaya28 },
-      14,
-    );
-    yield* close('maya', 16, checkpoints, 'COMPLETE');
-    yield* meeting('leo', 'maya', 26, 'HOLD');
-    yield* meeting('sam', 'maya', 21, 'HOLD');
-    yield* commit(
-      'maya',
-      'maya',
-      18,
-      'Ask what would need to be true to stay invested before offering my view.',
-      { sourceObservationId: mayaVolatilityObs },
-    );
-    yield* meeting('sam', 'maya', 14, 'HOLD');
-    yield* meeting('leo', 'maya', 12, 'HOLD');
-    const samMaya7 = yield* meeting('sam', 'maya', 7, 'HOLD');
-    yield* commit(
-      'maya',
-      'sam',
-      7,
-      'Ask each partner separately about trade-offs in the next two discovery meetings.',
-      { conversationId: samMaya7 },
-      10,
-    );
-
-    // Daniel: one session missed, then back on track with Sam and Leo.
-    yield* meeting('sam', 'daniel', 28, 'HOLD');
-    yield* meeting('sam', 'daniel', 21, 'MISS');
-    yield* meeting('leo', 'daniel', 20, 'HOLD');
-    const samDaniel14 = yield* meeting('sam', 'daniel', 14, 'HOLD');
-    const shadow = yield* commit(
-      'daniel',
-      'daniel',
-      14,
-      'Shadow Maya on a discovery meeting before my next proposal walkthrough.',
-      { conversationId: samDaniel14 },
-    );
-    yield* close('daniel', 3, shadow, 'DROP');
-    const leoDaniel6 = yield* meeting('leo', 'daniel', 6, 'HOLD');
-    yield* commit(
-      'daniel',
-      'leo',
-      6,
-      'Draw the timeline before showing any numbers in the next proposal walkthrough.',
-      { conversationId: leoDaniel6 },
-      7,
-    );
-
-    // Sam coaches Leo; Jordan coaches Tom and Aisha; Priya holds her 1:1s.
-    yield* meeting('sam', 'leo', 30, 'HOLD');
-    yield* meeting('sam', 'leo', 16, 'HOLD');
-    yield* meeting('jordan', 'tom', 37, 'HOLD');
-    const jordanTom23 = yield* meeting('jordan', 'tom', 23, 'HOLD');
-    const questions = yield* commit(
-      'tom',
-      'tom',
-      23,
-      'Write down the questions I use on volatility calls and share them with Jordan.',
-      { conversationId: jordanTom23 },
-      14,
-    );
-    yield* close('tom', 10, questions, 'COMPLETE');
-    yield* meeting('jordan', 'tom', 9, 'HOLD');
-    yield* meeting('priya', 'tom', 25, 'HOLD');
-    yield* meeting('priya', 'tom', 11, 'HOLD');
-    yield* meeting('priya', 'marcus', 18, 'HOLD');
-    yield* meeting('priya', 'marcus', 4, 'CANCEL');
-    const jordanAisha15 = yield* meeting('jordan', 'aisha', 15, 'HOLD');
-    yield* commit(
-      'aisha',
-      'jordan',
-      15,
-      'Raise the fee in the first ten minutes of every annual review this month.',
-      { conversationId: jordanAisha15 },
-      21,
-    );
-    yield* meeting('jordan', 'aisha', 8, 'HOLD');
-    yield* meeting('leo', 'aisha', 13, 'HOLD');
-
-    // Leo turns Sam's next step from the huddle into a commitment.
-    yield* as(
-      'leo',
-      createCommitment({
-        ownerId: world.id('leo'),
-        body: 'Follow up with the two advisors on what they tried, at Monday’s huddle.',
-        dueOn: addDaysIso(on, 7),
-        conversationId: null,
-        sourceObservationId: huddle,
-      }),
-    );
-
-    // Coming up: Sam sees Maya later today and Daniel tomorrow; Jordan sees Aisha this week.
-    const laterToday = new Date(
-      Math.max(Date.parse(`${on}T20:00:00Z`), addDays(at, 1 / 24).getTime()),
-    );
-    yield* as(
-      'sam',
-      scheduleConversation({
-        withPersonId: world.id('maya'),
-        scheduledFor: laterToday.toISOString(),
-      }),
-    );
-    yield* as(
-      'sam',
-      scheduleConversation({
-        withPersonId: world.id('daniel'),
-        scheduledFor: `${addDaysIso(on, 1)}T14:30:00.000Z`,
-      }),
-    );
-    yield* as(
-      'aisha',
-      scheduleConversation({
-        withPersonId: world.id('jordan'),
-        scheduledFor: `${addDaysIso(on, 3)}T16:00:00.000Z`,
       }),
     );
   });

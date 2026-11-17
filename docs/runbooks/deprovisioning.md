@@ -13,7 +13,7 @@ import with `applyDepartures: true`. In one audited transaction it:
 - ends their open reporting lines, grants, position and designations;
 - ends their engagements and expires requests waiting on them as observer,
   through the lifecycles, so requesters can ask someone else;
-- cancels their scheduled conversations and skips pending notifications;
+- skips their pending notifications;
 - raises a `manager_departed` exception for each report left without a
   manager.
 

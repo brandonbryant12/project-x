@@ -1,7 +1,7 @@
 import { EngagementId, EngagementLifecycle, IsoDate, PlanId, PlanLifecycle } from '@repo/domain';
 import { Schema } from 'effect';
 import { Instant, PersonSummary, SkillRef } from './common.ts';
-import { CommitmentView, ConversationSummary, ThisWeek, TodayItem } from './hub.ts';
+import { ThisWeek, TodayItem } from './hub.ts';
 
 export const QueueItem = Schema.Struct({
   kind: Schema.Literals([
@@ -65,9 +65,6 @@ export const HomeView = Schema.Struct({
   /** Path-to-A § 2: the daily brief. */
   today: Schema.Array(TodayItem),
   thisWeek: ThisWeek,
-  /** The viewer's own open commitments (as coachee). */
-  myCommitments: Schema.Array(CommitmentView),
-  nextConversation: Schema.NullOr(ConversationSummary),
 });
 export type HomeView = typeof HomeView.Type;
 

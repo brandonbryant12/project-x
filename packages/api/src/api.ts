@@ -7,7 +7,6 @@ import { DirectoryGroup } from './groups/directory.ts';
 import { HubGroup } from './groups/hub.ts';
 import { ObservationsGroup } from './groups/observations.ts';
 import { PeopleGroup } from './groups/people.ts';
-import { RhythmGroup } from './groups/rhythm.ts';
 import { SupportGroup } from './groups/support.ts';
 
 /**
@@ -23,7 +22,6 @@ export class Api extends HttpApi.make('app')
   .add(DevelopmentGroup)
   .add(ObservationsGroup)
   .add(AdminGroup)
-  .add(RhythmGroup)
   .add(HubGroup)
   .add(DirectoryGroup)
   .prefix('/api')

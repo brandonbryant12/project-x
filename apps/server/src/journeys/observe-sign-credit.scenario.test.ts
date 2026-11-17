@@ -10,7 +10,8 @@ import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
 /**
  * Journey: an advisor's work is observed, signed and credited.
  * Protects I1 (no self-credit), I2 (credit only from SIGN), I4 (eligibility),
- * I6 (audited transitions), I7 (held text hidden from others) and the
+ * I6 (audited transitions), I7 (held text hidden from others), I13 (the plan's
+ * "Try next time" quotes a narrative only to its readers) and the
  * "actions drive the UI" contract — end to end through HTTP, use cases and SQL.
  */
 const client = HttpApiTest.groups(Api, ['observations', 'development', 'support', 'admin']);
@@ -97,7 +98,7 @@ layer(ScenarioLayer, { timeout: 60_000 })('observe → sign → credit', (it) =>
         assert.strictEqual(audit.length, 1);
         assert.strictEqual(audit[0]?.toState, 'signed');
 
-        yield* signInAs('Maya Chen');
+        const mayaId = yield* signInAs('Maya Chen');
         const forbidden = yield* api.observations
           .transition({
             params: { id: view.id },
@@ -111,6 +112,17 @@ layer(ScenarioLayer, { timeout: 60_000 })('observe → sign → credit', (it) =>
         });
         assert.isNotNull(acknowledged.acknowledgedAt);
         assert.notInclude(acknowledged.actions, 'REQUEST_REVIEW');
+
+        // I13: the plan shows the latest "What next" to Maya, never to the wider chain.
+        const mine = yield* api.development.mine();
+        assert.strictEqual(
+          mine.plan?.tryNextTime?.sentence,
+          'Agree the checkpoint date before ending the call.',
+        );
+        yield* signInAs('Rhea Castillo');
+        const asChain = yield* api.development.of({ params: { id: mayaId } });
+        assert.isNotNull(asChain.plan);
+        assert.isNull(asChain.plan?.tryNextTime);
       }),
   );
 

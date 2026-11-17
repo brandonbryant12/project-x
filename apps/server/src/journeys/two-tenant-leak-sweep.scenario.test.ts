@@ -26,7 +26,6 @@ const PARAM_SOURCES: Readonly<Record<string, { table: PgTable; column: string }>
   observations: { table: schema.observation, column: 'id' },
   people: { table: schema.person, column: 'id' },
   interactions: { table: schema.interaction, column: 'id' },
-  conversations: { table: schema.coachingConversation, column: 'id' },
   badges: { table: schema.badgeAward, column: 'id' },
   skills: { table: schema.skill, column: 'slug' },
 };
@@ -84,7 +83,6 @@ const client = HttpApiTest.groups(Api, [
   'development',
   'observations',
   'admin',
-  'rhythm',
   'hub',
 ]);
 

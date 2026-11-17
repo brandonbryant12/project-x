@@ -24,22 +24,21 @@ add it here first. The model behind the terms is described in
 
 ## Development
 
-| Term                  | Meaning                                                                                                                                                    | Not to be confused with                             |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| **Skill**             | A named capability that matters to the business, e.g. _Client discovery_.                                                                                  | Badge                                               |
-| **Skill version**     | An immutable published definition: four levels, each with observable indicators.                                                                           |                                                     |
-| **Level**             | One step on a skill's ladder: 1 Learning, 2 Doing with support, 3 Doing independently, 4 Teaching others.                                                  |                                                     |
-| **Indicator**         | An observable behavior at a level. Optional for the observer to tick. It carries a `lineage_key` that stays stable across versions.                        | Trait                                               |
-| **Activity template** | A reusable piece of real work, e.g. _Discovery meeting with a new client_, with suggested skills and a tip for observers.                                  | Activity                                            |
-| **Development plan**  | A coachee's plan for a period: one to three focus skills, each with a **target level**, plus the activities that will develop them.                        |                                                     |
-| **Activity**          | One item of planned real work, with an **observation commitment** (who will see it, and how). It is either `planned` or `ad_hoc`.                          | Interaction                                         |
-| **Interaction**       | One dated occurrence of doing the work.                                                                                                                    | Observation                                         |
-| **Client reference**  | An opaque CRM ID. Never a name.                                                                                                                            |                                                     |
-| **Evidence**          | The coachee's reflection on an interaction, screened for privacy.                                                                                          | Observation                                         |
-| **Skill profile**     | A named variant of a skill's level descriptors for a capacity, such as "as a leader". Every skill has `core`; others wait for HR (ADR 0017).               | A separate skill                                    |
-| **Conversation**      | A scheduled meeting between a coachee and their coach or leader: scheduled, then held, missed or cancelled. Its agenda is assembled from facts (ADR 0019). | Observation                                         |
-| **Commitment**        | Something the coachee agreed to do next, from an observer's next step or a conversation. Open until done or dropped. Never earns credit.                   | Activity                                            |
-| **Quick capture**     | The one-screen "I saw this": an observer records who, when, mode, skills, level and comment, and signs or saves to finish later.                           | Logging an interaction, which is the coachee\'s act |
+| Term                  | Meaning                                                                                                                                                 | Not to be confused with                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **Skill**             | A named capability that matters to the business, e.g. _Client discovery_.                                                                               | Badge                                               |
+| **Skill version**     | An immutable published definition: four levels, each with observable indicators.                                                                        |                                                     |
+| **Level**             | One step on a skill's ladder: 1 Learning, 2 Doing with support, 3 Doing independently, 4 Teaching others.                                               |                                                     |
+| **Indicator**         | An observable behavior at a level. Optional for the observer to tick. It carries a `lineage_key` that stays stable across versions.                     | Trait                                               |
+| **Activity template** | A reusable piece of real work, e.g. _Discovery meeting with a new client_, with suggested skills and a tip for observers.                               | Activity                                            |
+| **Development plan**  | A coachee's plan for a period: one to three focus skills, each with a **target level**, plus the activities that will develop them.                     |                                                     |
+| **Activity**          | One item of planned real work, with an **observation commitment** (who will see it, and how). It is either `planned` or `ad_hoc`.                       | Interaction                                         |
+| **Interaction**       | One dated occurrence of doing the work.                                                                                                                 | Observation                                         |
+| **Client reference**  | An opaque CRM ID. Never a name.                                                                                                                         |                                                     |
+| **Evidence**          | The coachee's reflection on an interaction, screened for privacy.                                                                                       | Observation                                         |
+| **Skill profile**     | A named variant of a skill's level descriptors for a capacity, such as "as a leader". Every skill has `core`; others wait for HR (ADR 0017).            | A separate skill                                    |
+| **Try next time**     | The latest signed observation's "What next", shown on the coachee's plan. Not stored separately; conversations and commitments are deferred (ADR 0019). | Activity                                            |
+| **Quick capture**     | The one-screen "I saw this": an observer records who, when, mode, skills, level and comment, and signs or saves to finish later.                        | Logging an interaction, which is the coachee\'s act |
 
 ## Recognition
 
@@ -74,8 +73,8 @@ add it here first. The model behind the terms is described in
 
 | Term              | Meaning                                                                                                                                                     | Not to be confused with    |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| **Today**         | The Home band listing what happens today: conversations and planned work naming you as observer or due from you. Needs no calendar.                         | Needs you                  |
-| **This week**     | The Home band listing who to observe this week (each with a reason), commitments due and the next-step benchmark. Never a ranking.                          | Digest                     |
+| **Today**         | The Home band listing what happens today: planned work naming you as observer or due from you. Needs no calendar.                                           | Needs you                  |
+| **This week**     | The Home band listing who to observe this week (each with a reason) and the next-step benchmark. Never a ranking.                                           | Digest                     |
 | **Notification**  | One outbox row telling one person that something waits on them. Carries names, a verb, counts, dates and a link, never content (ADR 0018).                  | Audit event                |
 | **Digest**        | The Monday 07:30 message (tenant time zone) summarizing what waits, in counts and dates. Not sent when empty. No comparisons.                               | Notification for one event |
 | **Adoption view** | The program owner's aggregate page: time to signature, coverage, expiry, observers, acknowledgement and more. No names; cells under five people are hidden. | Team view                  |

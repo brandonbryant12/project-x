@@ -1,13 +1,12 @@
 import type { ObservationView } from '@repo/api';
 import { Button, Card, DueLabel, StatusPill, toast } from '@repo/ui';
 import { Link } from '@tanstack/react-router';
-import { ArrowLeftIcon, ListPlusIcon } from 'lucide-react';
+import { ArrowLeftIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Page } from '@/components/page.tsx';
 import { useApiMutation } from '@/lib/api.ts';
 import { formatLongDate } from '@/lib/format.ts';
 import { OBSERVATION_STATUS } from '@/lib/lifecycle-presentation.ts';
-import { CommitmentDialog } from '@/features/rhythm/commitments.tsx';
 import { NOTE_EVENTS, NoteEventDialog, type NoteEvent } from './event-dialog.tsx';
 import { EvidenceCard, PeopleLine, RatingRead } from './parts.tsx';
 
@@ -47,7 +46,6 @@ const statusLine = (view: ObservationView) => {
 /** Everyone who is not actively drafting it: the subject, leaders, and the observer after signing. */
 export const ReadView = ({ view }: { readonly view: ObservationView }) => {
   const [noteEvent, setNoteEvent] = useState<NoteEvent | null>(null);
-  const [committing, setCommitting] = useState(false);
   const transition = useApiMutation('observations', 'transition', {
     onSuccess: () => {
       setNoteEvent(null);
@@ -123,18 +121,6 @@ export const ReadView = ({ view }: { readonly view: ObservationView }) => {
               Narratives are visible to {first}, their coaches and their direct leader.
             </p>
           )}
-          {view.status === 'signed' &&
-          view.narrativeVisible &&
-          (view.viewerRole === 'subject' || view.viewerRole === 'observer') ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              className="justify-self-start"
-              onClick={() => setCommitting(true)}
-            >
-              <ListPlusIcon /> Make this a commitment
-            </Button>
-          ) : null}
           {view.acknowledgedAt ? (
             <p className="text-meta text-ink-3">
               {first} acknowledged this on {formatLongDate(view.acknowledgedAt)}.
@@ -168,15 +154,6 @@ export const ReadView = ({ view }: { readonly view: ObservationView }) => {
           ))}
         </div>
       ) : null}
-      <CommitmentDialog
-        key={committing ? 'open' : 'closed'}
-        open={committing}
-        onClose={() => setCommitting(false)}
-        ownerId={view.subject.id}
-        ownerName={view.subject.displayName}
-        initialBody={view.narrativeNext}
-        sourceObservationId={view.id}
-      />
       <NoteEventDialog
         event={noteEvent}
         pending={transition.isPending}

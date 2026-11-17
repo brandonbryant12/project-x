@@ -178,11 +178,6 @@ export type NotificationChannel = typeof NotificationChannel.Type;
 /** How many people an observer is happy to observe in a week (who-to-observe). */
 export const DEFAULT_OBSERVE_CAPACITY = 2;
 
-/** Who hosts a conversation: an engaged coach or the coachee's leader (ADR 0019). */
-export const CONVERSATION_BASES = ['coach', 'leader'] as const;
-export const ConversationBasis = Schema.Literals(CONVERSATION_BASES);
-export type ConversationBasis = typeof ConversationBasis.Type;
-
 /**
  * Directory exceptions (ADR 0006): HR data that breaks a structural rule or
  * cannot be applied. The import records them for a tenant admin and never

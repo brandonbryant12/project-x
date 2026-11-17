@@ -197,9 +197,6 @@ erDiagram
   OBSERVATION }o--|| REPORTING_LINE : "basis (leader)"
   OBSERVATION }o--|| ENGAGEMENT : "basis (coach)"
   OBSERVATION }o--|| OBSERVER_DESIGNATION : "basis (designated)"
-  PERSON ||--o{ COACHING_CONVERSATION : "host / coachee"
-  COACHING_CONVERSATION ||--o{ COMMITMENT : "agreed in"
-  OBSERVATION ||--o{ COMMITMENT : "next step"
   PERSON ||--o{ NOTIFICATION : "recipient"
   ADVISORY_CHECK ||--o{ ADVISORY_LABEL : "ground truth"
   ADVISORY_CHECK ||--o{ ADVISORY_DISPOSITION : "human decision"
@@ -209,7 +206,7 @@ The three kinds of tables follow different rules:
 
 - **Directory mirrors** (dated): person, reporting line, role grant.
 - **Workflow entities** (status plus version): plan, activity, observation,
-  engagement, evidence, conversation, commitment.
+  engagement, evidence.
 - **Append-only facts** (enforced by triggers): credit, reversal, audit,
   label, published catalog. A designation is a fact that may be ended once.
 - **Operational** (deleted after 90 days): sessions, the notification outbox,
@@ -242,17 +239,17 @@ flowchart LR
 
 ## 8. Cross-cutting choices
 
-| Concern              | Choice                                                                          | ADR              |
-| -------------------- | ------------------------------------------------------------------------------- | ---------------- |
-| Language and runtime | TypeScript, Effect 4 (HttpApi, Schema, layers), Node 24                         | 0002, 0003       |
-| State                | XState machines, enforced server-side with pure transitions                     | 0005             |
-| Data                 | Postgres 18 + Drizzle's Effect driver; PGlite runs the same migrations in tests | 0004             |
-| Identity             | Entra OIDC; app roles mirrored to dated grants; relationships carry authority   | 0006, 0014       |
-| Credit               | Only from SIGN; append-only demonstrations; badges by criteria                  | 0007             |
-| AI                   | Advisory only; human first; explainable records; learning loop                  | 0008, 0015, 0016 |
-| Privacy and audit    | No client PII; purgeable notes; append-only audit with `seq`                    | 0012, 0015       |
-| Observability        | Effect native OTLP to Datadog                                                   | 0013             |
-| Notifications        | Transactional outbox, dispatcher in the scheduler, no content in messages       | 0018             |
-| Coaching rhythm      | Conversations and commitments; neither earns credit                             | 0019             |
-| Observer supply      | Designated observers, bounded and anti-collusion                                | 0020             |
-| Adoption             | Program owner sees aggregates only, cells under five hidden                     | 0021             |
+| Concern              | Choice                                                                                      | ADR              |
+| -------------------- | ------------------------------------------------------------------------------------------- | ---------------- |
+| Language and runtime | TypeScript, Effect 4 (HttpApi, Schema, layers), Node 24                                     | 0002, 0003       |
+| State                | XState machines, enforced server-side with pure transitions                                 | 0005             |
+| Data                 | Postgres 18 + Drizzle's Effect driver; PGlite runs the same migrations in tests             | 0004             |
+| Identity             | Entra OIDC; app roles mirrored to dated grants; relationships carry authority               | 0006, 0014       |
+| Credit               | Only from SIGN; append-only demonstrations; badges by criteria                              | 0007             |
+| AI                   | Advisory only; human first; explainable records; learning loop                              | 0008, 0015, 0016 |
+| Privacy and audit    | No client PII; purgeable notes; append-only audit with `seq`                                | 0012, 0015       |
+| Observability        | Effect native OTLP to Datadog                                                               | 0013             |
+| Notifications        | Transactional outbox, dispatcher in the scheduler, no content in messages                   | 0018             |
+| Coaching rhythm      | Deferred until pilot feedback: meetings stay in Outlook, next steps stay on the observation | 0019             |
+| Observer supply      | Designated observers, bounded and anti-collusion                                            | 0020             |
+| Adoption             | Program owner sees aggregates only, cells under five hidden                                 | 0021             |

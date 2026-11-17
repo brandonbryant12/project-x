@@ -338,6 +338,19 @@ const PlanBody = ({ plan, editable }: { readonly plan: PlanView; readonly editab
           className="grid content-start gap-6 lg:sticky lg:top-20"
           aria-labelledby="toward-badges"
         >
+          {plan.tryNextTime ? (
+            <section className="grid gap-2" aria-labelledby="try-next-time">
+              <SectionLabel id="try-next-time">Try next time</SectionLabel>
+              <p className="narrative text-ink">{plan.tryNextTime.sentence}</p>
+              <Link
+                to="/observations/$id"
+                params={{ id: plan.tryNextTime.observationId }}
+                className="text-meta text-ink-3 underline-offset-2 hover:underline"
+              >
+                {plan.tryNextTime.observer.displayName}, {formatDate(plan.tryNextTime.signedAt)}
+              </Link>
+            </section>
+          ) : null}
           <SectionLabel id="toward-badges">Toward badges</SectionLabel>
           {plan.progress.map((p) => (
             <ProgressBlock

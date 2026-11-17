@@ -17,8 +17,6 @@ export interface DigestCounts {
   readonly earliestDue: IsoDate | null;
   readonly plannedForYou: number;
   readonly newAboutYou: number;
-  readonly conversationsThisWeek: number;
-  readonly commitmentsDue: number;
   readonly reportsObserved: { readonly observed: number; readonly of: number } | null;
 }
 
@@ -130,14 +128,6 @@ export const renderDigest = (firstName: string, c: DigestCounts, link: string): 
     lines.push(
       `${plural(c.newAboutYou, 'new observation', 'new observations')} about your work to read.`,
     );
-  }
-  if (c.conversationsThisWeek > 0) {
-    lines.push(
-      `${plural(c.conversationsThisWeek, 'conversation', 'conversations')} on your calendar this week.`,
-    );
-  }
-  if (c.commitmentsDue > 0) {
-    lines.push(`${plural(c.commitmentsDue, 'commitment', 'commitments')} due this week.`);
   }
   if (lines.length === 0) return null;
   if (c.reportsObserved && c.reportsObserved.of > 0) {

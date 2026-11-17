@@ -141,7 +141,6 @@ export const DepartureResult = Schema.Struct({
   engagementsEnded: Schema.Number,
   designationsEnded: Schema.Number,
   requestsExpired: Schema.Number,
-  conversationsCancelled: Schema.Number,
   notificationsSkipped: Schema.Number,
   exceptions: Schema.Array(DirectoryExceptionFinding),
 });

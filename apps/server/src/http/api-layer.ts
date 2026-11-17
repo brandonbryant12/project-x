@@ -8,7 +8,6 @@ import { DirectoryHandlers } from '../features/directory/handlers.ts';
 import { HubHandlers } from '../features/hub/handlers.ts';
 import { ObservationsHandlers } from '../features/observations/handlers.ts';
 import { PeopleHandlers } from '../features/people/handlers.ts';
-import { RhythmHandlers } from '../features/rhythm/handlers.ts';
 import { SupportHandlers } from '../features/support/handlers.ts';
 import { AuthHandlers, SessionHandlers } from './auth-handlers.ts';
 
@@ -22,7 +21,6 @@ export const ApiHandlers = Layer.mergeAll(
   DevelopmentHandlers,
   ObservationsHandlers,
   AdminHandlers,
-  RhythmHandlers,
   HubHandlers,
   DirectoryHandlers,
 );

@@ -78,6 +78,15 @@ export const PlanView = Schema.Struct({
   agreedAt: Schema.NullOr(Instant),
   endorsedBy: Schema.NullOr(PersonSummary),
   closingSummary: Schema.NullOr(Schema.String),
+  /** The latest signed observation's "What next", when the viewer may read narratives (I13). */
+  tryNextTime: Schema.NullOr(
+    Schema.Struct({
+      sentence: Schema.String,
+      observer: PersonSummary,
+      signedAt: Instant,
+      observationId: ObservationId,
+    }),
+  ),
   activities: Schema.Array(ActivityView),
   progress: Schema.Array(ProgressView),
   actions: Schema.Array(PlanEventType),

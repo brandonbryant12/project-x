@@ -1,30 +1,20 @@
 import {
-  CommitmentId,
-  CommitmentLifecycle,
-  ConversationBasis,
-  ConversationId,
-  ConversationLifecycle,
   DesignationId,
-  InteractionId,
-  InteractionKind,
   IsoDate,
   NotificationChannel,
   NotificationKind,
-  ObservationId,
   PersonId,
 } from '@repo/domain';
 import { Schema } from 'effect';
-import { Instant, PersonSummary, SkillRef } from './common.ts';
+import { Instant, PersonSummary } from './common.ts';
 
 /* ---------- Home: Today and This week (path-to-A § 2) ---------- */
 
 export const TodayItem = Schema.Struct({
-  kind: Schema.Literals(['conversation', 'planned_observation', 'activity_due']),
+  kind: Schema.Literals(['planned_observation', 'activity_due']),
   id: Schema.String,
   title: Schema.String,
   person: Schema.NullOr(PersonSummary),
-  /** A scheduled time, for conversations. */
-  at: Schema.NullOr(Instant),
   on: IsoDate,
   href: Schema.String,
 });
@@ -44,112 +34,16 @@ export const ObserveSuggestion = Schema.Struct({
 });
 export type ObserveSuggestion = typeof ObserveSuggestion.Type;
 
-export const CommitmentView = Schema.Struct({
-  id: CommitmentId,
-  owner: PersonSummary,
-  createdBy: PersonSummary,
-  /** Empty once purged. Visible to the owner, the creator, and the owner's coaches and leader. */
-  body: Schema.String,
-  dueOn: Schema.NullOr(IsoDate),
-  status: CommitmentLifecycle.Status,
-  sourceObservationId: Schema.NullOr(ObservationId),
-  conversationId: Schema.NullOr(ConversationId),
-  createdAt: Instant,
-  actions: Schema.Array(Schema.Literals(CommitmentLifecycle.events)),
-});
-export type CommitmentView = typeof CommitmentView.Type;
-
 export const ThisWeek = Schema.Struct({
   /** Monday of the current business week (tenant time zone). */
   weekOf: IsoDate,
   toObserve: Schema.Array(ObserveSuggestion),
-  /** Commitments due this week: the viewer's own, and those of people they support. */
-  commitmentsDue: Schema.Array(CommitmentView),
   /** Leaders: "4 of your 9 reports were observed in the last six weeks." */
   coverageSentence: Schema.NullOr(Schema.String),
   /** The viewer's self-set capacity. */
   observeCapacity: Schema.Number,
 });
 export type ThisWeek = typeof ThisWeek.Type;
-
-/* ---------- Conversations (ADR 0019) ---------- */
-
-export const ConversationSummary = Schema.Struct({
-  id: ConversationId,
-  status: ConversationLifecycle.Status,
-  basis: ConversationBasis,
-  host: PersonSummary,
-  coachee: PersonSummary,
-  scheduledFor: Instant,
-  heldOn: Schema.NullOr(IsoDate),
-  openCommitments: Schema.Number,
-  href: Schema.String,
-});
-export type ConversationSummary = typeof ConversationSummary.Type;
-
-/** Assembled, never stored: what to talk about. */
-export const ConversationAgenda = Schema.Struct({
-  /** Since the previous held conversation between the same two people. */
-  since: Schema.NullOr(IsoDate),
-  signedObservations: Schema.Array(
-    Schema.Struct({
-      id: ObservationId,
-      observer: PersonSummary,
-      occurredOn: IsoDate,
-      skills: Schema.Array(SkillRef),
-      href: Schema.String,
-    }),
-  ),
-  unobservedInteractions: Schema.Array(
-    Schema.Struct({
-      id: InteractionId,
-      occurredOn: IsoDate,
-      kind: InteractionKind,
-      title: Schema.String,
-    }),
-  ),
-  commitments: Schema.Array(CommitmentView),
-  nextStep: Schema.NullOr(Schema.Struct({ skill: SkillRef, sentence: Schema.String })),
-});
-
-export const ConversationView = Schema.Struct({
-  ...ConversationSummary.fields,
-  agenda: ConversationAgenda,
-  actions: Schema.Array(Schema.Literals(ConversationLifecycle.events)),
-  version: Schema.Number,
-});
-export type ConversationView = typeof ConversationView.Type;
-
-export const ConversationsView = Schema.Struct({
-  upcoming: Schema.Array(ConversationSummary),
-  recent: Schema.Array(ConversationSummary),
-  /** People the viewer can schedule with: their coachees, reports, coaches and leader. */
-  partners: Schema.Array(
-    Schema.Struct({ person: PersonSummary, basis: ConversationBasis, asHost: Schema.Boolean }),
-  ),
-});
-export type ConversationsView = typeof ConversationsView.Type;
-
-export const ScheduleConversationInput = Schema.Struct({
-  /** The other party. The server works out who hosts and on which basis. */
-  withPersonId: PersonId,
-  scheduledFor: Instant,
-});
-
-export const ConversationEventInput = Schema.Struct({
-  event: Schema.Literals(ConversationLifecycle.events),
-  version: Schema.Number,
-  /** RESCHEDULE only. */
-  scheduledFor: Schema.optional(Instant),
-});
-
-export const CreateCommitmentInput = Schema.Struct({
-  ownerId: PersonId,
-  body: Schema.String.pipe(Schema.check(Schema.isMinLength(3), Schema.isMaxLength(280))),
-  dueOn: Schema.NullOr(IsoDate),
-  conversationId: Schema.NullOr(ConversationId),
-  sourceObservationId: Schema.NullOr(ObservationId),
-});
 
 /* ---------- Designated observers (ADR 0020) ---------- */
 

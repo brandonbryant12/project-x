@@ -1,7 +1,5 @@
 import type {
   ActivityStatus,
-  CommitmentStatus,
-  ConversationStatus,
   EngagementStatus,
   EvidenceStatus,
   ObservationStatus,
@@ -115,24 +113,4 @@ export const basisSentence = (
   if (viewer === 'observer') return `You ${verb} ${subject}`;
   if (viewer === 'subject') return `${observer} is your ${basis === 'leader' ? 'leader' : 'coach'}`;
   return `${observer} ${verb}s ${subject}`;
-};
-
-export const CONVERSATION_STATUS: Record<ConversationStatus, Presentation> = {
-  scheduled: { label: 'Scheduled', tone: 'info' },
-  held: { label: 'Held', tone: 'success' },
-  missed: { label: 'Didn’t happen', tone: 'neutral' },
-  cancelled: { label: 'Canceled', tone: 'muted' },
-};
-
-export const CONVERSATION_EVENT_LABEL: Record<string, string> = {
-  HOLD: 'Mark as held',
-  MISS: 'It didn’t happen',
-  RESCHEDULE: 'Reschedule',
-  CANCEL: 'Cancel',
-};
-
-export const COMMITMENT_STATUS: Record<CommitmentStatus, Presentation> = {
-  open: { label: 'Open', tone: 'neutral' },
-  done: { label: 'Done', tone: 'success' },
-  dropped: { label: 'Dropped', tone: 'muted' },
 };

@@ -34,7 +34,7 @@ does any of the following:
 | [0016](./0016-learning-loop-ground-truth-and-langsmith.md)    | Ground truth comes from real actions; LangSmith is an optional, privacy-bounded workbench                    | Accepted                        |
 | [0017](./0017-skill-profiles-and-position-history.md)         | A skill can mean different things in different roles: profiles, expectations by job family, position history | **Proposed** (columns accepted) |
 | [0018](./0018-notifications-outbox-and-content-policy.md)     | Notifications go through a transactional outbox, under a content policy                                      | Accepted                        |
-| [0019](./0019-coaching-conversations-and-commitments.md)      | Coaching conversations and commitments are first-class, and neither earns credit                             | Accepted                        |
+| [0019](./0019-coaching-conversations-and-commitments.md)      | Coaching conversations and commitments are first-class, and neither earns credit                             | **Deferred** (pilot feedback)   |
 | [0020](./0020-designated-observers.md)                        | A leader or coach may designate a colleague to observe, for a bounded window                                 | Accepted                        |
 | [0021](./0021-program-owner-and-adoption-view.md)             | A program owner sees adoption in aggregate only                                                              | Accepted                        |
 | [0022](./0022-calendar-assisted-logging.md)                   | Calendar-assisted logging reads the calendar on demand and never stores it                                   | **Proposed**                    |

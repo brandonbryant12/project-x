@@ -173,37 +173,6 @@ stateDiagram-v2
   revoked --> [*]
 ```
 
-## conversation
-
-States: `scheduled`, `held`, `missed`, `cancelled` · terminal: `held`, `missed`, `cancelled`
-
-```mermaid
-stateDiagram-v2
-  direction LR
-  [*] --> scheduled
-  scheduled --> held : HOLD [started] (system)
-  scheduled --> missed : MISS [started]
-  scheduled --> cancelled : CANCEL (human)
-  scheduled --> scheduled : RESCHEDULE
-  held --> [*]
-  missed --> [*]
-  cancelled --> [*]
-```
-
-## commitment
-
-States: `open`, `done`, `dropped` · terminal: none
-
-```mermaid
-stateDiagram-v2
-  direction LR
-  [*] --> open
-  open --> done : COMPLETE (human)
-  open --> dropped : DROP
-  done --> open : REOPEN
-  dropped --> open : REOPEN
-```
-
 ## directory exception
 
 States: `open`, `acknowledged`, `resolved` · terminal: `resolved`

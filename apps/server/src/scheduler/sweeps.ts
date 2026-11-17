@@ -1,14 +1,11 @@
 import {
   ACTIVITY_GRACE_DAYS,
   ActivityLifecycle,
-  CONVERSATION_AUTO_MISS_DAYS,
-  ConversationLifecycle,
   EngagementLifecycle,
   ObservationLifecycle,
   PLAN_GRACE_DAYS,
   PlanLifecycle,
   type ActivityStatus,
-  type ConversationStatus,
   type EngagementStatus,
   type ObservationStatus,
   type PlanStatus,
@@ -17,7 +14,7 @@ import { Db, schema, transactionally } from '@repo/db';
 import { and, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { Effect, Layer, Schedule } from 'effect';
 import { Settings } from '../platform/settings.ts';
-import { addDays, addDaysIso, now, today } from '../platform/time.ts';
+import { addDaysIso, now, today } from '../platform/time.ts';
 import { recordAudit } from '../features/shared/audit.ts';
 
 /**
@@ -36,8 +33,6 @@ interface SweepRow {
 
 const expire = Effect.fn('sweep.expire')(function* <S extends string, R extends SweepRow>(input: {
   readonly entityType: string;
-  /** The audited event; defaults to EXPIRE. */
-  readonly event?: string;
   readonly rows: ReadonlyArray<R>;
   readonly next: (status: S) => S | null;
   readonly update: (row: R, to: S) => Effect.Effect<ReadonlyArray<unknown>, unknown, Db>;
@@ -53,7 +48,7 @@ const expire = Effect.fn('sweep.expire')(function* <S extends string, R extends 
       {
         entityType: input.entityType,
         entityId: row.id,
-        event: input.event ?? 'EXPIRE',
+        event: 'EXPIRE',
         from: row.status,
         to,
         reasonCode: 'expired',
@@ -104,16 +99,6 @@ export const runSweeps = Effect.fn('sweep.run')(function* () {
             inArray(schema.plan.status, ['proposed', 'active', 'paused']),
             lt(schema.plan.periodEnd, addDaysIso(on, -PLAN_GRACE_DAYS)),
             isNull(schema.plan.closingSummary),
-          ),
-        );
-      // A conversation nobody closed is missed (ADR 0019).
-      const conversations = yield* db
-        .select()
-        .from(schema.coachingConversation)
-        .where(
-          and(
-            eq(schema.coachingConversation.status, 'scheduled'),
-            lt(schema.coachingConversation.scheduledFor, addDays(at, -CONVERSATION_AUTO_MISS_DAYS)),
           ),
         );
       const counts = yield* Effect.all([
@@ -179,23 +164,6 @@ export const runSweeps = Effect.fn('sweep.run')(function* () {
               .set({ status: to, version: row.version + 1, updatedAt: at })
               .where(and(eq(schema.plan.id, row.id), eq(schema.plan.version, row.version)))
               .returning({ id: schema.plan.id }),
-        }),
-        expire<ConversationStatus, typeof schema.coachingConversation.$inferSelect>({
-          entityType: 'conversation',
-          event: 'MISS',
-          rows: conversations,
-          next: (s) => ConversationLifecycle.next(s, { started: true }, { type: 'MISS' }),
-          update: (row, to) =>
-            db
-              .update(schema.coachingConversation)
-              .set({ status: to, version: row.version + 1, updatedAt: at, closedAt: at })
-              .where(
-                and(
-                  eq(schema.coachingConversation.id, row.id),
-                  eq(schema.coachingConversation.version, row.version),
-                ),
-              )
-              .returning({ id: schema.coachingConversation.id }),
         }),
       ]);
       const total = counts.reduce((n, c) => n + c, 0);

@@ -13,6 +13,7 @@ import {
   LEVEL_NAMES,
   OPEN_OBSERVATION_STATES,
   PlanLifecycle,
+  canReadNarrative,
   coachesOf,
   developmentAccess,
   eligibleObserversOf,
@@ -34,7 +35,7 @@ import {
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
-import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, ne, notInArray } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { today } from '../../platform/time.ts';
 import { loadPeople, personFrom } from '../shared/people.ts';
@@ -140,6 +141,43 @@ const interactionSummaries = Effect.fn('development.interactions')(function* (
   return result;
 });
 
+/** "Try next time": the latest signed "What next", for those who may read narratives (I13). */
+const latestTryNext = Effect.fn('development.tryNext')(function* (
+  actor: Actor,
+  facts: RelationshipFacts,
+  ownerId: PersonId,
+  on: IsoDate,
+) {
+  const db = yield* Db;
+  const [row] = yield* db
+    .select({
+      id: schema.observation.id,
+      observerId: schema.observation.observerId,
+      narrativeNext: schema.observation.narrativeNext,
+      signedAt: schema.observation.signedAt,
+    })
+    .from(schema.observation)
+    .where(
+      and(
+        eq(schema.observation.tenantId, actor.tenantId),
+        eq(schema.observation.subjectId, ownerId),
+        inArray(schema.observation.status, ['signed', 'under_review']),
+        isNotNull(schema.observation.narrativeNext),
+        ne(schema.observation.narrativeNext, ''),
+      ),
+    )
+    .orderBy(desc(schema.observation.signedAt))
+    .limit(1);
+  if (!row?.narrativeNext || !row.signedAt) return null;
+  const readable = canReadNarrative(facts, {
+    viewerId: actor.personId,
+    subjectId: ownerId,
+    observerId: row.observerId,
+    on,
+  });
+  return readable ? { ...row, narrativeNext: row.narrativeNext, signedAt: row.signedAt } : null;
+});
+
 export const buildPlanView = Effect.fn('development.planView')(function* (
   actor: Actor,
   planId: PlanId,
@@ -185,8 +223,10 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
   );
   const coachId = coachesOf(facts, plan.ownerId, on)[0];
   const leaderId = leaderOf(facts, plan.ownerId, on);
+  const tryNext = yield* latestTryNext(actor, facts, plan.ownerId, on);
   const people = yield* loadPeople(actor.tenantId, [
     plan.ownerId,
+    ...(tryNext ? [tryNext.observerId] : []),
     ...(coachId ? [coachId] : []),
     ...(leaderId ? [leaderId] : []),
     ...(plan.agreedById ? [plan.agreedById] : []),
@@ -257,6 +297,14 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     agreedAt: plan.agreedAt?.toISOString() ?? null,
     endorsedBy: optional(plan.endorsedById),
     closingSummary: plan.closingSummary,
+    tryNextTime: tryNext
+      ? {
+          sentence: tryNext.narrativeNext,
+          observer: personFrom(people, tryNext.observerId),
+          signedAt: tryNext.signedAt.toISOString(),
+          observationId: tryNext.id,
+        }
+      : null,
     activities: activityViews,
     progress: yield* progressFor(
       actor.tenantId,

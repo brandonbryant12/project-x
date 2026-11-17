@@ -62,8 +62,6 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   badge_award: 'record',
   badge_award_credit: 'record',
   badge_waiver: 'record',
-  coaching_conversation: 'record',
-  commitment: 'record',
   note: 'narrative',
   legal_hold: 'audit',
   audit_event: 'audit',
@@ -85,7 +83,6 @@ export const NARRATIVE_COLUMNS: Readonly<Record<string, ReadonlyArray<string>>> 
   evidence: ['body'],
   observation: ['narrative_saw', 'narrative_next'],
   note: ['body'],
-  commitment: ['body'],
   /** Model output can echo the text it read. */
   advisory_check: ['rationale'],
 };

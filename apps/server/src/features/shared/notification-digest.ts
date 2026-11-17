@@ -8,7 +8,7 @@ import {
 import { Db, schema } from '@repo/db';
 import { and, eq, gte, inArray, isNull, lt, or } from 'drizzle-orm';
 import { Effect } from 'effect';
-import { addDaysIso, businessDateIn, startOfBusinessDay } from '../../platform/time.ts';
+import { addDaysIso, businessDateIn } from '../../platform/time.ts';
 import { tenantTimeZone } from './business-date.ts';
 import type { DigestCounts } from './notification-templates.ts';
 import { loadRelationshipFacts } from './relationships.ts';
@@ -62,33 +62,6 @@ export const digestCounts = Effect.fn('digest.counts')(function* (
         isNull(schema.observation.acknowledgedAt),
       ),
     );
-  const conversations = yield* db
-    .select({ id: schema.coachingConversation.id })
-    .from(schema.coachingConversation)
-    .where(
-      and(
-        eq(schema.coachingConversation.tenantId, tenantId),
-        eq(schema.coachingConversation.status, 'scheduled'),
-        or(
-          eq(schema.coachingConversation.hostId, personId),
-          eq(schema.coachingConversation.coacheeId, personId),
-        ),
-        gte(schema.coachingConversation.scheduledFor, startOfBusinessDay(weekOf, zone)),
-        lt(schema.coachingConversation.scheduledFor, startOfBusinessDay(weekEnd, zone)),
-      ),
-    );
-  const commitments = yield* db
-    .select({ id: schema.commitment.id })
-    .from(schema.commitment)
-    .where(
-      and(
-        eq(schema.commitment.tenantId, tenantId),
-        eq(schema.commitment.ownerId, personId),
-        eq(schema.commitment.status, 'open'),
-        gte(schema.commitment.dueOn, weekOf),
-        lt(schema.commitment.dueOn, weekEnd),
-      ),
-    );
   const facts = yield* loadRelationshipFacts(tenantId);
   const reports = directReportsOf(facts, personId, weekOf);
   let reportsObserved: DigestCounts['reportsObserved'] = null;
@@ -112,8 +85,6 @@ export const digestCounts = Effect.fn('digest.counts')(function* (
     earliestDue: earliest,
     plannedForYou: planned.length,
     newAboutYou: newAboutYou.length,
-    conversationsThisWeek: conversations.length,
-    commitmentsDue: commitments.length,
     reportsObserved,
   } satisfies DigestCounts;
 });

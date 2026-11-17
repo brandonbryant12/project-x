@@ -22,8 +22,6 @@ import { Route as AppAdminAiUsageRouteImport } from './routes/_app/admin/ai-usag
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppAdminOutboxRouteImport } from './routes/_app/admin/outbox'
 import { Route as AppCatalogActivitiesRouteImport } from './routes/_app/catalog/activities'
-import { Route as AppConversationsIndexRouteImport } from './routes/_app/conversations/index'
-import { Route as AppConversationsIdRouteImport } from './routes/_app/conversations/$id'
 import { Route as AppObservationsIdRouteImport } from './routes/_app/observations/$id'
 import { Route as AppObservationsNewRouteImport } from './routes/_app/observations/new'
 import { Route as AppPeopleIndexRouteImport } from './routes/_app/people/index'
@@ -98,16 +96,6 @@ const AppCatalogActivitiesRoute = AppCatalogActivitiesRouteImport.update({
   path: '/catalog/activities',
   getParentRoute: () => AppRoute,
 } as any)
-const AppConversationsIndexRoute = AppConversationsIndexRouteImport.update({
-  id: '/conversations/',
-  path: '/conversations/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppConversationsIdRoute = AppConversationsIdRouteImport.update({
-  id: '/conversations/$id',
-  path: '/conversations/$id',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppObservationsIdRoute = AppObservationsIdRouteImport.update({
   id: '/observations/$id',
   path: '/observations/$id',
@@ -168,11 +156,9 @@ export interface FileRoutesByFullPath {
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/outbox': typeof AppAdminOutboxRoute
   '/catalog/activities': typeof AppCatalogActivitiesRoute
-  '/conversations/$id': typeof AppConversationsIdRoute
   '/observations/$id': typeof AppObservationsIdRoute
   '/observations/new': typeof AppObservationsNewRoute
   '/team/$personId': typeof AppTeamPersonIdRoute
-  '/conversations/': typeof AppConversationsIndexRoute
   '/people/': typeof AppPeopleIndexRoute
   '/team/': typeof AppTeamIndexRoute
   '/catalog/skills/$slug': typeof AppCatalogSkillsSlugRoute
@@ -193,11 +179,9 @@ export interface FileRoutesByTo {
   '/admin/audit': typeof AppAdminAuditRoute
   '/admin/outbox': typeof AppAdminOutboxRoute
   '/catalog/activities': typeof AppCatalogActivitiesRoute
-  '/conversations/$id': typeof AppConversationsIdRoute
   '/observations/$id': typeof AppObservationsIdRoute
   '/observations/new': typeof AppObservationsNewRoute
   '/team/$personId': typeof AppTeamPersonIdRoute
-  '/conversations': typeof AppConversationsIndexRoute
   '/people': typeof AppPeopleIndexRoute
   '/team': typeof AppTeamIndexRoute
   '/catalog/skills/$slug': typeof AppCatalogSkillsSlugRoute
@@ -220,11 +204,9 @@ export interface FileRoutesById {
   '/_app/admin/audit': typeof AppAdminAuditRoute
   '/_app/admin/outbox': typeof AppAdminOutboxRoute
   '/_app/catalog/activities': typeof AppCatalogActivitiesRoute
-  '/_app/conversations/$id': typeof AppConversationsIdRoute
   '/_app/observations/$id': typeof AppObservationsIdRoute
   '/_app/observations/new': typeof AppObservationsNewRoute
   '/_app/team/$personId': typeof AppTeamPersonIdRoute
-  '/_app/conversations/': typeof AppConversationsIndexRoute
   '/_app/people/': typeof AppPeopleIndexRoute
   '/_app/team/': typeof AppTeamIndexRoute
   '/_app/catalog/skills/$slug': typeof AppCatalogSkillsSlugRoute
@@ -247,11 +229,9 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/outbox'
     | '/catalog/activities'
-    | '/conversations/$id'
     | '/observations/$id'
     | '/observations/new'
     | '/team/$personId'
-    | '/conversations/'
     | '/people/'
     | '/team/'
     | '/catalog/skills/$slug'
@@ -272,11 +252,9 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/outbox'
     | '/catalog/activities'
-    | '/conversations/$id'
     | '/observations/$id'
     | '/observations/new'
     | '/team/$personId'
-    | '/conversations'
     | '/people'
     | '/team'
     | '/catalog/skills/$slug'
@@ -298,11 +276,9 @@ export interface FileRouteTypes {
     | '/_app/admin/audit'
     | '/_app/admin/outbox'
     | '/_app/catalog/activities'
-    | '/_app/conversations/$id'
     | '/_app/observations/$id'
     | '/_app/observations/new'
     | '/_app/team/$personId'
-    | '/_app/conversations/'
     | '/_app/people/'
     | '/_app/team/'
     | '/_app/catalog/skills/$slug'
@@ -409,20 +385,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCatalogActivitiesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/conversations/': {
-      id: '/_app/conversations/'
-      path: '/conversations'
-      fullPath: '/conversations/'
-      preLoaderRoute: typeof AppConversationsIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/conversations/$id': {
-      id: '/_app/conversations/$id'
-      path: '/conversations/$id'
-      fullPath: '/conversations/$id'
-      preLoaderRoute: typeof AppConversationsIdRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/observations/$id': {
       id: '/_app/observations/$id'
       path: '/observations/$id'
@@ -501,11 +463,9 @@ interface AppRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppAdminOutboxRoute: typeof AppAdminOutboxRoute
   AppCatalogActivitiesRoute: typeof AppCatalogActivitiesRoute
-  AppConversationsIdRoute: typeof AppConversationsIdRoute
   AppObservationsIdRoute: typeof AppObservationsIdRoute
   AppObservationsNewRoute: typeof AppObservationsNewRoute
   AppTeamPersonIdRoute: typeof AppTeamPersonIdRoute
-  AppConversationsIndexRoute: typeof AppConversationsIndexRoute
   AppPeopleIndexRoute: typeof AppPeopleIndexRoute
   AppTeamIndexRoute: typeof AppTeamIndexRoute
   AppCatalogSkillsSlugRoute: typeof AppCatalogSkillsSlugRoute
@@ -526,11 +486,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppAdminOutboxRoute: AppAdminOutboxRoute,
   AppCatalogActivitiesRoute: AppCatalogActivitiesRoute,
-  AppConversationsIdRoute: AppConversationsIdRoute,
   AppObservationsIdRoute: AppObservationsIdRoute,
   AppObservationsNewRoute: AppObservationsNewRoute,
   AppTeamPersonIdRoute: AppTeamPersonIdRoute,
-  AppConversationsIndexRoute: AppConversationsIndexRoute,
   AppPeopleIndexRoute: AppPeopleIndexRoute,
   AppTeamIndexRoute: AppTeamIndexRoute,
   AppCatalogSkillsSlugRoute: AppCatalogSkillsSlugRoute,

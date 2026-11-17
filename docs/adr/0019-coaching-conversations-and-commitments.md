@@ -1,7 +1,16 @@
 # ADR 0019: Coaching conversations and commitments are first-class, and neither earns credit
 
-- Status: Accepted
+- Status: **Deferred until pilot feedback** (2026-11-17)
 - Date: 2026-11-16
+
+> **Deferred, 2026-11-17.** Built, then removed before any client used it.
+> Without a notes field a conversation only records the status of a meeting
+> that already lives in Outlook, and a commitment duplicates the observation's
+> "What next". The plan page now shows the latest signed "What next" as "Try
+> next time". The tables, lifecycles, endpoints and screens are gone; revisit
+> this decision when pilot users ask for a place to run their 1:1s. The text
+> below is the original decision, kept for the record.
+
 - Builds on: [ADR 0005](./0005-explicit-lifecycles-with-xstate.md), [ADR 0007](./0007-credit-only-from-signed-observations.md), [ADR 0012](./0012-privacy-and-audit-by-design.md)
 
 ## Context

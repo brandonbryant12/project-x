@@ -220,18 +220,6 @@ export const NotificationId = withGenerator(
 );
 export type NotificationId = typeof NotificationId.Type;
 
-export const ConversationId = withGenerator(
-  'cnv',
-  Schema.String.pipe(Schema.check(idPattern('cnv')), Schema.brand('ConversationId')),
-);
-export type ConversationId = typeof ConversationId.Type;
-
-export const CommitmentId = withGenerator(
-  'cmt',
-  Schema.String.pipe(Schema.check(idPattern('cmt')), Schema.brand('CommitmentId')),
-);
-export type CommitmentId = typeof CommitmentId.Type;
-
 export const DirectoryExceptionId = withGenerator(
   'dex',
   Schema.String.pipe(Schema.check(idPattern('dex')), Schema.brand('DirectoryExceptionId')),

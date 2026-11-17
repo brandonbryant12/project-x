@@ -3,8 +3,6 @@ import { Db, schema } from '@repo/db';
 import { eq } from 'drizzle-orm';
 import { Effect } from 'effect';
 
-export { businessDateIn } from '../../platform/time.ts';
-
 export const tenantTimeZone = Effect.fn('tenant.timeZone')(function* (tenantId: TenantId) {
   const db = yield* Db;
   const [row] = yield* db
