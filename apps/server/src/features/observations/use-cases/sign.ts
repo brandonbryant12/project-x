@@ -80,7 +80,12 @@ const writeDraft = Effect.fn('observations.writeDraft')(function* (
   const existing = yield* db
     .select()
     .from(schema.observationRating)
-    .where(eq(schema.observationRating.observationId, row.id));
+    .where(
+      and(
+        eq(schema.observationRating.tenantId, actor.tenantId),
+        eq(schema.observationRating.observationId, row.id),
+      ),
+    );
   const roles = yield* rolesFor(
     yield* skillsOfWork(actor.tenantId, row.interactionId),
     input.ratings.map((r) => ({
@@ -131,15 +136,31 @@ const writeDraft = Effect.fn('observations.writeDraft')(function* (
       version: row.version + 1,
       updatedAt: yield* now,
     })
-    .where(and(eq(schema.observation.id, row.id), eq(schema.observation.version, row.version)))
+    .where(
+      and(
+        eq(schema.observation.tenantId, actor.tenantId),
+        eq(schema.observation.id, row.id),
+        eq(schema.observation.version, row.version),
+      ),
+    )
     .returning()
     .pipe(Effect.flatMap(requireUpdated('observation')));
   yield* db
     .delete(schema.observationIndicator)
-    .where(eq(schema.observationIndicator.observationId, row.id));
+    .where(
+      and(
+        eq(schema.observationIndicator.tenantId, actor.tenantId),
+        eq(schema.observationIndicator.observationId, row.id),
+      ),
+    );
   yield* db
     .delete(schema.observationRating)
-    .where(eq(schema.observationRating.observationId, row.id));
+    .where(
+      and(
+        eq(schema.observationRating.tenantId, actor.tenantId),
+        eq(schema.observationRating.observationId, row.id),
+      ),
+    );
   if (input.ratings.length > 0) {
     yield* db.insert(schema.observationRating).values(
       input.ratings.map((r, position) => ({
@@ -185,12 +206,18 @@ const appendCredits = Effect.fn('observations.appendCredits')(function* (
   const ratings = yield* db
     .select()
     .from(schema.observationRating)
-    .where(eq(schema.observationRating.observationId, row.id));
+    .where(
+      and(
+        eq(schema.observationRating.tenantId, actor.tenantId),
+        eq(schema.observationRating.observationId, row.id),
+      ),
+    );
   const valueOf = yield* creditValues(
     actor.tenantId,
     policy,
     yield* skillsOfWork(actor.tenantId, row.interactionId),
     ratings.map((r) => r.skillId),
+    interaction.occurredOn,
   );
   const subjectPositionId = yield* positionOn(
     actor.tenantId,
@@ -276,7 +303,12 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
   const [interaction] = yield* db
     .select()
     .from(schema.interaction)
-    .where(eq(schema.interaction.id, row.interactionId));
+    .where(
+      and(
+        eq(schema.interaction.tenantId, actor.tenantId),
+        eq(schema.interaction.id, row.interactionId),
+      ),
+    );
   if (!interaction) return yield* Effect.die('invariant: observation without interaction');
   yield* requireEligible(actor.tenantId, {
     observerId: actor.personId,
@@ -284,29 +316,7 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
     on: interaction.occurredOn,
   });
   const narrativeScreen = screenLocally(`${input.narrativeSaw}\n${input.narrativeNext}`);
-  const policy = yield* tenantCreditPolicy(actor.tenantId);
-  const policyVersion = creditPolicyVersion(policy);
   const from = row.status as ObservationStatus;
-  yield* decide({
-    lifecycle: ObservationLifecycle,
-    from,
-    facts: {
-      ratingsComplete:
-        input.ratings.length >= 1 &&
-        input.ratings.length <= policy.maxSkillsPerObservation &&
-        input.ratings.every((r) => r.level !== null),
-      narrativeLength: input.narrativeSaw.trim().length,
-      privacyHold: narrativeScreen.held,
-      acknowledged: false,
-      // Signing is judged by the observer's own words, not the reflection's hold.
-      reflectionHeld: false,
-    },
-    event: { type: 'SIGN' },
-    permitted: true,
-    explain: narrativeScreen.held
-      ? `Your note appears to include client details (${narrativeScreen.reasons.join('; ').toLowerCase()}). Remove them to sign.`
-      : `To sign, give each skill a level and write at least ${MIN_NARRATIVE_LENGTH} characters about what you saw.`,
-  });
   const signedAt = yield* now;
   const mode = input.mode;
 
@@ -315,6 +325,30 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
       // Serialize ledger writes per person: concurrent signatures by two observers
       // must both see each other's credit when evaluating badges (schema review #5).
       yield* lockPersonLedger(actor.tenantId, row.subjectId);
+      // The policy is read once, here, after the lock: the same values price the
+      // credits, tag them and the awards, and judge the badges (ADR 0007).
+      const policy = yield* tenantCreditPolicy(actor.tenantId);
+      const policyVersion = creditPolicyVersion(policy);
+      yield* decide({
+        lifecycle: ObservationLifecycle,
+        from,
+        facts: {
+          ratingsComplete:
+            input.ratings.length >= 1 &&
+            input.ratings.length <= policy.maxSkillsPerObservation &&
+            input.ratings.every((r) => r.level !== null),
+          narrativeLength: input.narrativeSaw.trim().length,
+          privacyHold: narrativeScreen.held,
+          acknowledged: false,
+          // Signing is judged by the observer's own words, not the reflection's hold.
+          reflectionHeld: false,
+        },
+        event: { type: 'SIGN' },
+        permitted: true,
+        explain: narrativeScreen.held
+          ? `Your note appears to include client details (${narrativeScreen.reasons.join('; ').toLowerCase()}). Remove them to sign.`
+          : `To sign, give each skill a level and write at least ${MIN_NARRATIVE_LENGTH} characters about what you saw.`,
+      });
       const drafted = yield* writeDraft(
         actor,
         row,
@@ -332,7 +366,11 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
           updatedAt: signedAt,
         })
         .where(
-          and(eq(schema.observation.id, row.id), eq(schema.observation.version, drafted.version)),
+          and(
+            eq(schema.observation.tenantId, actor.tenantId),
+            eq(schema.observation.id, row.id),
+            eq(schema.observation.version, drafted.version),
+          ),
         )
         .returning({ id: schema.observation.id })
         .pipe(Effect.flatMap(requireUpdated('observation')));
@@ -368,6 +406,7 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
       });
       return yield* awardEarnedBadges(
         actor,
+        policy,
         row.subjectId,
         credited.map((c) => c.rating.skillId),
         row.id,

@@ -200,9 +200,14 @@ export const activitySkill = pgTable(
     position: integer('position').notNull().default(0),
     /** The skill's place in this work; at most one primary (use cases, not the database). */
     role: text('role').notNull(),
-    /** This activity's own value for the skill; applies only to credits signed afterwards. */
+    /**
+     * This activity's own value for the skill. It applies only to work done on
+     * or after the business date it was set (`points_override_at`), so a value
+     * never reaches work that had already happened.
+     */
     pointsOverride: integer('points_override'),
     pointsOverrideById: text('points_override_by_id').$type<PersonId>(),
+    pointsOverrideAt: instant('points_override_at'),
     /**
      * The template's value for this skill, copied when the work was added. Signing
      * reads this copy (never the live template), and only for the same role.
@@ -223,7 +228,7 @@ export const activitySkill = pgTable(
     inRange('activity_skill_template_points', t.templatePoints, POINTS_RANGE, { nullable: true }),
     check(
       'activity_skill_points_override_pair',
-      sql`(${t.pointsOverride} is null) = (${t.pointsOverrideById} is null)`,
+      sql`(${t.pointsOverride} is null) = (${t.pointsOverrideById} is null) and (${t.pointsOverride} is null) = (${t.pointsOverrideAt} is null)`,
     ),
   ],
 );

@@ -271,5 +271,11 @@ export type TemplateInput = typeof TemplateInput.Type;
 export const UpdateTemplateInput = Schema.Struct({
   ...TemplateInput.fields,
   version: Schema.Number,
+  /**
+   * Why the skills, roles or values changed: required (at least 10 characters)
+   * when they do, since they set what work added from now on is worth; kept
+   * as a purgeable note on the audit event. Null when only the words change.
+   */
+  reason: Schema.NullOr(Schema.String.pipe(Schema.check(Schema.isMaxLength(1000)))),
 });
 export type UpdateTemplateInput = typeof UpdateTemplateInput.Type;

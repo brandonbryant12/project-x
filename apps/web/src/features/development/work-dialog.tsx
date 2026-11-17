@@ -79,8 +79,10 @@ const SkillsEditor = ({
   );
   const fromTemplate = (skillId: SkillId) => template?.skills.find((k) => k.skill.id === skillId);
   return (
-    <Field>
-      <Label>Skills it builds</Label>
+    <Field role="group" aria-labelledby="work-skills-label">
+      <p id="work-skills-label" className="text-ui font-medium text-ink">
+        Skills it builds
+      </p>
       {skills.length > 0 ? (
         <ul className="grid divide-y divide-line rounded-control border border-line">
           {skills.map((s) => {
@@ -240,6 +242,73 @@ export const WorkDialog = ({
   </ResponsiveDialog>
 );
 
+const TemplatePicker = ({
+  templates,
+  value,
+  onChange,
+  tip,
+}: {
+  readonly templates: ReadonlyArray<WorkTemplate>;
+  readonly value: ActivityTemplateId | '';
+  readonly onChange: (id: ActivityTemplateId | '') => void;
+  readonly tip: string | null;
+}) => (
+  <Field>
+    <Label htmlFor="activity-template">Start from</Label>
+    <NativeSelect
+      id="activity-template"
+      value={value}
+      onChange={(e) => onChange(e.target.value as ActivityTemplateId | '')}
+      aria-describedby={tip ? 'activity-template-tip' : undefined}
+    >
+      <option value="">Something of my own</option>
+      {templates.map((t) => (
+        <option key={t.id} value={t.id}>
+          {t.name}
+        </option>
+      ))}
+    </NativeSelect>
+    {tip ? <FieldHint id="activity-template-tip">For your observer: {tip}</FieldHint> : null}
+  </Field>
+);
+
+/**
+ * What saving would drop, said before it happens: removing a skill removes its
+ * value set for this work, and changing a skill's role drops the template's
+ * value (it was for the other role).
+ */
+const DroppedValues = ({
+  activity,
+  skills,
+}: {
+  readonly activity: ActivityView;
+  readonly skills: ReadonlyArray<ChosenSkill>;
+}) => {
+  const dropped = activity.skills.flatMap((k) => {
+    const now = skills.find((s) => s.skillId === k.skill.id);
+    if (!now && k.override)
+      return [
+        `Removing ${k.skill.name} drops its value of ${k.override.points} set for this work.`,
+      ];
+    if (now && now.role !== k.role && k.value.source === 'template')
+      return [`Changing the role of ${k.skill.name} drops the template’s value for it.`];
+    return [];
+  });
+  return dropped.length > 0 ? (
+    <ul role="status" className="grid list-disc gap-1 pl-5 text-ui text-warning-ink">
+      {dropped.map((d) => (
+        <li key={d}>{d}</li>
+      ))}
+    </ul>
+  ) : null;
+};
+
+/** Who the work may name as its observer: the coach, the leader, or the one already named. */
+const observerChoices = (plan: PlanView, activity: ActivityView | null) =>
+  [plan.coach, plan.leader, activity?.intendedObserver ?? null].filter(
+    (p, i, all): p is PersonSummary => p !== null && all.findIndex((x) => x?.id === p.id) === i,
+  );
+
 const WorkForm = ({
   plan,
   activity,
@@ -275,9 +344,7 @@ const WorkForm = ({
   const add = useApiMutation('development', 'addActivity', { onSuccess });
   const update = useApiMutation('development', 'updateActivity', { onSuccess });
   const template = templates.data?.find((t) => t.id === templateId);
-  const observers = [plan.coach, plan.leader, activity?.intendedObserver ?? null].filter(
-    (p, i, all): p is PersonSummary => p !== null && all.findIndex((x) => x?.id === p.id) === i,
-  );
+  const observers = observerChoices(plan, activity);
   const name = title.trim() || template?.name || '';
   const valid = name.length >= 3 && skills.length > 0;
   const pending = add.isPending || update.isPending;
@@ -307,7 +374,11 @@ const WorkForm = ({
           intendedObserverId: observerId || null,
           intendedMode: observerId ? mode : null,
         };
-        if (activity) update.mutate({ params: { id: activity.id }, payload: fields });
+        if (activity)
+          update.mutate({
+            params: { id: activity.id },
+            payload: { ...fields, version: activity.version },
+          });
         else
           add.mutate({
             params: { id: plan.id },
@@ -316,24 +387,12 @@ const WorkForm = ({
       }}
     >
       {activity ? null : (
-        <Field>
-          <Label htmlFor="activity-template">Start from</Label>
-          <NativeSelect
-            id="activity-template"
-            value={templateId}
-            onChange={(e) => chooseTemplate(e.target.value as ActivityTemplateId | '')}
-          >
-            <option value="">Something of my own</option>
-            {(templates.data ?? []).map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </NativeSelect>
-          {template?.observationTip ? (
-            <FieldHint>For your observer: {template.observationTip}</FieldHint>
-          ) : null}
-        </Field>
+        <TemplatePicker
+          templates={templates.data ?? []}
+          value={templateId}
+          onChange={chooseTemplate}
+          tip={template?.observationTip ?? null}
+        />
       )}
       <Field>
         <Label htmlFor="activity-title">
@@ -361,6 +420,7 @@ const WorkForm = ({
         </FieldHint>
       </Field>
       <SkillsEditor plan={plan} skills={skills} onChange={setSkills} template={template} />
+      {activity ? <DroppedValues activity={activity} skills={skills} /> : null}
       <CommitmentFields
         observers={observers}
         observerId={observerId}

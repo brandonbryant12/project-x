@@ -58,7 +58,12 @@ const stillTrue = Effect.fn('notifications.stillTrue')(function* (row: Row, at: 
     const [o] = yield* db
       .select({ status: schema.observation.status, dueAt: schema.observation.dueAt })
       .from(schema.observation)
-      .where(eq(schema.observation.id, row.entityId as typeof schema.observation.$inferSelect.id));
+      .where(
+        and(
+          eq(schema.observation.tenantId, row.tenantId),
+          eq(schema.observation.id, row.entityId as typeof schema.observation.$inferSelect.id),
+        ),
+      );
     if (!o) return false;
     if (row.kind === 'observation_signed')
       return o.status === 'signed' || o.status === 'under_review';
@@ -69,13 +74,23 @@ const stillTrue = Effect.fn('notifications.stillTrue')(function* (row: Row, at: 
     const [p] = yield* db
       .select({ status: schema.plan.status })
       .from(schema.plan)
-      .where(eq(schema.plan.id, row.entityId as typeof schema.plan.$inferSelect.id));
+      .where(
+        and(
+          eq(schema.plan.tenantId, row.tenantId),
+          eq(schema.plan.id, row.entityId as typeof schema.plan.$inferSelect.id),
+        ),
+      );
     return p?.status === 'proposed';
   }
   const [e] = yield* db
     .select({ status: schema.engagement.status })
     .from(schema.engagement)
-    .where(eq(schema.engagement.id, row.entityId as typeof schema.engagement.$inferSelect.id));
+    .where(
+      and(
+        eq(schema.engagement.tenantId, row.tenantId),
+        eq(schema.engagement.id, row.entityId as typeof schema.engagement.$inferSelect.id),
+      ),
+    );
   return e?.status === 'proposed';
 });
 
@@ -108,7 +123,12 @@ const claimOne = Effect.fn('notifications.claim')(function* () {
         .for('update', { skipLocked: true });
       if (!row) return { _tag: 'empty' } as Claim;
       const finish = (set: Partial<typeof schema.notification.$inferInsert>) =>
-        db.update(schema.notification).set(set).where(eq(schema.notification.id, row.id));
+        db
+          .update(schema.notification)
+          .set(set)
+          .where(
+            and(eq(schema.notification.tenantId, row.tenantId), eq(schema.notification.id, row.id)),
+          );
       // Every attempt was claimed and none acknowledged (repeated crashes or hangs).
       // Counting another would exceed the limit; stop here instead of looping forever.
       if (row.attempts >= MAX_ATTEMPTS) {
@@ -122,7 +142,12 @@ const claimOne = Effect.fn('notifications.claim')(function* () {
       const [pref] = yield* db
         .select()
         .from(schema.notificationPreference)
-        .where(eq(schema.notificationPreference.personId, row.recipientId));
+        .where(
+          and(
+            eq(schema.notificationPreference.tenantId, row.tenantId),
+            eq(schema.notificationPreference.personId, row.recipientId),
+          ),
+        );
       const sendEmail = pref ? pref.channel !== 'off' : DEFAULT_PREFERENCES.sendEmail;
       // Never send something that stopped being true while the row waited.
       const message = sendEmail && (yield* stillTrue(row, at)) ? yield* renderRow(row, at) : null;

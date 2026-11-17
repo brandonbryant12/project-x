@@ -81,7 +81,10 @@ Decisions behind this table:
   takes that work's date and kind instead of creating a second interaction.
   The server accepts only the subject's own work, inside the observe window,
   and never a second open or signed observation of one piece of work by the
-  same observer. Two people deliberately logging one event as two pieces of
+  same observer. Logged work is development data: it is offered only to the
+  subject's coaches and leader chain, and only work the observer was eligible
+  for on its date. The subject's reflection reaches an observer only when the
+  subject asked them, or the observer may see the subject's development. Two people deliberately logging one event as two pieces of
   work is still possible (see the [backlog](../backlog.md)).
 - **A returned request is revised, then resent.** The subject reads the
   return note, revises the reflection from the same screen, may write a new
@@ -139,11 +142,14 @@ Added with weighted signed credit and run-time administration (2026-11-17):
 - **I36.** A void is judged by the thresholds saved on each award; the skill
   is then judged again under the current policy.
 - **I38.** An individual value is never set by the person whose work it is,
-  and never after the work has been observed.
+  never after the work has been observed, and never applies to work done
+  before the day it was set.
 - **I39.** A closed plan is never edited, and a closing review never writes
   credit or a badge.
 - **I46.** One piece of work is observed at most once by each observer, and
   "I saw this" attaches only to the subject's own work.
+- **I47.** "I saw this" never shows a person's logged work or reflection to
+  someone who may not see their development.
 
 ## Eligible observer
 
@@ -219,8 +225,8 @@ Further rules:
   their progress; there are no totals across people and no rankings.
 - **Individual values.** A plan agreer or a program owner may give one skill
   on one piece of planned work its own value, inside the tenant's range, with
-  a reason, before the work is observed. The person whose work it is never
-  may (I38).
+  a reason, before the work is observed. It applies only to work done from
+  the day it is set. The person whose work it is never may (I38).
 - **Level 4, "Teaching others"** cannot be shown in a client meeting. It will
   be earned by developing others: signed observations _given_ as a designated
   observer. This is designed, not built. A plan may still target level 4: a
@@ -272,18 +278,18 @@ only by the dispatcher).
 
 ## Visibility
 
-| Data                                                                                                 | Who can see it                                                                                                        |
-| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Catalog (including a skill's own values and a template's roles and values), earned badges, directory | Everyone in the tenant                                                                                                |
-| Plans, progress (including points), interactions, levels, roles                                      | The person, their active coaches, their whole leader chain                                                            |
-| **Observation narratives**                                                                           | The person, the observer who wrote them, active coaches, and the **direct** leader. The wider chain sees levels only. |
-| Held or escalated evidence                                                                           | Its author, plus tenant admins or compliance reviewers                                                                |
-| Assistant checks                                                                                     | The observer (not the subject).                                                                                       |
-| Audit trail and AI usage                                                                             | Tenant admins and compliance reviewers. Reading them is itself audited.                                               |
-| Designations for a person                                                                            | The person, the designee, the person's leader and coaches                                                             |
-| Adoption view                                                                                        | Program owners. Aggregates only, no names, no cell under five people                                                  |
-| Credit rules, catalog administration and their change history                                        | Program owners and tenant admins. Nothing per person                                                                  |
-| Notifications                                                                                        | The recipient. A message carries names, a verb, counts, dates and a link only                                         |
+| Data                                                                                                                        | Who can see it                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Catalog (including a skill's own values and a template's roles and values), earned badges with their plain facts, directory | Everyone in the tenant                                                                                                |
+| Plans, progress (including points, and how a badge was earned credit by credit), interactions, levels, roles                | The person, their active coaches, their whole leader chain                                                            |
+| **Observation narratives**                                                                                                  | The person, the observer who wrote them, active coaches, and the **direct** leader. The wider chain sees levels only. |
+| Held or escalated evidence                                                                                                  | Its author, plus tenant admins or compliance reviewers                                                                |
+| Assistant checks                                                                                                            | The observer (not the subject).                                                                                       |
+| Audit trail and AI usage                                                                                                    | Tenant admins and compliance reviewers. Reading them is itself audited.                                               |
+| Designations for a person                                                                                                   | The person, the designee, the person's leader and coaches                                                             |
+| Adoption view                                                                                                               | Program owners. Aggregates only, no names, no cell under five people                                                  |
+| Credit rules, catalog administration and their change history                                                               | Program owners and tenant admins. Nothing per person                                                                  |
+| Notifications                                                                                                               | The recipient. A message carries names, a verb, counts, dates and a link only                                         |
 
 ## Designed next
 

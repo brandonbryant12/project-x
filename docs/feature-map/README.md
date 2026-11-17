@@ -294,7 +294,7 @@ Gaps:
 - Tables: `interaction`, `observation`
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
 - QA playbook: [.claude/skills/qa/journeys/observations.md#i-saw-this](../../.claude/skills/qa/journeys/observations.md#i-saw-this)
-- Tests (scenario): `apps/server/src/journeys/same-work-and-badge-receipt.scenario.test.ts`
+- Tests (scenario): `apps/server/src/journeys/same-work-and-badge-receipt.scenario.test.ts`, `apps/server/src/journeys/observe-logged-work-privacy.scenario.test.ts`
 - Browser check: routes observe-new as "Sam Rivera"
 
 Verify:

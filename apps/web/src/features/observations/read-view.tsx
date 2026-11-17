@@ -61,7 +61,7 @@ const ReturnedPanel = ({
             Revise your reflection
           </Button>
           <p className="text-meta text-ink-3">
-            It is checked for privacy again before {observer} sees it.
+            It is checked for privacy again; {observer} never sees it while it is held.
           </p>
         </div>
       ) : null}

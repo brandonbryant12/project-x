@@ -6,7 +6,7 @@ import { Effect } from 'effect';
 import { now, today } from '../../platform/time.ts';
 import { recordAudit } from '../shared/audit.ts';
 import { loadPlanSkills } from '../shared/catalog-reads.ts';
-import { requireUpdated } from '../shared/mutation.ts';
+import { requireUpdated, requireVersion } from '../shared/mutation.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { confirmReviewRefusal, planRelation, recordReviewRefusal } from './permissions.ts';
 import { loadPlan, refuse } from './use-cases.ts';
@@ -28,6 +28,7 @@ export const recordPlanReview = Effect.fn('useCase.recordPlanReview')(function* 
   const facts = yield* loadRelationshipFacts(actor.tenantId);
   const refusal = recordReviewRefusal(planRelation(actor, plan.ownerId, facts, yield* today), plan);
   if (refusal) return yield* refuse(refusal);
+  yield* requireVersion('plan', input.version, plan.version);
   const focus = (yield* loadPlanSkills(actor.tenantId, [plan.id])).get(plan.id) ?? [];
   const outcomes = new Map(input.outcomes.map((o) => [o.skillId, o.outcome]));
   const exact =
@@ -57,7 +58,13 @@ export const recordPlanReview = Effect.fn('useCase.recordPlanReview')(function* 
           version: plan.version + 1,
           updatedAt: at,
         })
-        .where(and(eq(schema.plan.id, plan.id), eq(schema.plan.version, plan.version)))
+        .where(
+          and(
+            eq(schema.plan.tenantId, actor.tenantId),
+            eq(schema.plan.id, plan.id),
+            eq(schema.plan.version, plan.version),
+          ),
+        )
         .returning({ id: schema.plan.id })
         .pipe(Effect.flatMap(requireUpdated('plan')));
       for (const [skillId, outcome] of outcomes) {
@@ -76,6 +83,7 @@ export const recordPlanReview = Effect.fn('useCase.recordPlanReview')(function* 
         entityType: 'plan',
         entityId: plan.id,
         event: 'REVIEW_RECORDED',
+        reasonCode: 'plan_review',
         data: {
           // The summary is content and stays on the plan; the audit keeps the facts.
           outcomes: Object.fromEntries(outcomes),
@@ -86,7 +94,15 @@ export const recordPlanReview = Effect.fn('useCase.recordPlanReview')(function* 
   );
 });
 
-export const confirmPlanReview = Effect.fn('useCase.confirmPlanReview')(function* (planId: PlanId) {
+/**
+ * An agreer confirms the review they read. `loadedVersion` is the plan as they
+ * loaded it: a review recorded again since (which bumps the plan's version) is
+ * a Conflict, so nobody fixes outcomes or a summary they never saw.
+ */
+export const confirmPlanReview = Effect.fn('useCase.confirmPlanReview')(function* (
+  planId: PlanId,
+  loadedVersion: number,
+) {
   const actor = yield* CurrentActor;
   const db = yield* Db;
   const plan = yield* loadPlan(planId);
@@ -96,6 +112,7 @@ export const confirmPlanReview = Effect.fn('useCase.confirmPlanReview')(function
     plan,
   );
   if (refusal) return yield* refuse(refusal);
+  yield* requireVersion('plan', loadedVersion, plan.version);
   const at = yield* now;
   yield* transactionally(
     Effect.gen(function* () {
@@ -107,13 +124,20 @@ export const confirmPlanReview = Effect.fn('useCase.confirmPlanReview')(function
           version: plan.version + 1,
           updatedAt: at,
         })
-        .where(and(eq(schema.plan.id, plan.id), eq(schema.plan.version, plan.version)))
+        .where(
+          and(
+            eq(schema.plan.tenantId, actor.tenantId),
+            eq(schema.plan.id, plan.id),
+            eq(schema.plan.version, plan.version),
+          ),
+        )
         .returning({ id: schema.plan.id })
         .pipe(Effect.flatMap(requireUpdated('plan')));
       yield* recordAudit(actor, {
         entityType: 'plan',
         entityId: plan.id,
         event: 'REVIEW_CONFIRMED',
+        reasonCode: 'plan_review',
         data: { recordedBy: plan.reviewRecordedById },
       });
     }),

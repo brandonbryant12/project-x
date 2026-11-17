@@ -21,9 +21,9 @@ import { notify } from '../../shared/notify.ts';
 import { decide, requireUpdated } from '../../shared/mutation.ts';
 import {
   awardEarnedBadges,
+  inspectTenantCreditPolicy,
   lockPersonLedger,
   netCreditsBySkill,
-  tenantCreditPolicy,
   toCreditFact,
 } from '../../shared/recognition.ts';
 import { permittedEvents } from '../views.ts';
@@ -104,7 +104,13 @@ export const transitionObservation = Effect.fn('useCase.transitionObservation')(
           updatedAt: at,
           ...(input.event === 'ACKNOWLEDGE' && { acknowledgedAt: at }),
         })
-        .where(and(eq(schema.observation.id, row.id), eq(schema.observation.version, row.version)))
+        .where(
+          and(
+            eq(schema.observation.tenantId, actor.tenantId),
+            eq(schema.observation.id, row.id),
+            eq(schema.observation.version, row.version),
+          ),
+        )
         .returning({ id: schema.observation.id })
         .pipe(Effect.flatMap(requireUpdated('observation')));
       const kind = NOTE_KIND[input.event as keyof typeof NOTE_KIND];
@@ -150,6 +156,9 @@ export const transitionObservation = Effect.fn('useCase.transitionObservation')(
  * policy of the day or by defaults. A revoked badge is then judged once more under the
  * current policy and, if still met, awarded again as a new award with the
  * current thresholds, so nobody who qualifies today is left without it.
+ * A correction is never blocked by a configuration error: if the stored
+ * credit policy cannot be read, the void and its revocations complete, the
+ * re-award is skipped, and each revocation's audit event says so.
  */
 const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
   observationId: ObservationId,
@@ -168,7 +177,10 @@ const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
       ),
     );
   if (credits.length === 0) return;
-  const policyVersion = creditPolicyVersion(yield* tenantCreditPolicy(actor.tenantId));
+  const stored = yield* inspectTenantCreditPolicy(actor.tenantId);
+  const current = stored.reading.ok ? stored.reading.policy : null;
+  // A broken policy's version reads as its stored number, or 0 when it has none.
+  const policyVersion = creditPolicyVersion(current ?? { version: stored.version });
   const reversals = credits.map((c) => ({
     id: CreditReversalId.generate(),
     tenantId: actor.tenantId,
@@ -212,7 +224,9 @@ const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
     yield* db
       .update(schema.badgeAward)
       .set({ status: 'revoked', revokedAt: at, revokedByReversalId: reversals[0]?.id ?? null })
-      .where(eq(schema.badgeAward.id, badge.id));
+      .where(
+        and(eq(schema.badgeAward.tenantId, actor.tenantId), eq(schema.badgeAward.id, badge.id)),
+      );
     yield* recordAudit(actor, {
       entityType: 'badge_award',
       entityId: badge.id,
@@ -221,12 +235,16 @@ const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
       to: 'revoked',
       reasonCode: 'data_correction',
       policyVersion,
+      ...(current === null && {
+        data: { reAward: 'skipped', because: 'the stored credit policy is not valid' },
+      }),
     });
     revoked.push({ skillId: badge.skillId, level: badge.level as BadgeLevel });
   }
-  if (revoked.length > 0) {
+  if (revoked.length > 0 && current) {
     yield* awardEarnedBadges(
       actor,
+      current,
       subjectId,
       [...new Set(revoked.map((r) => r.skillId))],
       undefined,

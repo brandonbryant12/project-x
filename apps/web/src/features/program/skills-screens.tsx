@@ -54,7 +54,7 @@ const VALUE_FIELDS = [
   {
     key: 'minPrimaryPoints',
     label: 'Points from primary work',
-    hint: 'How many of the badge’s points must come from work where this skill was primary. 0 turns it off.',
+    hint: 'How many of the badge’s points must come from work where this skill was primary. 0 turns it off. It never asks for more than the badge total: if the total in use is lower, the total applies.',
   },
 ] as const satisfies ReadonlyArray<{ key: keyof SkillValuesView; label: string; hint: string }>;
 
@@ -484,9 +484,10 @@ const ValuesForm = ({ skill }: { readonly skill: ProgramSkillDetail }) => {
                       : 'Credit rules'
                   }
                   onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                  aria-describedby={`value-${f.key}-hint`}
                   className="tabular"
                 />
-                <FieldHint>{f.hint}</FieldHint>
+                <FieldHint id={`value-${f.key}-hint`}>{f.hint}</FieldHint>
               </Field>
             ))}
           </div>
@@ -497,9 +498,12 @@ const ValuesForm = ({ skill }: { readonly skill: ProgramSkillDetail }) => {
               value={reason}
               maxLength={1000}
               onChange={(e) => setReason(e.target.value)}
+              aria-describedby="values-reason-hint"
               className="min-h-16"
             />
-            <FieldHint>At least 10 characters. Kept with the change in the record.</FieldHint>
+            <FieldHint id="values-reason-hint">
+              At least 10 characters. Kept with the change in the record.
+            </FieldHint>
           </Field>
           {error ? (
             <p role="alert" className="text-ui text-danger-ink">
@@ -582,13 +586,21 @@ const detailsOf = (skill: ProgramSkillDetail): Details => ({
   tags: skill.tags.join(', '),
 });
 
-/** The editor's state, started again whenever the server returns a newer version. */
+/** What the details-and-levels editor edits, as the server holds it. */
+const editedContent = (skill: ProgramSkillDetail) =>
+  JSON.stringify([detailsOf(skill), contentOf(initialLevels(skill))]);
+
+/**
+ * The details-and-levels editor's state. It starts again only when the server
+ * returns different details or levels (its own save, a publish); saving the
+ * skill's values bumps the version but leaves unsaved edits here alone.
+ */
 const useSkillEditor = (skill: ProgramSkillDetail) => {
   const [details, setDetails] = useState(() => detailsOf(skill));
   const [levels, setLevels] = useState(() => initialLevels(skill));
-  const [loaded, setLoaded] = useState(skill.version);
-  if (loaded !== skill.version) {
-    setLoaded(skill.version);
+  const [loaded, setLoaded] = useState(() => editedContent(skill));
+  if (loaded !== editedContent(skill)) {
+    setLoaded(editedContent(skill));
     setDetails(detailsOf(skill));
     setLevels(initialLevels(skill));
   }
@@ -895,7 +907,8 @@ export const ProgramSkillScreen = ({ skill }: { readonly skill: ProgramSkillDeta
           <ObserverPreview name={editor.details.name || skill.name} levels={editor.levels} />
         </div>
         <aside className="grid content-start gap-10">
-          {skill.canEdit ? <ValuesForm key={skill.version} skill={skill} /> : null}
+          {/* Restarts only when the values change, so saving details keeps a typed value. */}
+          {skill.canEdit ? <ValuesForm key={JSON.stringify(skill.values)} skill={skill} /> : null}
           <Versions skill={skill} />
           <UsedByTemplates skill={skill} />
           <ChangeHistory history={skill.history} empty="No changes recorded yet." />

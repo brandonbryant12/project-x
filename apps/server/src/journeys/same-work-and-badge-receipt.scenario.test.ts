@@ -7,15 +7,16 @@ import {
   type PersonId,
   type SkillId,
 } from '@repo/domain';
-import { Db, schema, transactionally } from '@repo/db';
+import { Db, schema } from '@repo/db';
 import { assert, layer } from '@effect/vitest';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { Effect } from 'effect';
+import { TestClock } from 'effect/testing';
 import { HttpApiTest } from 'effect/http-api';
 import { addDaysIso, today } from '../platform/time.ts';
 import { saveCreditPolicy } from '../features/shared/recognition.ts';
 import { seedWorld } from '../scripts/seed-world.ts';
-import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
+import { SCENARIO_NOW, ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
 
 /**
  * Journey: one piece of work, seen by two observers, earns a badge once
@@ -25,8 +26,11 @@ import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
  * the observe window. "How this was earned" groups credits by piece of work
  * through the one projection (the work counts once, the counted credit is
  * marked), sets the total against the thresholds saved on the award, labels an
- * individual activity value and credit from before roles, and shows the
- * observer's words only to those who may read them (I13).
+ * individual activity value, marks credit reversed since the award and leaves
+ * it out, shows the observer's words only to those who may read them (I13), and
+ * shows points and per-credit detail only to the holder's development viewers
+ * (I48). The pure assembly, including credit from before roles, is tested in
+ * `features/people/receipt.test.ts`.
  */
 const client = HttpApiTest.groups(Api, ['observations', 'development', 'people']);
 
@@ -36,7 +40,7 @@ const REASON = 'Agreed in coaching: the goals conversation is the focus this qua
 
 layer(ScenarioLayer, { timeout: 120_000 })('same work once; how this was earned', (it) => {
   it.effect(
-    'I13: two observers of one piece of work count it once; the receipt shows why, by the award’s thresholds',
+    'I46/I13: two observers of one piece of work count it once; the receipt shows why, by the award’s thresholds',
     () =>
       Effect.gen(function* () {
         yield* atScenarioTime;
@@ -58,7 +62,9 @@ layer(ScenarioLayer, { timeout: 120_000 })('same work once; how this was earned'
         if (!planning) return yield* Effect.die('seeded skill missing');
         const skillId = planning.id as SkillId;
 
-        // Sam, Maya's coach, values her goals conversations before any is observed.
+        // Sam, Maya's coach, valued her goals conversations a month ago, before any
+        // was done (a value applies only to work from the day it is set).
+        yield* TestClock.setTime(SCENARIO_NOW - 30 * 86_400_000);
         yield* signInAs('Sam Rivera');
         const annual = (yield* api.development.of({
           params: { id: ids.maya },
@@ -66,8 +72,9 @@ layer(ScenarioLayer, { timeout: 120_000 })('same work once; how this was earned'
         assert.isDefined(annual);
         yield* api.development.setActivityValue({
           params: { id: annual.id },
-          payload: { skillId, points: 12, reason: REASON },
+          payload: { version: annual.version, skillId, points: 12, reason: REASON },
         });
+        yield* atScenarioTime;
 
         /** As Maya: log the work and ask these observers to look at it. */
         const logAndAsk = (occurredOn: IsoDate, observers: ReadonlyArray<PersonId>) =>
@@ -243,60 +250,44 @@ layer(ScenarioLayer, { timeout: 120_000 })('same work once; how this was earned'
         assert.isTrue(
           fromAbove.work.flatMap((w) => w.credits).every((c) => c.narrativeSaw === null),
         );
-      }),
-  );
 
-  it.effect('a credit from before roles is labelled as such and still counts its value', () =>
-    Effect.gen(function* () {
-      const db = yield* Db;
-      const api = yield* client;
-      const maya = yield* signInAs('Maya Chen');
-      const [discovery] = yield* db
-        .select({ id: schema.skill.id })
-        .from(schema.skill)
-        .where(eq(schema.skill.slug, 'client-discovery'));
-      const [award] = yield* db
-        .select()
-        .from(schema.badgeAward)
-        .where(
-          and(
-            eq(schema.badgeAward.personId, maya),
-            eq(schema.badgeAward.skillId, discovery?.id as SkillId),
-            eq(schema.badgeAward.level, 2),
-          ),
+        // A colleague with no part in Maya's development sees the badge and the plain
+        // facts, never points, thresholds or who credited what (I48).
+        yield* signInAs('Daniel Okafor');
+        const asColleague = yield* api.people.badgeReceipt({
+          params: { id: ids.maya, badgeId: award.id },
+        });
+        assert.deepInclude(asColleague, {
+          detailVisible: false,
+          narrativesVisible: false,
+          points: null,
+          required: null,
+          work: [],
+        });
+        assert.notMatch(asColleague.facts, /points/);
+
+        // Compliance voids Leo's observation of the first meeting. The badge still
+        // stands on the award's thresholds; the receipt marks the reversed credit and
+        // counts the work at Sam's credit.
+        yield* signInAs('Nina Patel');
+        yield* api.observations.transition({
+          params: { id: firstLeo.id },
+          payload: { event: 'VOID', note: 'Recorded against the wrong meeting.' },
+        });
+        yield* signInAs('Sam Rivera');
+        const afterVoid = yield* api.people.badgeReceipt({
+          params: { id: ids.maya, badgeId: award.id },
+        });
+        assert.strictEqual(afterVoid.points, 36);
+        const firstMeeting = afterVoid.work[0]?.credits ?? [];
+        assert.deepInclude(
+          firstMeeting.find((c) => c.observer.id === ids.sam),
+          { counted: true, reversed: false },
         );
-      assert.isDefined(award);
-      const [oldest] = yield* db
-        .select({ id: schema.creditEntry.id })
-        .from(schema.badgeAwardCredit)
-        .innerJoin(
-          schema.creditEntry,
-          eq(schema.creditEntry.id, schema.badgeAwardCredit.creditEntryId),
-        )
-        .where(eq(schema.badgeAwardCredit.badgeAwardId, award.id))
-        .orderBy(asc(schema.creditEntry.demonstratedOn))
-        .limit(1);
-      assert.isDefined(oldest);
-      // Only the roles migration writes such a row (the ledger is append-only and
-      // new credits may not be legacy): stand in for it on one seeded credit.
-      yield* transactionally(
-        Effect.gen(function* () {
-          yield* db.execute(sql`alter table credit_entry disable trigger credit_entry_append_only`);
-          yield* db
-            .update(schema.creditEntry)
-            .set({ role: 'unclassified', points: 10, pointsSource: 'legacy' })
-            .where(eq(schema.creditEntry.id, oldest.id));
-          yield* db.execute(sql`alter table credit_entry enable trigger credit_entry_append_only`);
-        }),
-      );
-
-      const receipt = yield* api.people.badgeReceipt({
-        params: { id: maya, badgeId: award.id },
-      });
-      const legacy = receipt.work
-        .flatMap((w) => w.credits)
-        .find((c) => c.pointsSource === 'legacy');
-      assert.deepInclude(legacy, { role: 'unclassified', points: 10, counted: true });
-    }),
+        assert.deepInclude(
+          firstMeeting.find((c) => c.observer.id === ids.leo),
+          { counted: false, reversed: true },
+        );
+      }),
   );
 });

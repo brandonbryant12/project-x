@@ -42,8 +42,15 @@ export const decide = <M extends AnyStateMachine, S extends string, E extends st
 /** Optimistic-concurrency guard: the UPDATE … WHERE version = $v matched no row. */
 export const staleWrite = (entity: string) =>
   new Conflict({
-    message: `This ${entity} changed while you were working on it. Reload to see the latest version.`,
+    message: `This ${entity} changed since you opened it. Check the latest version, then try again.`,
   });
+
+/**
+ * The version a person loaded must still be current: a write never applies to
+ * a row changed since they saw it (agreeing, confirming or overwriting).
+ */
+export const requireVersion = (entity: string, loaded: number, current: number) =>
+  loaded === current ? Effect.void : Effect.fail(staleWrite(entity));
 
 /** Fails with Conflict when an optimistic update touched no rows. */
 export const requireUpdated =

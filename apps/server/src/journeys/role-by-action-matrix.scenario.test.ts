@@ -134,12 +134,20 @@ const MATRIX: Readonly<Record<string, Readonly<Record<Persona, Outcome>>>> = {
     compliance_reviewer: 'Forbidden',
     program_owner: 'Forbidden',
   },
+  // Every program action (ADR 0023): the credit rules, skills and templates.
   'read the credit rules': PROGRAM_ONLY,
   'change the credit rules': PROGRAM_ONLY,
+  'list skills in any state': PROGRAM_ONLY,
+  'read a skill for administration': PROGRAM_ONLY,
   'add a skill to the catalog': PROGRAM_ONLY,
+  'edit a skill draft': PROGRAM_ONLY,
   'publish a skill': PROGRAM_ONLY,
   'set a skill’s own values': PROGRAM_ONLY,
+  'list activity templates in any state': PROGRAM_ONLY,
+  'read an activity template for administration': PROGRAM_ONLY,
+  'add an activity template': PROGRAM_ONLY,
   'edit an activity template': PROGRAM_ONLY,
+  'publish an activity template': PROGRAM_ONLY,
 };
 
 const outcome = <E extends { readonly _tag: string }>(effect: Effect.Effect<unknown, E>) =>
@@ -216,8 +224,18 @@ layer(ScenarioLayer, { timeout: 120_000 })('role-by-action matrix', (it) => {
       assert.isDefined(held, 'the seed has a held reflection');
       const evidenceId = held.id as EvidenceId;
 
-      // Program targets: two complete skill drafts to publish (one per allowed persona).
+      // Program targets: two complete skill drafts to publish (one per allowed persona),
+      // a draft to edit, and two template drafts to publish.
       yield* signInAs(nameOf('program_owner'));
+      yield* api.program.createSkill({
+        payload: {
+          name: 'Matrix edit target',
+          summary: 'A skill draft the permission matrix edits.',
+          domain: 'communication',
+          outcome: 'Client trust',
+          tags: [],
+        },
+      });
       for (const name of ['Matrix skill A', 'Matrix skill B']) {
         const draft = yield* api.program.createSkill({
           payload: {
@@ -256,6 +274,31 @@ layer(ScenarioLayer, { timeout: 120_000 })('role-by-action matrix', (it) => {
         and(like(schema.skill.slug, 'matrix-skill-%'), eq(schema.skill.status, 'draft')),
       );
       const planning = skillRow(eq(schema.skill.slug, 'goals-based-planning'));
+      const editTarget = skillRow(eq(schema.skill.slug, 'matrix-edit-target'));
+      const planningId = (yield* planning).id;
+      const templateInput = (name: string) => ({
+        name,
+        description: 'A template drafted for the permission matrix.',
+        kind: 'client_meeting' as const,
+        observationTip: null,
+        typicalMinutes: null,
+        skills: [{ skillId: planningId, role: 'primary' as const, points: null }],
+      });
+      for (const name of ['Matrix template A', 'Matrix template B']) {
+        yield* api.program.createTemplate({ payload: templateInput(name) });
+      }
+      const nextTemplateDraft = db
+        .select()
+        .from(schema.activityTemplate)
+        .where(
+          and(
+            eq(schema.activityTemplate.tenantId, tenantId),
+            like(schema.activityTemplate.slug, 'matrix-template-%'),
+            eq(schema.activityTemplate.status, 'draft'),
+          ),
+        )
+        .orderBy(asc(schema.activityTemplate.slug))
+        .pipe(Effect.map((rows) => rows[0]!));
       const [template] = yield* db
         .select()
         .from(schema.activityTemplate)
@@ -322,6 +365,43 @@ layer(ScenarioLayer, { timeout: 120_000 })('role-by-action matrix', (it) => {
             }),
           );
         }).pipe(Effect.orDie),
+        'list skills in any state': outcome(api.program.skills()),
+        'read a skill for administration': outcome(
+          api.program.skill({ params: { slug: 'goals-based-planning' } }),
+        ),
+        'edit a skill draft': Effect.gen(function* () {
+          const draft = yield* editTarget;
+          return yield* outcome(
+            api.program.updateSkill({
+              params: { slug: draft.slug },
+              payload: {
+                version: draft.version,
+                name: draft.name,
+                summary: draft.summary,
+                domain: 'communication',
+                outcome: draft.outcome,
+                tags: [],
+                definition: null,
+              },
+            }),
+          );
+        }).pipe(Effect.orDie),
+        'list activity templates in any state': outcome(api.program.templates()),
+        'read an activity template for administration': outcome(
+          api.program.template({ params: { id: template.id } }),
+        ),
+        'add an activity template': outcome(
+          api.program.createTemplate({ payload: templateInput('Matrix created template') }),
+        ),
+        'publish an activity template': Effect.gen(function* () {
+          const draft = yield* nextTemplateDraft;
+          return yield* outcome(
+            api.program.templateTransition({
+              params: { id: draft.id },
+              payload: { version: draft.version, event: 'PUBLISH', note: null },
+            }),
+          );
+        }).pipe(Effect.orDie),
         'add a skill to the catalog': outcome(
           api.program.createSkill({
             payload: {
@@ -380,6 +460,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('role-by-action matrix', (it) => {
                   role: t.role as 'primary' | 'secondary',
                   points: t.points,
                 })),
+                reason,
               },
             }),
           );
@@ -423,8 +504,25 @@ layer(ScenarioLayer, { timeout: 120_000 })('role-by-action matrix', (it) => {
       assert.deepStrictEqual(matrixSkills, [
         { slug: 'matrix-added-skill', status: 'draft' },
         { slug: 'matrix-added-skill-2', status: 'draft' },
+        { slug: 'matrix-edit-target', status: 'draft' },
         { slug: 'matrix-skill-a', status: 'published' },
         { slug: 'matrix-skill-b', status: 'published' },
+      ]);
+      const matrixTemplates = yield* db
+        .select({ slug: schema.activityTemplate.slug, status: schema.activityTemplate.status })
+        .from(schema.activityTemplate)
+        .where(
+          and(
+            eq(schema.activityTemplate.tenantId, tenantId),
+            like(schema.activityTemplate.slug, 'matrix-%'),
+          ),
+        )
+        .orderBy(asc(schema.activityTemplate.slug));
+      assert.deepStrictEqual(matrixTemplates, [
+        { slug: 'matrix-created-template', status: 'draft' },
+        { slug: 'matrix-created-template-2', status: 'draft' },
+        { slug: 'matrix-template-a', status: 'published' },
+        { slug: 'matrix-template-b', status: 'published' },
       ]);
     }),
   );

@@ -27,7 +27,8 @@ import { OUTSIDER, seedSecondTenant } from '../test/second-tenant.ts';
  * other edits and leaves only with its skill; an individual value is set by an
  * agreer or a program owner, never the subject whatever grants they hold,
  * within the tenant's range, with a reason, before the work is observed, and a
- * credit signed afterwards carries it while earlier credit is unchanged. The
+ * credit signed afterwards for work done from the day it was set carries it,
+ * while earlier credit, and work done before it was set, are unchanged. The
  * tests share one seeded tenant and run in order.
  */
 const client = HttpApiTest.groups(Api, ['development', 'observations']);
@@ -99,7 +100,18 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
         ),
       );
     const s = (slug: string, role: SkillRole) => ({ skillId: skill(slug), role });
+    /** The work's current version, as a freshly loaded form would send it. */
+    const workVersion = (activityId: ActivityId) =>
+      db
+        .select({ version: schema.activity.version })
+        .from(schema.activity)
+        .where(eq(schema.activity.id, activityId))
+        .pipe(
+          Effect.map((rows) => rows[0]?.version ?? -1),
+          Effect.orDie,
+        );
     return {
+      workVersion,
       db,
       api,
       ids,
@@ -254,30 +266,45 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
     'editing work diffs its skills: a value survives other edits and leaves only with its skill',
     () =>
       Effect.gen(function* () {
-        const { db, api, planAs, skillsOf, s } = yield* setup;
+        const { db, api, planAs, skillsOf, s, workVersion } = yield* setup;
         const review = work(yield* planAs('Sam Rivera'), 'Annual review with');
         assert.isTrue(review.canEdit);
         assert.isTrue(review.canSetValue);
         yield* api.development.setActivityValue({
           params: { id: review.id },
           payload: {
+            version: review.version,
             skillId: s('relationship-deepening', 'secondary').skillId,
             points: 15,
             reason: REASON,
           },
         });
-        const edit = (skills: ReadonlyArray<{ skillId: SkillId; role: SkillRole }>) =>
-          api.development.updateActivity({
-            params: { id: review.id },
-            payload: {
-              title: 'Annual review: the Okafor household',
-              description: 'Goals first, numbers after.',
-              skills,
-              dueOn: review.dueOn,
-              intendedObserverId: null,
-              intendedMode: null,
-            },
+        const edit = (
+          skills: ReadonlyArray<{ skillId: SkillId; role: SkillRole }>,
+          loaded?: number,
+        ) =>
+          Effect.gen(function* () {
+            return yield* api.development.updateActivity({
+              params: { id: review.id },
+              payload: {
+                version: loaded ?? (yield* workVersion(review.id)),
+                title: 'Annual review: the Okafor household',
+                description: 'Goals first, numbers after.',
+                skills,
+                dueOn: review.dueOn,
+                intendedObserverId: null,
+                intendedMode: null,
+              },
+            });
           });
+
+        // A form loaded before Sam's value was set is stale: its edit is refused, not applied.
+        yield* signInAs('Maya Chen');
+        assert.strictEqual(
+          yield* failure(edit([s('goals-based-planning', 'primary')], review.version)),
+          'Conflict',
+        );
+        assert.lengthOf(yield* skillsOf(review.id), 3);
 
         for (const outsider of ['Rhea Castillo', 'Priya Raman']) {
           yield* signInAs(outsider);
@@ -346,7 +373,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
     'an individual value: an agreer or program owner, never the subject, before the work is observed',
     () =>
       Effect.gen(function* () {
-        const { db, api, ids, tenantId, skill, on, planAs } = yield* setup;
+        const { db, api, ids, tenantId, skill, on, planAs, workVersion } = yield* setup;
         // Maya and Elena run the program.
         yield* db.insert(schema.roleGrant).values(
           [ids.maya, ids.elena].map((personId) => ({
@@ -360,10 +387,29 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
         );
         const planning = skill('goals-based-planning');
         const annual = work(yield* planAs('Maya Chen'), 'Lead the goals conversation');
+        // Maya logged this work yesterday, before anyone valued it.
+        const before = yield* api.development.logInteraction({
+          payload: {
+            activityId: annual.id,
+            adHocTitle: null,
+            adHocSkillIds: [],
+            occurredOn: addDaysIso(on, -1),
+            kind: 'client_meeting',
+            clientRef: null,
+            reflection: 'Prepared the annual review and asked them to bring last year’s goals.',
+          },
+        });
         const set = (points: number | null, reason = REASON, activityId = annual.id) =>
-          api.development.setActivityValue({
-            params: { id: activityId },
-            payload: { skillId: planning, points, reason },
+          Effect.gen(function* () {
+            return yield* api.development.setActivityValue({
+              params: { id: activityId },
+              payload: {
+                version: yield* workVersion(activityId),
+                skillId: planning,
+                points,
+                reason,
+              },
+            });
           });
 
         // The subject never values her own work, even as a program owner.
@@ -414,7 +460,11 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
           )
           .orderBy(schema.auditEvent.seq);
         assert.deepStrictEqual(audits.at(-1)?.data.before, { points: 12, setById: ids.elena });
-        assert.deepStrictEqual(audits.at(-1)?.data.after, { points: 14, setById: ids.sam });
+        assert.deepStrictEqual(audits.at(-1)?.data.after, {
+          points: 14,
+          setById: ids.sam,
+          appliesFrom: on,
+        });
         // The specific reason code survives the attached note.
         assert.deepStrictEqual(
           [audits.at(-1)?.reasonCode, audits.at(-1)?.noteId !== null],
@@ -427,6 +477,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
         );
         assert.deepStrictEqual(seen?.value, { points: 14, source: 'activity' });
         assert.strictEqual(seen?.override?.setBy.id, ids.sam);
+        assert.strictEqual(seen?.override?.appliesFrom, on);
         assert.deepStrictEqual(seen?.valueWithoutOverride, {
           points: DEFAULT_CREDIT_POLICY.primaryPoints,
           source: 'tenant',
@@ -522,6 +573,36 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
           unchanged.filter((c) => earlier.some((e) => e.id === c.id)),
           earlier,
         );
+
+        // Work done before the value was set never gets it, even observed afterwards.
+        yield* signInAs('Sam Rivera');
+        const late = yield* api.observations.start({
+          payload: {
+            subjectId: ids.maya,
+            interactionId: before.id,
+            activityId: null,
+            title: null,
+            occurredOn: on,
+            kind: 'client_meeting',
+            mode: 'saw_it',
+            skillIds: [planning],
+          },
+        });
+        const lateSigned = yield* api.observations.sign({
+          params: { id: late.id },
+          payload: {
+            version: late.version,
+            mode: 'saw_it',
+            ratings: [{ skillId: planning, level: 2, indicatorIds: [], credit: true }],
+            narrativeSaw:
+              'Maya asked the couple to bring last year’s goals and read them aloud before anything else.',
+            narrativeNext: 'Ask which goal mattered most before reviewing the rest.',
+          },
+        });
+        assert.deepStrictEqual(
+          lateSigned.credits.map((c) => [c.role, c.points, c.pointsSource]),
+          [['primary', DEFAULT_CREDIT_POLICY.primaryPoints, 'tenant']],
+        );
       }),
   );
 
@@ -550,6 +631,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
           api.development.updateActivity({
             params: { id: annual.id },
             payload: {
+              version: annual.version,
               title: 'Taken over',
               description: '',
               skills: [{ skillId: planning, role: 'primary' }],
@@ -560,7 +642,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
           }),
           api.development.setActivityValue({
             params: { id: annual.id },
-            payload: { skillId: planning, points: 20, reason: REASON },
+            payload: { version: annual.version, skillId: planning, points: 20, reason: REASON },
           }),
         ].map((call) =>
           call.pipe(

@@ -115,6 +115,7 @@ export const replaceCreditPolicy = Effect.fn('program.saveCreditPolicy')(functio
       const was = storedView(before.ok ? before.policy : before.stored);
       yield* recordAudit(actor, {
         entityType: ENTITY,
+        reasonCode: 'policy_change',
         entityId: actor.tenantId,
         event: 'REPLACE',
         from: before.ok ? String(before.policy.version) : null,

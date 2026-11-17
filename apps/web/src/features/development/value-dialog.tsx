@@ -3,6 +3,7 @@ import { Button, Field, FieldHint, Input, Label, Textarea, toast } from '@repo/u
 import { useState } from 'react';
 import { ResponsiveDialog } from '@/components/responsive-dialog.tsx';
 import { useApiMutation } from '@/lib/api.ts';
+import { formatDate } from '@/lib/format.ts';
 
 /** Where a value comes from, in plain words. */
 export const VALUE_SOURCE: Record<ActivitySkillView['value']['source'], string> = {
@@ -32,7 +33,7 @@ export const SetValueDialog = ({
     open={activity !== null && skill !== null}
     onOpenChange={(o) => !o && onClose()}
     title={skill ? `Value of ${skill.skill.name}` : 'Value'}
-    description="Set before the work is observed. It applies to observations signed afterwards."
+    description="Set before the work is observed. It applies only to work done from today on, never to work already done."
   >
     {activity && skill && plan.valueRange ? (
       <ValueForm activity={activity} skill={skill} range={plan.valueRange} onClose={onClose} />
@@ -65,7 +66,12 @@ const ValueForm = ({
   const send = (value: number | null) =>
     save.mutate({
       params: { id: activity.id },
-      payload: { skillId: skill.skill.id, points: value, reason: reason.trim() },
+      payload: {
+        version: activity.version,
+        skillId: skill.skill.id,
+        points: value,
+        reason: reason.trim(),
+      },
     });
   return (
     <form
@@ -79,6 +85,9 @@ const ValueForm = ({
         In “{activity.title}”, {skill.skill.name} is {skill.role}. Without a value of its own, one
         observation adds {skill.valueWithoutOverride.points} points (
         {VALUE_SOURCE[skill.valueWithoutOverride.source]}).
+        {skill.override
+          ? ` The current value of ${skill.override.points} applies to work from ${formatDate(skill.override.appliesFrom)}; a new one applies from today.`
+          : ''}
       </p>
       <Field>
         <Label htmlFor="value-points">Points for one observation</Label>

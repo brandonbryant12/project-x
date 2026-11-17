@@ -109,7 +109,7 @@ deprovisioning ticket (see the runbooks). Model it again with the purge jobs.
   The closing summary of a plan is content and stays on the plan; its audit
   events record only the outcomes. An explicit reason code now survives an
   attached note (an individual value records `value_override`); a note with
-  no explicit code still records `note`, which is what credit-rule and
-  catalog changes record today. The schema also allows a `plan_review` note
-  kind and the reason codes `policy_change`, `catalog_change` and
-  `plan_review`, which nothing writes yet.
+  no explicit code still records `note`. Credit-rule saves record
+  `policy_change`, every catalog change records `catalog_change`, and the
+  closing-review events (recorded, confirmed, cleared) record `plan_review`;
+  the schema's `plan_review` note kind is for a note attached to one.

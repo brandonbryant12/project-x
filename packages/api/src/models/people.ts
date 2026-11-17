@@ -69,17 +69,29 @@ export const ReceiptCredit = Schema.Struct({
   pointsSource: PointsSource,
   /** True for the one credit that counted for its piece of work; the others are the same work. */
   counted: Schema.Boolean,
+  /** Reversed after the award (its observation was voided): shown, never counted. */
+  reversed: Schema.Boolean,
 });
 export type ReceiptCredit = typeof ReceiptCredit.Type;
 
+/**
+ * "How this was earned". The badge is visible tenant-wide; the points, the
+ * thresholds and the per-credit detail are development data, returned only to
+ * the holder, their coaches and their leader chain (`detailVisible`).
+ */
 export const BadgeReceiptView = Schema.Struct({
   badge: BadgeView,
   holder: PersonSummary,
   facts: Schema.String,
   narrativesVisible: Schema.Boolean,
-  /** Points that counted: each piece of work once, at its highest value. */
-  points: Schema.Number,
-  /** What the badge needed when it was awarded (its saved thresholds); null if unreadable. */
+  /** The viewer may see the holder's development: points, thresholds and each credit. */
+  detailVisible: Schema.Boolean,
+  /**
+   * Points that count now: each piece of work once, at its highest value, credit
+   * reversed since the award left out. Null without `detailVisible`.
+   */
+  points: Schema.NullOr(Schema.Number),
+  /** What the badge needed when it was awarded (its saved thresholds); null if unreadable or not visible. */
   required: Schema.NullOr(
     Schema.Struct({
       points: Schema.Number,
@@ -91,7 +103,10 @@ export const BadgeReceiptView = Schema.Struct({
       primaryPoints: Schema.Number,
     }),
   ),
-  /** Each piece of work in date order, with every credit for it; exactly one counted. */
+  /**
+   * Each piece of work in date order, with every credit for it; at most one
+   * counted (none when all its credits were reversed). Empty without `detailVisible`.
+   */
   work: Schema.Array(
     Schema.Struct({
       interactionId: InteractionId,

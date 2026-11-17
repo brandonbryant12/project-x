@@ -303,6 +303,7 @@ const EditPlanForm = ({
         update.mutate({
           params: { id: plan.id },
           payload: {
+            version: plan.version,
             title: title.trim(),
             intent: intent.trim(),
             periodEnd: periodEnd as never,

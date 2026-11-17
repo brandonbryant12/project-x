@@ -55,8 +55,13 @@ export const engagement = pgTable(
     ),
     index('engagement_coachee_idx').on(t.tenantId, t.coacheeId),
     index('engagement_coach_idx').on(t.tenantId, t.coachId),
-    uniqueIndex('engagement_open_pair_unique')
-      .on(t.tenantId, t.coachId, t.coacheeId)
+    // One live engagement per pair of people, in either direction (I45).
+    uniqueIndex('engagement_live_pair_unique')
+      .on(
+        t.tenantId,
+        sql`least(${t.coachId}, ${t.coacheeId})`,
+        sql`greatest(${t.coachId}, ${t.coacheeId})`,
+      )
       .where(sql`${t.status} in ('proposed', 'active', 'paused')`),
   ],
 );

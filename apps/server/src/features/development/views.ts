@@ -45,11 +45,12 @@ import {
 import { Db, schema } from '@repo/db';
 import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
 import { Effect } from 'effect';
-import { today } from '../../platform/time.ts';
+import { BusinessTimeZone, today } from '../../platform/time.ts';
 import { loadPeople, personFrom } from '../shared/people.ts';
 import { netCreditsBySkill, progressFor, tenantCreditPolicy } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import {
+  activitySkillValue,
   loadActivitySkillRows,
   loadPlanSkills,
   type ActivitySkillRow,
@@ -68,6 +69,29 @@ import {
 import { observedActivityIds } from './use-cases.ts';
 
 type PlanRow = typeof schema.plan.$inferSelect;
+
+/**
+ * What the viewer may do with one piece of work: lifecycle events (the owner
+ * only), and the flags from the same refusal functions the use cases call.
+ */
+const workCapabilities = (
+  who: PlanRelation,
+  plan: PlanRow,
+  activity: typeof schema.activity.$inferSelect,
+  policy: CreditPolicy,
+  observed: boolean,
+): Pick<ActivityView, 'actions' | 'canEdit' | 'canSetValue'> => ({
+  actions: who.isOwner
+    ? ActivityLifecycle.allowed(activity.status as ActivityStatus, {}, [
+        { type: 'LOG_INTERACTION' },
+        { type: 'COMPLETE' },
+        { type: 'CANCEL' },
+      ])
+    : [],
+  canEdit: editWorkRefusal(who, plan, activity) === null,
+  canSetValue:
+    setValueRefusal(who, policy.activityOverrides, plan, { ...activity, observed }) === null,
+});
 type SkillRow = typeof schema.skill.$inferSelect;
 type CreditRow = typeof schema.creditEntry.$inferSelect;
 type People = ReadonlyMap<PersonId, PersonSummary>;
@@ -208,37 +232,41 @@ const reviewPeople = (plan: PlanRow): Array<PersonId> => [
 ];
 
 /**
- * Each skill of a piece of work with what one signed observation would add
- * right now, resolved with the same domain function signing uses.
+ * Each skill of a piece of work with what one signed observation of work done
+ * today would add, resolved with the same domain function signing uses. An
+ * individual value shows the date of the work it applies from.
  */
 const activitySkillViews = (
   rows: ReadonlyArray<ActivitySkillRow>,
   skills: ReadonlyMap<SkillId, SkillRow>,
   policy: CreditPolicy,
   people: People,
+  context: { readonly on: IsoDate; readonly timeZone: string },
 ): Array<ActivitySkillView> =>
   rows.flatMap((row) => {
     const skill = skills.get(row.skillId);
     if (!skill) return [];
     const role = row.role as SkillRole;
-    const activity = {
-      role,
-      pointsOverride: row.pointsOverride,
-      templatePoints: row.templatePoints,
-    };
+    const activity = activitySkillValue(row, context.timeZone);
+    const workOn = context.on;
     return [
       {
         skill: toSkillRef(skill),
         role,
-        value: resolveCreditValue({ role, policy, activity, skill }),
+        value: resolveCreditValue({ role, policy, workOn, activity, skill }),
         override:
-          row.pointsOverride !== null && row.pointsOverrideById
-            ? { points: row.pointsOverride, setBy: personFrom(people, row.pointsOverrideById) }
+          row.pointsOverride !== null && row.pointsOverrideById && activity.pointsOverrideFrom
+            ? {
+                points: row.pointsOverride,
+                setBy: personFrom(people, row.pointsOverrideById),
+                appliesFrom: activity.pointsOverrideFrom,
+              }
             : null,
         valueWithoutOverride: resolveCreditValue({
           role,
           policy,
-          activity: { ...activity, pointsOverride: null },
+          workOn,
+          activity: { ...activity, pointsOverride: null, pointsOverrideFrom: null },
           skill,
         }),
       },
@@ -322,8 +350,8 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     actor.tenantId,
     activities.flatMap((a) => (a.templateId ? [a.templateId] : [])),
   );
-  const isOwner = plan.ownerId === actor.personId;
   const who: PlanRelation = planRelation(actor, plan.ownerId, facts, on);
+  const values = { on, timeZone: yield* BusinessTimeZone };
 
   const activityViews = activities.map((a): ActivityView => ({
     id: a.id,
@@ -335,26 +363,15 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     template: a.templateId
       ? { id: a.templateId, name: templates.get(a.templateId) ?? 'Template' }
       : null,
-    skills: activitySkillViews(activitySkills.get(a.id) ?? [], skills, policy, people),
+    skills: activitySkillViews(activitySkills.get(a.id) ?? [], skills, policy, people, values),
     intendedObserver: a.intendedObserverId ? (people.get(a.intendedObserverId) ?? null) : null,
     intendedMode: (a.intendedMode as ObservationMode | null) ?? null,
     interactions: interactions.flatMap((i) => {
       const summary = i.activityId === a.id ? summaries.get(i.id) : undefined;
       return summary ? [summary] : [];
     }),
-    actions: isOwner
-      ? ActivityLifecycle.allowed(a.status as ActivityStatus, {}, [
-          { type: 'LOG_INTERACTION' },
-          { type: 'COMPLETE' },
-          { type: 'CANCEL' },
-        ])
-      : [],
-    canEdit: editWorkRefusal(who, plan, a) === null,
-    canSetValue:
-      setValueRefusal(who, policy.activityOverrides, plan, {
-        ...a,
-        observed: observed.has(a.id),
-      }) === null,
+    ...workCapabilities(who, plan, a, policy, observed.has(a.id)),
+    version: a.version,
   }));
   const optional = (id: PersonId | null | undefined): PersonSummary | null =>
     id ? (people.get(id) ?? null) : null;
@@ -394,6 +411,7 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     valueRange: policy.activityOverrides.enabled
       ? { min: policy.activityOverrides.minPoints, max: policy.activityOverrides.maxPoints }
       : null,
+    version: plan.version,
   } satisfies PlanView;
 });
 
@@ -528,6 +546,7 @@ export const buildDevelopmentView = Effect.fn('development.view')(function* (
         review: reviewView(p, people),
         canRecordReview,
         canConfirmReview,
+        version: p.version,
       };
     }),
     otherProgress: yield* progressFor(actor.tenantId, personId, other),

@@ -215,10 +215,15 @@ layer(ScenarioLayer, { timeout: 120_000 })('weighted credit', (it) => {
           firstCredits.every((c) => c.policyVersion === creditPolicyVersion(DEFAULT_CREDIT_POLICY)),
         );
 
-        // The activity's own value wins over every other value, whatever the role.
+        // The activity's own value wins over every other value, whatever the role
+        // (set on the day of the work it values).
         yield* db
           .update(schema.activitySkill)
-          .set({ pointsOverride: 15, pointsOverrideById: ids.sam })
+          .set({
+            pointsOverride: 15,
+            pointsOverrideById: ids.sam,
+            pointsOverrideAt: new Date(`${day(-2)}T12:00:00Z`),
+          })
           .where(
             and(
               eq(schema.activitySkill.activityId, discovery),
@@ -248,6 +253,27 @@ layer(ScenarioLayer, { timeout: 120_000 })('weighted credit', (it) => {
             narrativeNext: '',
           },
         });
+        // The tenant's skill limit holds while drafting too, not only when asking.
+        const fourSkills = draft(['secondary', 'primary']);
+        const overLimit = yield* api.observations
+          .saveDraft({
+            ...fourSkills,
+            payload: {
+              ...fourSkills.payload,
+              ratings: [
+                ...fourSkills.payload.ratings,
+                ...[planning, skill('relationship-deepening')].map((skillId) => ({
+                  skillId,
+                  level: 3 as const,
+                  indicatorIds: [],
+                  credit: true,
+                })),
+              ],
+            },
+          })
+          .pipe(Effect.flip);
+        assert.strictEqual(DEFAULT_CREDIT_POLICY.maxSkillsPerObservation, 3);
+        assert.deepInclude(overLimit, { _tag: 'Unprocessable', field: 'ratings' });
         const twoPrimaries = yield* api.observations
           .saveDraft(draft(['primary', 'primary']))
           .pipe(Effect.flip);

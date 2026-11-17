@@ -297,6 +297,7 @@ export const createSkill = Effect.fn('program.createSkill')(function* (input: Sk
       });
       yield* recordAudit(actor, {
         entityType: ENTITY,
+        reasonCode: 'catalog_change',
         entityId: id,
         event: 'CREATE',
         to: 'draft',
@@ -354,11 +355,18 @@ export const updateSkill = Effect.fn('program.updateSkill')(function* (
           version: row.version + 1,
           updatedAt: yield* now,
         })
-        .where(and(eq(schema.skill.id, row.id), eq(schema.skill.version, row.version)))
+        .where(
+          and(
+            eq(schema.skill.tenantId, actor.tenantId),
+            eq(schema.skill.id, row.id),
+            eq(schema.skill.version, row.version),
+          ),
+        )
         .returning({ id: schema.skill.id })
         .pipe(Effect.flatMap(requireUpdated('skill')));
       yield* recordAudit(actor, {
         entityType: ENTITY,
+        reasonCode: 'catalog_change',
         entityId: row.id,
         event: 'UPDATE',
         from: row.status,
@@ -397,11 +405,18 @@ export const setSkillValues = Effect.fn('program.setSkillValues')(function* (
       yield* db
         .update(schema.skill)
         .set({ ...input.values, version: row.version + 1, updatedAt: yield* now })
-        .where(and(eq(schema.skill.id, row.id), eq(schema.skill.version, row.version)))
+        .where(
+          and(
+            eq(schema.skill.tenantId, actor.tenantId),
+            eq(schema.skill.id, row.id),
+            eq(schema.skill.version, row.version),
+          ),
+        )
         .returning({ id: schema.skill.id })
         .pipe(Effect.flatMap(requireUpdated('skill')));
       yield* recordAudit(actor, {
         entityType: ENTITY,
+        reasonCode: 'catalog_change',
         entityId: row.id,
         event: 'SET_VALUES',
         from: row.status,
@@ -482,6 +497,7 @@ export const skillTransition = Effect.fn('program.skillTransition')(function* (
         published = { versionId, number };
         yield* recordAudit(actor, {
           entityType: ENTITY,
+          reasonCode: 'catalog_change',
           entityId: row.id,
           event: 'PUBLISH',
           from,
@@ -496,6 +512,7 @@ export const skillTransition = Effect.fn('program.skillTransition')(function* (
       } else {
         yield* recordAudit(actor, {
           entityType: ENTITY,
+          reasonCode: 'catalog_change',
           entityId: row.id,
           event: input.event,
           from,
@@ -512,7 +529,13 @@ export const skillTransition = Effect.fn('program.skillTransition')(function* (
           version: row.version + 1,
           updatedAt: at,
         })
-        .where(and(eq(schema.skill.id, row.id), eq(schema.skill.version, row.version)))
+        .where(
+          and(
+            eq(schema.skill.tenantId, actor.tenantId),
+            eq(schema.skill.id, row.id),
+            eq(schema.skill.version, row.version),
+          ),
+        )
         .returning({ id: schema.skill.id })
         .pipe(Effect.flatMap(requireUpdated('skill')));
     }),

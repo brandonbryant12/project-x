@@ -15,6 +15,7 @@ export const QueueItem = Schema.Struct({
     'continue_draft',
     'revise_returned',
     'agree_plan',
+    'confirm_review',
     'accept_engagement',
     'request_observation',
     'held_evidence',

@@ -31,6 +31,7 @@ import { Link } from '@tanstack/react-router';
 import { ChevronDownIcon, EllipsisIcon, PencilIcon, PlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { FirstRunStep } from '@/components/first-run.tsx';
+import { ResponsiveDialog } from '@/components/responsive-dialog.tsx';
 import { Page, SkillChip } from '@/components/page.tsx';
 import { useLogDialog } from '@/components/shell/log-dialog-context.tsx';
 import { queryOptions, useApiMutation } from '@/lib/api.ts';
@@ -63,17 +64,30 @@ const PlanActions = ({
   /** Completing offers the closing review in the same step. */
   readonly onComplete: () => void;
 }) => {
+  const [revising, setRevising] = useState(false);
   const event = useApiMutation('development', 'planEvent', {
     onSuccess: (_d, v) => toast.success(`${PLAN_EVENT_LABEL[v.payload.event] ?? 'Done'}.`),
+    onSettled: () => setRevising(false),
   });
   const primary = plan.actions.filter((a) => PRIMARY_PLAN_EVENTS.has(a));
   const rest = plan.actions.filter((a) => !PRIMARY_PLAN_EVENTS.has(a) && a !== 'EXPIRE');
-  const send = (e: (typeof plan.actions)[number]) =>
-    e === 'COMPLETE' && plan.canRecordReview
-      ? onComplete()
-      : event.mutate({ params: { id: plan.id }, payload: { event: e } });
+  // Every event names the plan as this screen shows it: a plan changed since is refused.
+  const mutate = (e: (typeof plan.actions)[number]) =>
+    event.mutate({ params: { id: plan.id }, payload: { event: e, version: plan.version } });
+  const send = (e: (typeof plan.actions)[number]) => {
+    if (e === 'COMPLETE' && plan.canRecordReview) onComplete();
+    else if (e === 'REVISE') setRevising(true);
+    else mutate(e);
+  };
   return (
     <div className="flex items-center gap-2">
+      <ReviseDialog
+        plan={plan}
+        open={revising}
+        pending={event.isPending}
+        onConfirm={() => mutate('REVISE')}
+        onClose={() => setRevising(false)}
+      />
       {plan.canEdit ? (
         <Button variant="ghost" onClick={onEdit}>
           <PencilIcon /> Edit plan
@@ -101,6 +115,71 @@ const PlanActions = ({
         </DropdownMenu>
       ) : null}
     </div>
+  );
+};
+
+/** What going back to a draft clears, in plain words (design §8). */
+const revisionClears = (plan: PlanView) => [
+  ...(plan.agreedBy ? [`${plan.agreedBy.displayName}’s agreement`] : []),
+  ...(plan.endorsedBy ? [`${plan.endorsedBy.displayName}’s endorsement`] : []),
+  ...(plan.review && !plan.review.confirmedBy
+    ? ['the closing review, with its outcomes and summary (it is not confirmed yet)']
+    : []),
+];
+
+/**
+ * "Back to draft" asks first and says exactly what it clears: the agreement,
+ * the endorsement, and a closing review that is recorded but not confirmed.
+ */
+const ReviseDialog = ({
+  plan,
+  open,
+  pending,
+  onConfirm,
+  onClose,
+}: {
+  readonly plan: PlanView;
+  readonly open: boolean;
+  readonly pending: boolean;
+  readonly onConfirm: () => void;
+  readonly onClose: () => void;
+}) => {
+  const clears = revisionClears(plan);
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title="Back to draft?"
+      description="The plan can then be changed and must be agreed again."
+    >
+      <div className="grid gap-5">
+        {clears.length > 0 ? (
+          <div className="grid gap-2 text-ui text-ink-2">
+            <p>This clears:</p>
+            <ul className="list-disc pl-5">
+              {clears.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+            {plan.review && !plan.review.confirmedBy && plan.closingSummary ? (
+              <blockquote className="narrative border-l-2 border-line pl-3 text-ink">
+                {plan.closingSummary}
+              </blockquote>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-ui text-ink-2">Nothing agreed or reviewed is cleared.</p>
+        )}
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Keep the plan
+          </Button>
+          <Button type="button" variant="primary" disabled={pending} onClick={onConfirm}>
+            {pending ? 'Working…' : 'Back to draft'}
+          </Button>
+        </div>
+      </div>
+    </ResponsiveDialog>
   );
 };
 
@@ -159,7 +238,8 @@ const ValueSource = ({ skill }: { readonly skill: ActivitySkillView }) => {
   if (skill.override) {
     return (
       <span className="text-meta text-ink-3">
-        Set for this work by {skill.override.setBy.displayName}
+        Set for this work by {skill.override.setBy.displayName}; applies to work from{' '}
+        {formatDate(skill.override.appliesFrom)}
         {skill.value.source === 'activity'
           ? ''
           : ` (not in use: ${VALUE_SOURCE[skill.value.source]} applies)`}
@@ -396,19 +476,58 @@ const ReviewSummary = ({
     </div>
   ) : null;
 
-const ConfirmReviewButton = ({ planId }: { readonly planId: PlanView['id'] }) => {
+type ReviewedPlan = Pick<
+  PlanView,
+  'id' | 'version' | 'title' | 'focusSkills' | 'closingSummary' | 'review'
+>;
+
+/**
+ * "Confirm review" restates each outcome and the summary first, and confirms
+ * exactly that version: a review recorded again meanwhile is refused (Conflict)
+ * and the screen reloads, so nobody fixes words they did not read.
+ */
+const ConfirmReview = ({ plan }: { readonly plan: ReviewedPlan }) => {
+  const [open, setOpen] = useState(false);
   const confirm = useApiMutation('development', 'confirmPlanReview', {
     onSuccess: () => toast.success('Review confirmed. It is now fixed.'),
+    // A refusal is reported by the shared handler; a Conflict also reloads the plan.
+    onSettled: () => setOpen(false),
   });
   return (
-    <Button
-      size="sm"
-      variant="primary"
-      disabled={confirm.isPending}
-      onClick={() => confirm.mutate({ params: { id: planId } })}
-    >
-      Confirm review
-    </Button>
+    <>
+      <Button size="sm" variant="primary" onClick={() => setOpen(true)}>
+        Confirm review
+      </Button>
+      <ResponsiveDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Confirm this closing review?"
+        description={`Once confirmed, the review of “${plan.title}” is fixed: it cannot be recorded again, and the plan cannot go back to a draft.`}
+      >
+        <div className="grid gap-5">
+          <ReviewSummary
+            focusSkills={plan.focusSkills}
+            closingSummary={plan.closingSummary}
+            review={plan.review}
+          />
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              Not yet
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={confirm.isPending}
+              onClick={() =>
+                confirm.mutate({ params: { id: plan.id }, payload: { version: plan.version } })
+              }
+            >
+              {confirm.isPending ? 'Confirming…' : 'Confirm review'}
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDialog>
+    </>
   );
 };
 
@@ -429,7 +548,7 @@ const ClosingReviewSection = ({
               {plan.review ? 'Change review' : 'Record closing review'}
             </Button>
           ) : null}
-          {plan.canConfirmReview ? <ConfirmReviewButton planId={plan.id} /> : null}
+          {plan.canConfirmReview ? <ConfirmReview plan={plan} /> : null}
         </span>
       </div>
       {plan.review ? (
@@ -495,6 +614,7 @@ const PlanBody = ({
   const review = (completing: boolean) =>
     onReview({
       planId: plan.id,
+      version: plan.version,
       focusSkills: plan.focusSkills,
       closingSummary: plan.closingSummary,
       completing,
@@ -614,6 +734,7 @@ const PastPlans = ({
                   onClick={() =>
                     onReview({
                       planId: p.id,
+                      version: p.version,
                       focusSkills: p.focusSkills,
                       closingSummary: p.closingSummary,
                       completing: false,
@@ -623,7 +744,7 @@ const PastPlans = ({
                   {p.review ? 'Change review' : 'Record closing review'}
                 </Button>
               ) : null}
-              {p.canConfirmReview ? <ConfirmReviewButton planId={p.id} /> : null}
+              {p.canConfirmReview ? <ConfirmReview plan={p} /> : null}
             </span>
           </div>
           <ReviewSummary

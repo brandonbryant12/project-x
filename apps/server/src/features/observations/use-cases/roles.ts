@@ -18,6 +18,8 @@ import {
 import { Db, schema } from '@repo/db';
 import { and, asc, eq, gt, isNull, lte, or } from 'drizzle-orm';
 import { Effect } from 'effect';
+import { BusinessTimeZone } from '../../../platform/time.ts';
+import { activitySkillValue } from '../../shared/catalog-reads.ts';
 import { loadSkills } from '../../shared/skills.ts';
 
 /**
@@ -40,6 +42,7 @@ export const skillsOfActivity = Effect.fn('observations.activitySkills')(functio
       skillId: schema.activitySkill.skillId,
       role: schema.activitySkill.role,
       pointsOverride: schema.activitySkill.pointsOverride,
+      pointsOverrideAt: schema.activitySkill.pointsOverrideAt,
       templatePoints: schema.activitySkill.templatePoints,
     })
     .from(schema.activitySkill)
@@ -50,7 +53,8 @@ export const skillsOfActivity = Effect.fn('observations.activitySkills')(functio
       ),
     )
     .orderBy(asc(schema.activitySkill.position), asc(schema.activitySkill.skillId));
-  return rows.map((s): ListedSkill => ({ ...s, role: s.role as SkillRole }));
+  const timeZone = yield* BusinessTimeZone;
+  return rows.map((s): ListedSkill => ({ skillId: s.skillId, ...activitySkillValue(s, timeZone) }));
 });
 
 /** The listed skills of the activity an interaction belongs to. */
@@ -96,18 +100,23 @@ export const requireSkillLimit = (policy: CreditPolicy, count: number) =>
         }),
       );
 
-/** What each credit of this work is worth, by skill and role. Call only inside the signing transaction. */
+/**
+ * What each credit of this work (done on `workOn`) is worth, by skill and
+ * role. Call only inside the signing transaction.
+ */
 export const creditValues = Effect.fn('observations.creditValues')(function* (
   tenantId: TenantId,
   policy: CreditPolicy,
   listed: ReadonlyArray<ListedSkill>,
   skillIds: ReadonlyArray<SkillId>,
+  workOn: IsoDate,
 ) {
   const skills = yield* loadSkills(tenantId, skillIds);
   return (skillId: SkillId, role: SkillRole): CreditValue =>
     resolveCreditValue({
       role,
       policy,
+      workOn,
       activity: listed.find((s) => s.skillId === skillId),
       skill: skills.get(skillId),
     });

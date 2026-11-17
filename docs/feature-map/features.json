@@ -403,7 +403,10 @@
       "skills": [".claude/skills/qa/SKILL.md"],
       "qa": ".claude/skills/qa/journeys/observations.md#i-saw-this",
       "tests": {
-        "scenario": ["apps/server/src/journeys/same-work-and-badge-receipt.scenario.test.ts"]
+        "scenario": [
+          "apps/server/src/journeys/same-work-and-badge-receipt.scenario.test.ts",
+          "apps/server/src/journeys/observe-logged-work-privacy.scenario.test.ts"
+        ]
       },
       "verify": {
         "api": ["saw-this"],

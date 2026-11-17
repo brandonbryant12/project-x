@@ -108,6 +108,8 @@ const snapshotCriteria = (thresholds: Readonly<Record<string, number>>): BadgeCr
   return reading.criteria;
 };
 
+/** An activity value, when given, was set on 2026-11-10. */
+const VALUE_SET_ON = '2026-11-10' as IsoDate;
 const onActivity = (
   role: 'primary' | 'secondary',
   pointsOverride: number | null,
@@ -115,6 +117,7 @@ const onActivity = (
 ) => ({
   role,
   pointsOverride,
+  pointsOverrideFrom: pointsOverride === null ? null : VALUE_SET_ON,
   templatePoints,
 });
 
@@ -430,6 +433,18 @@ describe('what a credit is worth', () => {
       value: { points: 15, source: 'activity' },
     },
     {
+      rule: 'the activity’s own value applies to work on the day it was set',
+      input: { role: 'primary', activity: onActivity('primary', 15, 8), skill },
+      workOn: VALUE_SET_ON,
+      value: { points: 15, source: 'activity' },
+    },
+    {
+      rule: 'the activity’s own value never reaches work done before it was set',
+      input: { role: 'primary', activity: onActivity('primary', 15, 8), skill },
+      workOn: '2026-11-09' as IsoDate,
+      value: { points: 8, source: 'template' },
+    },
+    {
       rule: 'an activity value outside the range in force is not applied, never clamped',
       input: { role: 'primary', activity: onActivity('primary', 500, 8), skill },
       value: { points: 8, source: 'template' },
@@ -454,8 +469,9 @@ describe('what a credit is worth', () => {
       input: { role: 'secondary' },
       value: { points: 3, source: 'tenant' },
     },
-  ] as const)('$rule', ({ input, value }) => {
-    expect(resolveCreditValue({ policy, ...input })).toEqual(value);
+  ] as const)('$rule', ({ input, value, ...rest }) => {
+    const workOn = 'workOn' in rest ? rest.workOn : ('2026-11-16' as IsoDate);
+    expect(resolveCreditValue({ policy, workOn, ...input })).toEqual(value);
   });
 
   it('ignores an activity’s own value while the tenant does not allow them, falling through', () => {
@@ -467,6 +483,7 @@ describe('what a credit is worth', () => {
       resolveCreditValue({
         policy: closed,
         role: 'primary',
+        workOn: '2026-11-16' as IsoDate,
         activity: onActivity('primary', 15, null),
       }),
     ).toEqual({ points: 10, source: 'tenant' });
@@ -643,8 +660,13 @@ describe('credit policy', () => {
       ok: false,
       reason: 'invalid',
     });
-    // A broken policy with no valid version is repaired from version 0.
+    // A broken policy with no valid version is repaired from version 0, above
+    // every version already on the record (I35).
     expect(replaceCreditPolicy(0, 0, proposed)).toMatchObject({ ok: true, policy: { version: 1 } });
+    expect(replaceCreditPolicy(0, 0, proposed, 5)).toMatchObject({
+      ok: true,
+      policy: { version: 6 },
+    });
   });
 
   it('composes the version recorded on credits and awards', () => {
