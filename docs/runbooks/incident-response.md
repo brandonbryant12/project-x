@@ -50,6 +50,24 @@ Held reflections are already hidden from everyone but their author, tenant
 admins and compliance reviewers. If the text is held, there is usually no
 need to purge it during the incident.
 
+### A broken stored credit policy
+
+**How it shows.** For one tenant, signing an observation fails with a server
+error, and so do the screens that show progress (My plan, Home, a profile,
+the skill pages). The server log has `CreditPolicyConfigurationError`: "The
+credit policy of tenant … is not valid (the fields); a program owner must
+repair it." Nothing is signed or awarded while it lasts, and no default is
+used in its place (ADR 0007).
+
+**Repair.** A program owner or tenant admin opens **Credit rules**
+(`/program/credit-rules`). The page shows what is stored, the problems field
+by field, and the working defaults for comparison. Enter valid values and
+save with a reason. The save is audited (entity `credit_policy`, marked
+`repaired`) and signing works again at once. Do not edit
+`tenant.settings.creditPolicy` with SQL: that writes no audit event and skips
+the version check. Record in the incident which values were chosen and who
+chose them, because they decide what new credit is worth.
+
 ## 3. Preserve evidence
 
 - Export the audit trail for the window, ordered by `seq`:
