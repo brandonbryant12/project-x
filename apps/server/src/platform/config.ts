@@ -77,6 +77,13 @@ export const AppConfig = Config.all({
     smtpPassword: optionalRedacted('SMTP_PASSWORD'),
     from: optionalString('NOTIFY_FROM'),
   }),
+  /** Product switches, off until a tenant asks for them. */
+  features: Config.all({
+    /** The screens for naming a designated observer (ADR 0020). Eligibility honours designations either way. */
+    designatedObservers: Config.Boolean('FEATURE_DESIGNATED_OBSERVERS').pipe(
+      Config.withDefault(false),
+    ),
+  }),
 });
 
 export type AppConfig = Config.Success<typeof AppConfig>;

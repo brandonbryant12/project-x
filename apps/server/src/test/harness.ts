@@ -79,6 +79,7 @@ export const testConfig: AppConfig = {
     smtpPassword: undefined,
     from: undefined,
   },
+  features: { designatedObservers: false },
 };
 
 const services = Layer.mergeAll(

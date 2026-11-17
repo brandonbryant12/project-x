@@ -203,7 +203,8 @@ export const ProfileScreen = ({ profile }: { readonly profile: ProfileView }) =>
           </div>
         </section>
       ) : null}
-      {self ? null : (
+      {/* Designated observers are off unless the tenant turns them on (server config). */}
+      {self || !session.features.designatedObservers ? null : (
         <DesignationsSection
           subject={profile.person}
           // The direct leader or an engaged coach may name one (the server re-checks).

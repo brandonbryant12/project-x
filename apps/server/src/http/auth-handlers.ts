@@ -133,6 +133,7 @@ export const SessionHandlers = HttpApiBuilder.group(
           grants: actor.grants,
           relations: flags,
           authMode: settings.authMode,
+          features: { designatedObservers: settings.features.designatedObservers },
         };
       }).pipe(Effect.orDie),
     );
