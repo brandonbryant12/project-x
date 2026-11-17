@@ -21,27 +21,47 @@ export const findFeature = (map, id) => map.features.find((f) => f.id === id);
 /** Every test file a feature lists, of every kind. */
 export const testFiles = (feature) => TEST_KINDS.flatMap((kind) => feature.tests?.[kind] ?? []);
 
+const JOURNEY_HELPERS = ['tools/verify/journeys/harness.mjs', 'tools/verify/journeys/common.mjs'];
+
 /** The API journey modules a feature runs (tools/verify/journeys/<name>.mjs). */
 export const journeyPath = (name) => `tools/verify/journeys/${name}.mjs`;
 
 /** The API group file that declares `group.endpoint`. */
 export const apiGroupFile = (endpoint, groups) => groups.get(endpoint.split('.')[0])?.file;
 
+/** A claimed path owns a file when it is the file or a directory above it. */
+export const owns = (claimed, file) =>
+  file === claimed || file.startsWith(`${claimed.replace(/\/$/, '')}/`);
+
 /**
  * Repository paths a feature claims, for `which`: its code, tests, playbook and
- * journey checks. API endpoints map to their group file.
+ * journey checks; for each API endpoint, its group file and the model files its
+ * schemas come from; and every migration whose SQL touches one of its tables.
+ * `repo` is `{ groups: apiGroups(), migrations: migrations() }` (see repo.mjs).
  */
-export const claimedPaths = (feature, groups = new Map()) => {
+export const claimedPaths = (feature, repo = {}) => {
   const code = feature.code ?? {};
+  const groups = repo.groups ?? new Map();
+  const tables = new Set(code.tables ?? []);
+  const endpointModels = (endpoint) => {
+    const [group, name] = endpoint.split('.');
+    return groups.get(group)?.models?.get(name) ?? [];
+  };
   return [
     ...(code.web ?? []),
     ...(code.server ?? []),
     ...(code.domain ?? []),
     ...(code.other ?? []),
     ...(code.api ?? []).map((e) => apiGroupFile(e, groups)).filter(Boolean),
+    ...(code.api ?? []).flatMap(endpointModels),
+    ...[...(repo.migrations ?? new Map())]
+      .filter(([, touched]) => [...touched].some((t) => tables.has(t)))
+      .map(([dir]) => dir),
     ...testFiles(feature),
     ...(feature.qa ? [feature.qa.split('#')[0]] : []),
     ...(feature.verify?.api ?? []).map(journeyPath),
+    // The harness and helpers every journey runs on.
+    ...((feature.verify?.api ?? []).length > 0 ? JOURNEY_HELPERS : []),
   ];
 };
 

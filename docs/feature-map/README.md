@@ -21,45 +21,46 @@ Every product feature, who can use it, where its code lives, the agent instructi
 
 ## Features
 
-| Feature                                                 | Name                                                     | State                  | Checks              |
-| ------------------------------------------------------- | -------------------------------------------------------- | ---------------------- | ------------------- |
-| [sign-in-session](#sign-in-session)                     | Sign-in and session                                      | built                  | tests, api          |
-| [home](#home)                                           | Home                                                     | built                  | tests, api, browser |
-| [my-plan](#my-plan)                                     | My plan: plans, revision and the closing review          | built                  | tests, api, browser |
-| [work-roles-values](#work-roles-values)                 | Work on a plan: roles and individual values              | built                  | tests, api, browser |
-| [log-work](#log-work)                                   | Logging work and reflections, with the privacy hold      | built                  | tests, api, browser |
-| [request-observation](#request-observation)             | Asking for an observation                                | built                  | tests, api          |
-| [to-sign](#to-sign)                                     | "To sign": the inbox and signing                         | built                  | tests, api, browser |
-| [saw-this](#saw-this)                                   | "I saw this" (quick capture)                             | built                  | tests, api, browser |
-| [returned-request](#returned-request)                   | Returned requests: revise and resend                     | built                  | tests, api, browser |
-| [acknowledge-review](#acknowledge-review)               | Acknowledge and request review                           | built                  | tests               |
-| [void-reversal](#void-reversal)                         | Void and reversal                                        | built                  | tests               |
-| [weighted-credit](#weighted-credit)                     | Weighted credit: roles, points and sources               | built                  | tests, api, browser |
-| [badges-receipts](#badges-receipts)                     | Badges and "How this was earned"                         | built                  | tests, api, browser |
-| [credit-rules](#credit-rules)                           | Credit rules (program administration)                    | built                  | tests, api, browser |
-| [skill-catalog](#skill-catalog)                         | Skill catalog administration                             | built                  | tests, api, browser |
-| [activity-templates](#activity-templates)               | Activity templates                                       | built                  | tests, api, browser |
-| [skills-browse](#skills-browse)                         | Skills: browsing the catalog                             | built                  | tests, api, browser |
-| [my-team](#my-team)                                     | My team                                                  | built                  | tests, browser      |
-| [coaching](#coaching)                                   | People I coach and coaching proposals                    | built                  | tests, api, browser |
-| [people-profiles](#people-profiles)                     | People and profiles                                      | built                  | tests, api, browser |
-| [designated-observers](#designated-observers)           | Designated observers ("Asked to observe")                | built, behind a switch | tests, api          |
-| [adoption](#adoption)                                   | Adoption view                                            | built                  | tests, api, browser |
-| [assistant-checks](#assistant-checks)                   | Assistant checks (automated privacy check)               | built                  | tests, browser      |
-| [audit-trail](#audit-trail)                             | Audit trail                                              | built                  | tests, api, browser |
-| [notifications](#notifications)                         | Notifications, digest and preferences                    | built                  | tests, browser      |
-| [directory-import](#directory-import)                   | Directory import and departures                          | built, API only        | tests               |
-| [scheduler-sweeps](#scheduler-sweeps)                   | Scheduler sweeps                                         | built                  | tests               |
-| [tenancy-and-roles](#tenancy-and-roles)                 | Tenancy, separation of duties and the architecture rules | built                  | tests               |
-| [conversations-commitments](#conversations-commitments) | Coaching conversations and commitments                   | deferred               | none                |
-| [learning-loop](#learning-loop)                         | AI learning loop                                         | deferred               | none                |
-| [skill-profiles](#skill-profiles)                       | Skill profiles and expectations by job family            | deferred               | none                |
-| [calendar-logging](#calendar-logging)                   | Calendar-assisted logging                                | deferred               | none                |
-| [purge-jobs](#purge-jobs)                               | Retention purge jobs                                     | not built              | none                |
-| [graph-sync](#graph-sync)                               | Microsoft Graph directory sync                           | not built              | none                |
-| [level-4-badges](#level-4-badges)                       | Level 4 badges ("Teaching others")                       | not built              | none                |
-| [reciprocal-pair-exclusion](#reciprocal-pair-exclusion) | Reciprocal-pair exclusion on badge credit                | not built              | none                |
-| [multi-customer-onboarding](#multi-customer-onboarding) | Multi-customer onboarding                                | not built              | none                |
+| Feature                                                 | Name                                                                  | State                  | Checks              |
+| ------------------------------------------------------- | --------------------------------------------------------------------- | ---------------------- | ------------------- |
+| [sign-in-session](#sign-in-session)                     | Sign-in and session                                                   | built                  | tests, api          |
+| [home](#home)                                           | Home                                                                  | built                  | tests, api, browser |
+| [my-plan](#my-plan)                                     | My plan: plans, revision and the closing review                       | built                  | tests, api, browser |
+| [work-roles-values](#work-roles-values)                 | Work on a plan: roles and individual values                           | built                  | tests, api, browser |
+| [log-work](#log-work)                                   | Logging work and reflections, with the privacy hold                   | built                  | tests, api, browser |
+| [request-observation](#request-observation)             | Asking for an observation                                             | built                  | tests, api          |
+| [to-sign](#to-sign)                                     | "To sign": the inbox and signing                                      | built                  | tests, api, browser |
+| [saw-this](#saw-this)                                   | "I saw this" (quick capture)                                          | built                  | tests, api, browser |
+| [returned-request](#returned-request)                   | Returned requests: revise and resend                                  | built                  | tests, api, browser |
+| [acknowledge-review](#acknowledge-review)               | Acknowledge and request review                                        | built                  | tests               |
+| [void-reversal](#void-reversal)                         | Void and reversal                                                     | built                  | tests               |
+| [weighted-credit](#weighted-credit)                     | Weighted credit: roles, points and sources                            | built                  | tests, api, browser |
+| [badges-receipts](#badges-receipts)                     | Badges and "How this was earned"                                      | built                  | tests, api, browser |
+| [credit-rules](#credit-rules)                           | Credit rules (program administration)                                 | built                  | tests, api, browser |
+| [skill-catalog](#skill-catalog)                         | Skill catalog administration                                          | built                  | tests, api, browser |
+| [activity-templates](#activity-templates)               | Activity templates                                                    | built                  | tests, api, browser |
+| [skills-browse](#skills-browse)                         | Skills: browsing the catalog                                          | built                  | tests, api, browser |
+| [my-team](#my-team)                                     | My team                                                               | built                  | tests, browser      |
+| [coaching](#coaching)                                   | People I coach and coaching proposals                                 | built                  | tests, api, browser |
+| [people-profiles](#people-profiles)                     | People and profiles                                                   | built                  | tests, api, browser |
+| [designated-observers](#designated-observers)           | Designated observers ("Asked to observe")                             | built, behind a switch | tests, api          |
+| [adoption](#adoption)                                   | Adoption view                                                         | built                  | tests, api, browser |
+| [assistant-checks](#assistant-checks)                   | Assistant checks (automated privacy check)                            | built                  | tests, browser      |
+| [audit-trail](#audit-trail)                             | Audit trail                                                           | built                  | tests, api, browser |
+| [notifications](#notifications)                         | Notifications, digest and preferences                                 | built                  | tests, browser      |
+| [directory-import](#directory-import)                   | Directory import and departures                                       | built, API only        | tests               |
+| [scheduler-sweeps](#scheduler-sweeps)                   | Scheduler sweeps                                                      | built                  | tests               |
+| [tenancy-and-roles](#tenancy-and-roles)                 | Tenancy, separation of duties and the architecture rules              | built                  | tests               |
+| [shared-platform](#shared-platform)                     | Shared platform: runtime, HTTP plumbing, API client and design system | built                  | tests, browser      |
+| [conversations-commitments](#conversations-commitments) | Coaching conversations and commitments                                | deferred               | none                |
+| [learning-loop](#learning-loop)                         | AI learning loop                                                      | deferred               | none                |
+| [skill-profiles](#skill-profiles)                       | Skill profiles and expectations by job family                         | deferred               | none                |
+| [calendar-logging](#calendar-logging)                   | Calendar-assisted logging                                             | deferred               | none                |
+| [purge-jobs](#purge-jobs)                               | Retention purge jobs                                                  | not built              | none                |
+| [graph-sync](#graph-sync)                               | Microsoft Graph directory sync                                        | not built              | none                |
+| [level-4-badges](#level-4-badges)                       | Level 4 badges ("Teaching others")                                    | not built              | none                |
+| [reciprocal-pair-exclusion](#reciprocal-pair-exclusion) | Reciprocal-pair exclusion on badge credit                             | not built              | none                |
+| [multi-customer-onboarding](#multi-customer-onboarding) | Multi-customer onboarding                                             | not built              | none                |
 
 ## Details
 
@@ -70,11 +71,12 @@ Every product feature, who can use it, where its code lives, the agent instructi
 - State: built
 - Personas: Maya Chen, Rhea Castillo
 - May: anyone in the tenant directory signs in
-- Refused: requests without a session get 401, writes without the x-requested-with header or from another origin get 403, dev sign-in is refused when AUTH_MODE is entra
+- Refused: requests without a session get 401, writes without the x-requested-with header or from another origin get 403
 - States to check: signed out, signed in with no grants (advisor), signed in with tenant_admin, signed out after sign-out
-- Web: `apps/web/src/routes/sign-in.tsx`, `apps/web/src/routes/__root.tsx`, `apps/web/src/routes/_app.tsx`, `apps/web/src/components/shell`, `apps/web/src/lib/session.ts`
+- Web: `apps/web/src/routes/sign-in.tsx`, `apps/web/src/routes/__root.tsx`, `apps/web/src/routes/_app.tsx`, `apps/web/src/components/shell`, `apps/web/src/lib/session.ts`, `apps/web/src/lib/return-to.ts`
 - Server: `apps/server/src/auth`, `apps/server/src/http/auth-handlers.ts`, `apps/server/src/http/security.ts`
 - API: `auth.devPersonas` (`GET /api/auth/dev/personas`), `auth.devSignIn` (`POST /api/auth/dev/sign-in`), `auth.signOut` (`POST /api/auth/sign-out`), `session.me` (`GET /api/session`)
+- Other code: `packages/api/src/auth.ts`
 - Tables: `session`, `person`, `role_grant`
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
 - QA playbook: [.claude/skills/qa/journeys/governance.md#sign-in-and-session](../../.claude/skills/qa/journeys/governance.md#sign-in-and-session)
@@ -93,6 +95,7 @@ Gaps:
 
 - Entra sign-in is exercised only against a fake OIDC provider in the scenario test; the QA environment runs dev sign-in.
 - The sign-in page is not in the screenshot spec.
+- Dev sign-in is offered only when AUTH_MODE is dev (apps/server/src/http/auth-handlers.ts), but no test or journey proves it is refused under entra; the QA environment always runs dev.
 
 ### home
 
@@ -259,7 +262,7 @@ pnpm verify run request-observation --kind api
 - Refused: the subject writing roles or the draft (Forbidden), two primaries (Unprocessable), a stale draft version (Conflict), signing a signed, voided or expired observation (InvalidTransition)
 - States to check: requested, draft, signed, the subject and leader cannot read an unsigned draft
 - Web: `apps/web/src/routes/_app/inbox.tsx`, `apps/web/src/routes/_app/observations/$id.tsx`, `apps/web/src/features/inbox`, `apps/web/src/features/observations/sign-screen.tsx`, `apps/web/src/features/observations/use-observation-draft.ts`, `apps/web/src/features/observations/parts.tsx`
-- Server: `apps/server/src/features/observations/use-cases/sign.ts`, `apps/server/src/features/observations/views.ts`, `apps/server/src/features/observations/handlers.ts`
+- Server: `apps/server/src/features/observations/use-cases/sign.ts`, `apps/server/src/features/observations/views.ts`, `apps/server/src/features/observations/handlers.ts`, `apps/server/src/features/observations/use-cases/shared.ts`
 - API: `observations.inbox` (`GET /api/observations/inbox`), `observations.get` (`GET /api/observations/:id`), `observations.saveDraft` (`PUT /api/observations/:id/draft`), `observations.sign` (`POST /api/observations/:id/sign`)
 - Domain: `packages/domain/src/lifecycles/observation.ts`
 - Tables: `observation`, `observation_rating`, `observation_indicator`, `credit_entry`
@@ -293,6 +296,7 @@ Gaps:
 - Web: `apps/web/src/routes/_app/observations/new.tsx`, `apps/web/src/features/observations/observe-new.tsx`, `apps/web/src/features/observations/use-quick-capture.ts`
 - Server: `apps/server/src/features/observations/use-cases/create.ts`, `apps/server/src/features/observations/views.ts`
 - API: `observations.targets` (`GET /api/observations/targets`), `observations.start` (`POST /api/observations/start`)
+- Other code: `apps/web/e2e/capture-timing.spec.ts`, `apps/web/playwright.timing.config.ts`
 - Tables: `interaction`, `observation`
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
 - QA playbook: [.claude/skills/qa/journeys/observations.md#i-saw-this](../../.claude/skills/qa/journeys/observations.md#i-saw-this)
@@ -749,6 +753,7 @@ Gaps:
 - Web: `apps/web/src/routes/_app/admin/ai-usage.tsx`
 - Server: `apps/server/src/features/admin`, `apps/server/src/features/shared/advisory`, `apps/server/src/scheduler/screening.ts`
 - API: `admin.aiUsage` (`GET /api/admin/ai-usage`), `admin.resolveEvidence` (`POST /api/admin/evidence/:id/resolve`)
+- Domain: `packages/domain/src/lifecycles/advisory-check.ts`
 - Other code: `packages/ai/src`
 - Tables: `advisory_check`, `advisory_disposition`
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
@@ -888,6 +893,7 @@ Gaps:
 - Refused: another tenant's data (NotFound), an action owned by another capability (Forbidden)
 - States to check: two tenants side by side
 - Server: `apps/server/src/features/shared/mutation.ts`, `apps/server/src/features/shared/relationships.ts`
+- Domain: `packages/domain/src/policy/relationships.ts`
 - Other code: `packages/db/src/schema`, `packages/db/src/retention.ts`, `packages/api/src/api.ts`
 - Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md)
 - QA playbook: [.claude/skills/qa/journeys/governance.md#tenancy-and-roles](../../.claude/skills/qa/journeys/governance.md#tenancy-and-roles)
@@ -904,6 +910,36 @@ pnpm verify run tenancy-and-roles --kind tests
 Gaps:
 
 - The QA environment seeds one tenant, so cross-tenant checks run only in the scenario tests.
+
+### shared-platform
+
+**Shared platform: runtime, HTTP plumbing, API client and design system.** What every feature runs on: the server entry, configuration, business time and HTTP error mapping; the seed the QA environment and the journeys use; the web shell pieces, the typed API client and its shared Conflict and error handling; the domain vocabulary and ids; and the design system. A change here can move every screen and every journey.
+
+- State: built
+- Personas: Maya Chen, Sam Rivera, Rhea Castillo
+- May: every signed-in person, through the features built on it
+- Refused: configuration is read only in apps/server/src/platform/config.ts; secrets stay Redacted, an undeclared error becomes a 500, never a leaked cause (apiErrorsOnly)
+- States to check: a stale write (Conflict): the web client reports it and reloads the data, a loading, empty and error state on every page (query boundary), light and dark, desktop and phone
+- Web: `apps/web/src/main.tsx`, `apps/web/src/routeTree.gen.ts`, `apps/web/src/components/first-run.tsx`, `apps/web/src/components/page.tsx`, `apps/web/src/components/query-boundary.tsx`, `apps/web/src/components/responsive-dialog.tsx`, `apps/web/src/components/server-link.tsx`, `apps/web/src/lib/api.ts`, `apps/web/src/lib/brand.ts`, `apps/web/src/lib/format.ts`, `apps/web/src/lib/lifecycle-presentation.ts`, `apps/web/src/lib/theme.ts`, `apps/web/src/lib/use-media.ts`
+- Server: `apps/server/src/main.ts`, `apps/server/src/http/api-errors.ts`, `apps/server/src/http/api-layer.ts`, `apps/server/src/http/health.ts`, `apps/server/src/http/static.ts`, `apps/server/src/platform`, `apps/server/src/features/shared/business-date.ts`, `apps/server/src/features/shared/notes.ts`, `apps/server/src/features/shared/skills.ts`, `apps/server/src/features/shared/weeks.ts`, `apps/server/src/scripts`, `apps/server/src/test`
+- Domain: `packages/domain/src/index.ts`, `packages/domain/src/ids.ts`, `packages/domain/src/vocabulary.ts`, `packages/domain/src/lifecycles/index.ts`, `packages/domain/src/lifecycles/lifecycle.ts`, `packages/domain/src/policy/index.ts`, `packages/domain/src/scoring/index.ts`
+- Other code: `packages/api/src/index.ts`, `packages/api/src/errors.ts`, `packages/api/src/models/index.ts`, `packages/db/src/index.ts`, `packages/db/src/testing.ts`, `packages/db/scripts/migrate.ts`, `packages/db/drizzle.config.ts`, `packages/db/vitest.config.ts`, `packages/domain/scripts/lifecycle-diagrams.ts`, `packages/ui/src`, `apps/server/tsdown.config.ts`, `apps/server/vitest.config.ts`, `apps/web/vite.config.ts`, `apps/web/vitest.config.ts`, `apps/web/web-manifest.config.ts`, `apps/web/playwright.screenshots.config.ts`, `apps/web/e2e/screenshots.spec.ts`, `apps/web/src/styles.css`
+- Agent skills: [.claude/skills/qa/SKILL.md](../../.claude/skills/qa/SKILL.md), [.claude/skills/feature-map/SKILL.md](../../.claude/skills/feature-map/SKILL.md)
+- QA playbook: [.claude/skills/qa/journeys/governance.md#shared-platform](../../.claude/skills/qa/journeys/governance.md#shared-platform)
+- Tests (unit): `apps/server/src/architecture.test.ts`, `packages/api/src/api.test.ts`, `apps/server/src/platform/time.test.ts`, `apps/server/src/platform/background-context.test.ts`
+- Browser check: routes home, development as "Maya Chen"
+
+Verify:
+
+```sh
+pnpm verify run shared-platform --kind tests
+pnpm verify run shared-platform --kind browser
+```
+
+Gaps:
+
+- A catch-all: a change here needs the checks of the features it affects. Run every API journey (the seed and the journey helpers live here) and the browser checks of the screens it touches.
+- No API journey of its own; the other features' journeys exercise it.
 
 ### conversations-commitments
 

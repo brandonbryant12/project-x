@@ -11,8 +11,7 @@
         "may": ["anyone in the tenant directory signs in"],
         "refused": [
           "requests without a session get 401",
-          "writes without the x-requested-with header or from another origin get 403",
-          "dev sign-in is refused when AUTH_MODE is entra"
+          "writes without the x-requested-with header or from another origin get 403"
         ]
       },
       "states": [
@@ -27,7 +26,8 @@
           "apps/web/src/routes/__root.tsx",
           "apps/web/src/routes/_app.tsx",
           "apps/web/src/components/shell",
-          "apps/web/src/lib/session.ts"
+          "apps/web/src/lib/session.ts",
+          "apps/web/src/lib/return-to.ts"
         ],
         "server": [
           "apps/server/src/auth",
@@ -35,7 +35,8 @@
           "apps/server/src/http/security.ts"
         ],
         "api": ["auth.devPersonas", "auth.devSignIn", "auth.signOut", "session.me"],
-        "tables": ["session", "person", "role_grant"]
+        "tables": ["session", "person", "role_grant"],
+        "other": ["packages/api/src/auth.ts"]
       },
       "skills": [".claude/skills/qa/SKILL.md"],
       "qa": ".claude/skills/qa/journeys/governance.md#sign-in-and-session",
@@ -47,7 +48,8 @@
       "verify": { "api": ["session"] },
       "gaps": [
         "Entra sign-in is exercised only against a fake OIDC provider in the scenario test; the QA environment runs dev sign-in.",
-        "The sign-in page is not in the screenshot spec."
+        "The sign-in page is not in the screenshot spec.",
+        "Dev sign-in is offered only when AUTH_MODE is dev (apps/server/src/http/auth-handlers.ts), but no test or journey proves it is refused under entra; the QA environment always runs dev."
       ]
     },
     {
@@ -367,7 +369,8 @@
         "server": [
           "apps/server/src/features/observations/use-cases/sign.ts",
           "apps/server/src/features/observations/views.ts",
-          "apps/server/src/features/observations/handlers.ts"
+          "apps/server/src/features/observations/handlers.ts",
+          "apps/server/src/features/observations/use-cases/shared.ts"
         ],
         "api": [
           "observations.inbox",
@@ -430,7 +433,8 @@
           "apps/server/src/features/observations/views.ts"
         ],
         "api": ["observations.targets", "observations.start"],
-        "tables": ["interaction", "observation"]
+        "tables": ["interaction", "observation"],
+        "other": ["apps/web/e2e/capture-timing.spec.ts", "apps/web/playwright.timing.config.ts"]
       },
       "skills": [".claude/skills/qa/SKILL.md"],
       "qa": ".claude/skills/qa/journeys/observations.md#i-saw-this",
@@ -1122,7 +1126,8 @@
         ],
         "api": ["admin.aiUsage", "admin.resolveEvidence"],
         "other": ["packages/ai/src"],
-        "tables": ["advisory_check", "advisory_disposition"]
+        "tables": ["advisory_check", "advisory_disposition"],
+        "domain": ["packages/domain/src/lifecycles/advisory-check.ts"]
       },
       "skills": [".claude/skills/qa/SKILL.md"],
       "qa": ".claude/skills/qa/journeys/governance.md#assistant-checks",
@@ -1312,7 +1317,8 @@
           "packages/db/src/schema",
           "packages/db/src/retention.ts",
           "packages/api/src/api.ts"
-        ]
+        ],
+        "domain": ["packages/domain/src/policy/relationships.ts"]
       },
       "skills": [".claude/skills/qa/SKILL.md"],
       "qa": ".claude/skills/qa/journeys/governance.md#tenancy-and-roles",
@@ -1331,6 +1337,100 @@
       "verify": {},
       "gaps": [
         "The QA environment seeds one tenant, so cross-tenant checks run only in the scenario tests."
+      ]
+    },
+    {
+      "id": "shared-platform",
+      "name": "Shared platform: runtime, HTTP plumbing, API client and design system",
+      "summary": "What every feature runs on: the server entry, configuration, business time and HTTP error mapping; the seed the QA environment and the journeys use; the web shell pieces, the typed API client and its shared Conflict and error handling; the domain vocabulary and ids; and the design system. A change here can move every screen and every journey.",
+      "state": "built",
+      "personas": ["Maya Chen", "Sam Rivera", "Rhea Castillo"],
+      "permissions": {
+        "may": ["every signed-in person, through the features built on it"],
+        "refused": [
+          "configuration is read only in apps/server/src/platform/config.ts; secrets stay Redacted",
+          "an undeclared error becomes a 500, never a leaked cause (apiErrorsOnly)"
+        ]
+      },
+      "states": [
+        "a stale write (Conflict): the web client reports it and reloads the data",
+        "a loading, empty and error state on every page (query boundary)",
+        "light and dark, desktop and phone"
+      ],
+      "code": {
+        "web": [
+          "apps/web/src/main.tsx",
+          "apps/web/src/routeTree.gen.ts",
+          "apps/web/src/components/first-run.tsx",
+          "apps/web/src/components/page.tsx",
+          "apps/web/src/components/query-boundary.tsx",
+          "apps/web/src/components/responsive-dialog.tsx",
+          "apps/web/src/components/server-link.tsx",
+          "apps/web/src/lib/api.ts",
+          "apps/web/src/lib/brand.ts",
+          "apps/web/src/lib/format.ts",
+          "apps/web/src/lib/lifecycle-presentation.ts",
+          "apps/web/src/lib/theme.ts",
+          "apps/web/src/lib/use-media.ts"
+        ],
+        "server": [
+          "apps/server/src/main.ts",
+          "apps/server/src/http/api-errors.ts",
+          "apps/server/src/http/api-layer.ts",
+          "apps/server/src/http/health.ts",
+          "apps/server/src/http/static.ts",
+          "apps/server/src/platform",
+          "apps/server/src/features/shared/business-date.ts",
+          "apps/server/src/features/shared/notes.ts",
+          "apps/server/src/features/shared/skills.ts",
+          "apps/server/src/features/shared/weeks.ts",
+          "apps/server/src/scripts",
+          "apps/server/src/test"
+        ],
+        "domain": [
+          "packages/domain/src/index.ts",
+          "packages/domain/src/ids.ts",
+          "packages/domain/src/vocabulary.ts",
+          "packages/domain/src/lifecycles/index.ts",
+          "packages/domain/src/lifecycles/lifecycle.ts",
+          "packages/domain/src/policy/index.ts",
+          "packages/domain/src/scoring/index.ts"
+        ],
+        "other": [
+          "packages/api/src/index.ts",
+          "packages/api/src/errors.ts",
+          "packages/api/src/models/index.ts",
+          "packages/db/src/index.ts",
+          "packages/db/src/testing.ts",
+          "packages/db/scripts/migrate.ts",
+          "packages/db/drizzle.config.ts",
+          "packages/db/vitest.config.ts",
+          "packages/domain/scripts/lifecycle-diagrams.ts",
+          "packages/ui/src",
+          "apps/server/tsdown.config.ts",
+          "apps/server/vitest.config.ts",
+          "apps/web/vite.config.ts",
+          "apps/web/vitest.config.ts",
+          "apps/web/web-manifest.config.ts",
+          "apps/web/playwright.screenshots.config.ts",
+          "apps/web/e2e/screenshots.spec.ts",
+          "apps/web/src/styles.css"
+        ]
+      },
+      "skills": [".claude/skills/qa/SKILL.md", ".claude/skills/feature-map/SKILL.md"],
+      "qa": ".claude/skills/qa/journeys/governance.md#shared-platform",
+      "tests": {
+        "unit": [
+          "apps/server/src/architecture.test.ts",
+          "packages/api/src/api.test.ts",
+          "apps/server/src/platform/time.test.ts",
+          "apps/server/src/platform/background-context.test.ts"
+        ]
+      },
+      "verify": { "browser": { "personas": ["Maya Chen"], "routes": ["home", "development"] } },
+      "gaps": [
+        "A catch-all: a change here needs the checks of the features it affects. Run every API journey (the seed and the journey helpers live here) and the browser checks of the screens it touches.",
+        "No API journey of its own; the other features' journeys exercise it."
       ]
     },
     {
