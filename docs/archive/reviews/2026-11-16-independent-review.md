@@ -62,7 +62,7 @@ adopted and what we deferred.
 ## Skills across roles
 
 The recommendation is recorded as a proposal in
-[ADR 0017](../adr/0017-skill-profiles-and-position-history.md). A skill keeps
+[ADR 0017](../../adr/0017-skill-profiles-and-position-history.md). A skill keeps
 one identity and gets optional _profiles_, such as "as a leader" or "as a
 peer mentor". Profiles carry their own level descriptors. Expectations are
 set per job family. Every credit pins the profile and the person's

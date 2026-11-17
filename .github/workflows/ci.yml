@@ -20,7 +20,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
 
-  # Zero lint warnings (docs/reviews/2026-11-16-path-to-a.md). `pnpm check`
+  # Zero lint warnings (docs/archive/reviews/2026-11-16-path-to-a.md). `pnpm check`
   # runs it too; this job names the failure on its own.
   lint-strict:
     runs-on: ubuntu-latest

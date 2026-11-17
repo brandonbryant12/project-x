@@ -3,7 +3,7 @@
 // Scope
 // - Every Markdown file tracked by git (`git ls-files '*.md'`), outside
 //   node_modules.
-// - docs/reviews/** and docs/qa/reports/** are dated records: they describe the
+// - docs/archive/** and docs/qa/reports/** are dated records: they describe the
 //   repository as it was on their date, so they may cite paths that have since
 //   moved. Their relative links are still checked; cited paths and banned terms
 //   are not.
@@ -35,7 +35,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SELF = relative(ROOT, fileURLToPath(import.meta.url));
 
-const RECORDS = [/^docs\/reviews\//, /^docs\/qa\/reports\//];
+const RECORDS = [/^docs\/archive\//, /^docs\/qa\/reports\//];
 const ROOT_DIRS = ['apps/', 'packages/', 'docs/', 'scripts/', 'tools/', '.github/', '.claude/'];
 const NOT_YET_WORDS = /\b(planned|proposed|not yet|not built|does not exist|introduce)\b/i;
 const notYet = (text) => NOT_YET_WORDS.test(text) || /\bIf\b/.test(text);

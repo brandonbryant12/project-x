@@ -5,7 +5,7 @@
 The firm's current coaching tool counts logged CRM activity, depends on the
 coachee asking for feedback, and has no real model of skills. People stop
 using it once the mandate fades. See the
-[landscape research](../research/2026-11-16-coaching-landscape.md).
+[landscape research](../archive/research/2026-11-16-coaching-landscape.md).
 
 ## What
 

@@ -88,7 +88,7 @@ A leader who is also developing sees all of this in one queue. Never split it
 into "modes".
 
 **Being built in this round** (see the
-[path-to-A plan](../reviews/2026-11-16-path-to-a.md) § 2): Home gains two
+[path-to-A plan](../archive/reviews/2026-11-16-path-to-a.md) § 2): Home gains two
 bands around "Needs you".
 
 - **Today**: conversations today and planned work naming you as observer or

@@ -4,15 +4,15 @@ Start with the overview for your role. Each page links to its details.
 
 ## Product: what and why
 
-| Page                                                                     | Read it to…                                                                             |
-| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| [Product overview](product/overview.md)                                  | Understand the product on one page, with diagrams                                       |
-| [Vision and principles](product/vision.md)                               | Know what we optimize for and how we measure it                                         |
-| [Domain model](product/domain-model.md)                                  | Learn the rules: entities, invariants, eligibility, recognition, lifecycles, visibility |
-| [UX brief](product/ux-brief.md)                                          | Follow the design contract: screens, copy, tokens                                       |
-| [Open questions](product/open-questions.md)                              | See owner decisions, each with its working default                                      |
-| [Questions for domain experts](product/domain-expert-questions.md)       | Prepare interviews with coaches, leaders, compliance, HR and IT                         |
-| [Coaching landscape research](research/2026-11-16-coaching-landscape.md) | Read the evidence behind the design                                                     |
+| Page                                                                             | Read it to…                                                                             |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [Product overview](product/overview.md)                                          | Understand the product on one page, with diagrams                                       |
+| [Vision and principles](product/vision.md)                                       | Know what we optimize for and how we measure it                                         |
+| [Domain model](product/domain-model.md)                                          | Learn the rules: entities, invariants, eligibility, recognition, lifecycles, visibility |
+| [UX brief](product/ux-brief.md)                                                  | Follow the design contract: screens, copy, tokens                                       |
+| [Open questions](product/open-questions.md)                                      | See owner decisions, each with its working default                                      |
+| [Questions for domain experts](product/domain-expert-questions.md)               | Prepare interviews with coaches, leaders, compliance, HR and IT                         |
+| [Coaching landscape research](archive/research/2026-11-16-coaching-landscape.md) | Read the evidence behind the design                                                     |
 
 ## Architecture: how
 

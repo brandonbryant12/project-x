@@ -6,7 +6,7 @@
 ## Context
 
 The product's central promise is "nothing posts on self-report". The research
-behind it ([landscape research](../research/2026-11-16-coaching-landscape.md))
+behind it ([landscape research](../archive/research/2026-11-16-coaching-landscape.md))
 found three things:
 
 - Self-assessment is a poor proxy for observed competence (Davis et al.,
