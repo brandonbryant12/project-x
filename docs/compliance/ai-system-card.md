@@ -21,7 +21,7 @@ cleared, so there is nothing to calibrate.
 
 | Question set        | Input                                                                   | What it may do                                                                                                                                  | What it never does |
 | ------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| `privacy-screen` v1 | A coachee's reflection, after the local deterministic screen has passed | **Hold** suspected client PII (hidden until revised or released by an admin); **escalate** complaints or specific recommendations to compliance | Release anything   |
+| `privacy-screen` v1 | A coachee's reflection, after the local deterministic screen has passed it; the local screen runs again on the exact text before it is sent | **Hold** suspected client PII (hidden until revised or released by an admin); **escalate** complaints or specific recommendations to compliance | Release anything   |
 
 ## 2. Intended use and limits (Map)
 
@@ -43,6 +43,10 @@ cleared, so there is nothing to calibrate.
 - **Human first.** The assistant never reads an observer's note and never
   suggests anything; it only screens a coachee's reflection after the local
   screen has passed it.
+- **The local screen guards the provider boundary.** The check runner runs
+  the local screen again on the exact text it is about to send. Text it holds
+  is never sent; the check is recorded as `skipped` (provider `local`), and a
+  reflection that is still available is held by the local rule.
 - **Every effect is labelled** "Assistant check. An automated check; you
   decide."
 - **Holds can be released** by an admin and **escalations resolved** by
@@ -80,8 +84,15 @@ Every check stores:
 
 - Missing, malformed, timed-out or refused answers are recorded as
   `failed`. They are **never a pass**.
-- A timeout or lost connection may already have been billed, so it is never
-  retried automatically. Only HTTP 429 responses are retried.
+- Within one check, only HTTP 429 responses are retried. A check is never
+  retried in place.
+- The screening sweep (`apps/server/src/scheduler/screening.ts`) screens
+  available reflections whose screen was missed or failed: at most three
+  attempts per version, 15 minutes apart, only for reflections written in
+  the last two days, and only while assistant checks are enabled. A timeout
+  may already have been billed, so a retried call can be billed again. The
+  two-day look-back means turning the assistant on never sends older
+  reflections.
 - When the assistant screen fails, the local deterministic screen has still
   run, and it fails closed.
 - `DECISIONS_MODE=disabled` turns every check off. The product works fully
