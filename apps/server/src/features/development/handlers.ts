@@ -69,7 +69,10 @@ export const DevelopmentHandlers = HttpApiBuilder.group(Api, 'development', (han
       updatePlan(params.id, payload).pipe(Effect.andThen(planView(params.id)), apiErrorsOnly),
     )
     .handle('planEvent', ({ params, payload }) =>
-      planEvent(params.id, payload.event).pipe(Effect.andThen(planView(params.id)), apiErrorsOnly),
+      planEvent(params.id, payload.event, payload.version).pipe(
+        Effect.andThen(planView(params.id)),
+        apiErrorsOnly,
+      ),
     )
     .handle('addActivity', ({ params, payload }) =>
       addActivity(params.id, payload).pipe(Effect.andThen(planView(params.id)), apiErrorsOnly),
@@ -77,8 +80,11 @@ export const DevelopmentHandlers = HttpApiBuilder.group(Api, 'development', (han
     .handle('recordPlanReview', ({ params, payload }) =>
       recordPlanReview(params.id, payload).pipe(Effect.andThen(planView(params.id)), apiErrorsOnly),
     )
-    .handle('confirmPlanReview', ({ params }) =>
-      confirmPlanReview(params.id).pipe(Effect.andThen(planView(params.id)), apiErrorsOnly),
+    .handle('confirmPlanReview', ({ params, payload }) =>
+      confirmPlanReview(params.id, payload.version).pipe(
+        Effect.andThen(planView(params.id)),
+        apiErrorsOnly,
+      ),
     )
     .handle('updateActivity', ({ params, payload }) =>
       updateActivity(params.id, payload).pipe(Effect.flatMap(planView), apiErrorsOnly),

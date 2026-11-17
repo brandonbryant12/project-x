@@ -14,6 +14,8 @@ export const OUTCOME_LABEL: Record<PlanOutcome, string> = {
 
 export interface ReviewTarget {
   readonly planId: PlanId;
+  /** The plan's version as the screen showed it; a plan changed since is refused. */
+  readonly version: number;
   readonly focusSkills: ReadonlyArray<FocusSkillView>;
   readonly closingSummary: string | null;
   /** Completing the plan in the same step (the owner chose "Complete plan"). */
@@ -62,10 +64,13 @@ const ReviewForm = ({
   const submit = async (withReview: boolean) => {
     try {
       // Recorded first, while the plan is open; recording again is allowed, so a retry is safe.
+      // Each write names the version it follows from, so nothing changed meanwhile is overwritten.
+      let version = target.version;
       if (withReview) {
-        await record.mutateAsync({
+        const recorded = await record.mutateAsync({
           params: { id: target.planId },
           payload: {
+            version,
             outcomes: target.focusSkills.map((f) => ({
               skillId: f.skill.id,
               outcome: outcomes[f.skill.id] as PlanOutcome,
@@ -73,11 +78,12 @@ const ReviewForm = ({
             summary: summary.trim(),
           },
         });
+        version = recorded.version;
       }
       if (target.completing) {
         await complete.mutateAsync({
           params: { id: target.planId },
-          payload: { event: 'COMPLETE' },
+          payload: { event: 'COMPLETE', version },
         });
       }
       if (!target.completing) toast.success('Closing review recorded.');

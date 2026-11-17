@@ -94,6 +94,8 @@ export const ActivityView = Schema.Struct({
   canEdit: Schema.Boolean,
   /** The viewer may set or clear an individual value for a skill of this work. */
   canSetValue: Schema.Boolean,
+  /** Sent back with an edit or a value, so a change made meanwhile is never overwritten. */
+  version: Schema.Number,
 });
 export type ActivityView = typeof ActivityView.Type;
 
@@ -160,6 +162,11 @@ export const PlanView = Schema.Struct({
   canConfirmReview: Schema.Boolean,
   /** The range an individual value must lie in; null when the tenant does not allow them. */
   valueRange: Schema.NullOr(Schema.Struct({ min: Schema.Number, max: Schema.Number })),
+  /**
+   * Sent back with every plan write (edit, lifecycle event, review), so nobody
+   * agrees to, confirms or overwrites a plan they have not seen.
+   */
+  version: Schema.Number,
 });
 export type PlanView = typeof PlanView.Type;
 
@@ -177,6 +184,7 @@ export const DevelopmentView = Schema.Struct({
       review: Schema.NullOr(PlanReviewView),
       canRecordReview: Schema.Boolean,
       canConfirmReview: Schema.Boolean,
+      version: Schema.Number,
     }),
   ),
   /** Progress for skills with credit outside the current plan's focus. */
@@ -223,6 +231,8 @@ export const CreatePlanInput = Schema.Struct({
 export type CreatePlanInput = typeof CreatePlanInput.Type;
 
 export const UpdatePlanInput = Schema.Struct({
+  /** The plan's version as the form loaded it; a newer plan is a Conflict. */
+  version: Schema.Number,
   title: Schema.optional(Title),
   intent: Schema.optional(Schema.String.pipe(Schema.check(Schema.isMaxLength(600)))),
   focusSkills: Schema.optional(
@@ -234,6 +244,8 @@ export type UpdatePlanInput = typeof UpdatePlanInput.Type;
 
 /** The closing review: one outcome per focus skill, and the summary. */
 export const RecordPlanReviewInput = Schema.Struct({
+  /** The plan's version as the form loaded it; a newer plan is a Conflict. */
+  version: Schema.Number,
   outcomes: Schema.Array(Schema.Struct({ skillId: SkillId, outcome: PlanOutcome })).pipe(
     Schema.check(Schema.isMinLength(1), Schema.isMaxLength(3)),
   ),
@@ -256,6 +268,8 @@ export type AddActivityInput = typeof AddActivityInput.Type;
 
 /** Replaces the editable fields of a piece of work; skills are diffed, not re-created. */
 export const UpdateActivityInput = Schema.Struct({
+  /** The work's version as the form loaded it; newer work is a Conflict. */
+  version: Schema.Number,
   title: Title,
   description: Description,
   skills: ActivitySkills,
@@ -267,6 +281,8 @@ export type UpdateActivityInput = typeof UpdateActivityInput.Type;
 
 /** Sets (or, with null, clears) one skill's individual value on a piece of work. */
 export const SetActivityValueInput = Schema.Struct({
+  /** The work's version as the form loaded it; newer work is a Conflict. */
+  version: Schema.Number,
   skillId: SkillId,
   points: Schema.NullOr(Schema.Int),
   reason: Schema.String.pipe(Schema.check(Schema.isMinLength(10), Schema.isMaxLength(600))),

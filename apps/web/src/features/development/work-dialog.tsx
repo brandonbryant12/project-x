@@ -240,6 +240,12 @@ export const WorkDialog = ({
   </ResponsiveDialog>
 );
 
+/** Who the work may name as its observer: the coach, the leader, or the one already named. */
+const observerChoices = (plan: PlanView, activity: ActivityView | null) =>
+  [plan.coach, plan.leader, activity?.intendedObserver ?? null].filter(
+    (p, i, all): p is PersonSummary => p !== null && all.findIndex((x) => x?.id === p.id) === i,
+  );
+
 const WorkForm = ({
   plan,
   activity,
@@ -275,9 +281,7 @@ const WorkForm = ({
   const add = useApiMutation('development', 'addActivity', { onSuccess });
   const update = useApiMutation('development', 'updateActivity', { onSuccess });
   const template = templates.data?.find((t) => t.id === templateId);
-  const observers = [plan.coach, plan.leader, activity?.intendedObserver ?? null].filter(
-    (p, i, all): p is PersonSummary => p !== null && all.findIndex((x) => x?.id === p.id) === i,
-  );
+  const observers = observerChoices(plan, activity);
   const name = title.trim() || template?.name || '';
   const valid = name.length >= 3 && skills.length > 0;
   const pending = add.isPending || update.isPending;
@@ -307,7 +311,11 @@ const WorkForm = ({
           intendedObserverId: observerId || null,
           intendedMode: observerId ? mode : null,
         };
-        if (activity) update.mutate({ params: { id: activity.id }, payload: fields });
+        if (activity)
+          update.mutate({
+            params: { id: activity.id },
+            payload: { ...fields, version: activity.version },
+          });
         else
           add.mutate({
             params: { id: plan.id },

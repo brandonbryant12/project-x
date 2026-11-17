@@ -66,7 +66,12 @@ const ValueForm = ({
   const send = (value: number | null) =>
     save.mutate({
       params: { id: activity.id },
-      payload: { skillId: skill.skill.id, points: value, reason: reason.trim() },
+      payload: {
+        version: activity.version,
+        skillId: skill.skill.id,
+        points: value,
+        reason: reason.trim(),
+      },
     });
   return (
     <form

@@ -45,7 +45,8 @@ export class DevelopmentGroup extends HttpApiGroup.make('development')
     }),
     HttpApiEndpoint.post('planEvent', '/plans/:id/events', {
       params: { id: PlanId },
-      payload: Schema.Struct({ event: PlanEventType }),
+      /** `version`: the plan as the person saw it; a newer plan is a Conflict. */
+      payload: Schema.Struct({ event: PlanEventType, version: Schema.Number }),
       success: PlanView,
       error: lifecycleErrors,
     }),
@@ -63,6 +64,8 @@ export class DevelopmentGroup extends HttpApiGroup.make('development')
     }),
     HttpApiEndpoint.post('confirmPlanReview', '/plans/:id/review/confirm', {
       params: { id: PlanId },
+      /** The plan as the confirmer read it: a review recorded again since is a Conflict. */
+      payload: Schema.Struct({ version: Schema.Number }),
       success: PlanView,
       error: lifecycleErrors,
     }),

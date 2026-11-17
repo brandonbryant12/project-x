@@ -100,7 +100,18 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
         ),
       );
     const s = (slug: string, role: SkillRole) => ({ skillId: skill(slug), role });
+    /** The work's current version, as a freshly loaded form would send it. */
+    const workVersion = (activityId: ActivityId) =>
+      db
+        .select({ version: schema.activity.version })
+        .from(schema.activity)
+        .where(eq(schema.activity.id, activityId))
+        .pipe(
+          Effect.map((rows) => rows[0]?.version ?? -1),
+          Effect.orDie,
+        );
     return {
+      workVersion,
       db,
       api,
       ids,
@@ -255,30 +266,45 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
     'editing work diffs its skills: a value survives other edits and leaves only with its skill',
     () =>
       Effect.gen(function* () {
-        const { db, api, planAs, skillsOf, s } = yield* setup;
+        const { db, api, planAs, skillsOf, s, workVersion } = yield* setup;
         const review = work(yield* planAs('Sam Rivera'), 'Annual review with');
         assert.isTrue(review.canEdit);
         assert.isTrue(review.canSetValue);
         yield* api.development.setActivityValue({
           params: { id: review.id },
           payload: {
+            version: review.version,
             skillId: s('relationship-deepening', 'secondary').skillId,
             points: 15,
             reason: REASON,
           },
         });
-        const edit = (skills: ReadonlyArray<{ skillId: SkillId; role: SkillRole }>) =>
-          api.development.updateActivity({
-            params: { id: review.id },
-            payload: {
-              title: 'Annual review: the Okafor household',
-              description: 'Goals first, numbers after.',
-              skills,
-              dueOn: review.dueOn,
-              intendedObserverId: null,
-              intendedMode: null,
-            },
+        const edit = (
+          skills: ReadonlyArray<{ skillId: SkillId; role: SkillRole }>,
+          loaded?: number,
+        ) =>
+          Effect.gen(function* () {
+            return yield* api.development.updateActivity({
+              params: { id: review.id },
+              payload: {
+                version: loaded ?? (yield* workVersion(review.id)),
+                title: 'Annual review: the Okafor household',
+                description: 'Goals first, numbers after.',
+                skills,
+                dueOn: review.dueOn,
+                intendedObserverId: null,
+                intendedMode: null,
+              },
+            });
           });
+
+        // A form loaded before Sam's value was set is stale: its edit is refused, not applied.
+        yield* signInAs('Maya Chen');
+        assert.strictEqual(
+          yield* failure(edit([s('goals-based-planning', 'primary')], review.version)),
+          'Conflict',
+        );
+        assert.lengthOf(yield* skillsOf(review.id), 3);
 
         for (const outsider of ['Rhea Castillo', 'Priya Raman']) {
           yield* signInAs(outsider);
@@ -347,7 +373,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
     'an individual value: an agreer or program owner, never the subject, before the work is observed',
     () =>
       Effect.gen(function* () {
-        const { db, api, ids, tenantId, skill, on, planAs } = yield* setup;
+        const { db, api, ids, tenantId, skill, on, planAs, workVersion } = yield* setup;
         // Maya and Elena run the program.
         yield* db.insert(schema.roleGrant).values(
           [ids.maya, ids.elena].map((personId) => ({
@@ -374,9 +400,16 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
           },
         });
         const set = (points: number | null, reason = REASON, activityId = annual.id) =>
-          api.development.setActivityValue({
-            params: { id: activityId },
-            payload: { skillId: planning, points, reason },
+          Effect.gen(function* () {
+            return yield* api.development.setActivityValue({
+              params: { id: activityId },
+              payload: {
+                version: yield* workVersion(activityId),
+                skillId: planning,
+                points,
+                reason,
+              },
+            });
           });
 
         // The subject never values her own work, even as a program owner.
@@ -598,6 +631,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
           api.development.updateActivity({
             params: { id: annual.id },
             payload: {
+              version: annual.version,
               title: 'Taken over',
               description: '',
               skills: [{ skillId: planning, role: 'primary' }],
@@ -608,7 +642,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
           }),
           api.development.setActivityValue({
             params: { id: annual.id },
-            payload: { skillId: planning, points: 20, reason: REASON },
+            payload: { version: annual.version, skillId: planning, points: 20, reason: REASON },
           }),
         ].map((call) =>
           call.pipe(

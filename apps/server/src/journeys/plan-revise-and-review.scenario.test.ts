@@ -20,7 +20,9 @@ import { OUTSIDER, seedSecondTenant } from '../test/second-tenant.ts';
  * review is recorded by the owner, confirmed by an agreer and never writes
  * credit or a badge; unfinished plans past their period expire, drafts
  * included, whether or not a review is recorded, and the review survives
- * expiry. The tests share one seeded tenant and run in order.
+ * expiry. Every plan write names the version the person saw: agreeing to or
+ * confirming a plan that changed since is refused (Conflict). The tests share
+ * one seeded tenant and run in order.
  */
 const client = HttpApiTest.groups(Api, ['development']);
 
@@ -57,6 +59,8 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
         .from(schema.plan)
         .where(eq(schema.plan.id, id))
         .pipe(Effect.map((rows) => rows[0]));
+    /** The plan's current version, as a freshly loaded form would send it. */
+    const versionOf = (id: PlanId) => planRow(id).pipe(Effect.map((row) => row?.version ?? -1));
     const auditOf = (id: string) =>
       db
         .select()
@@ -73,17 +77,18 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
         return {
           params: { id: planId },
           payload: {
+            version: plan?.version ?? -1,
             outcomes: focus.map((f) => ({ skillId: f.skillId, outcome })),
             summary: `Closing ${plan?.title ?? 'plan'}: what changed in my meetings.`,
           },
         };
       });
-    return { db, api, ids, tenantId, skill, day, mayaPlan, planRow, auditOf, reviewOf };
+    return { db, api, ids, tenantId, skill, day, mayaPlan, planRow, versionOf, auditOf, reviewOf };
   });
 
   it.effect('a closed plan is never edited, and only its owner edits an open one', () =>
     Effect.gen(function* () {
-      const { api, skill, day, mayaPlan, planRow } = yield* setup;
+      const { api, skill, day, mayaPlan, planRow, versionOf } = yield* setup;
       const plan = yield* mayaPlan();
       assert.isTrue(plan.canEdit);
       assert.isFalse(plan.canEditFocusSkills);
@@ -92,21 +97,31 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
       assert.isFalse(asSam.canEdit);
       assert.isTrue(asSam.canAddWork);
       const coachEdit = yield* api.development
-        .updatePlan({ params: { id: plan.id }, payload: { title: 'Sam’s title' } })
+        .updatePlan({
+          params: { id: plan.id },
+          payload: { version: plan.version, title: 'Sam’s title' },
+        })
         .pipe(Effect.flip);
       assert.strictEqual(coachEdit._tag, 'Forbidden');
 
       yield* signInAs('Maya Chen');
       const edited = yield* api.development.updatePlan({
         params: { id: plan.id },
-        payload: { title: 'Lead every first meeting with discovery', periodEnd: day(120) },
+        payload: {
+          version: plan.version,
+          title: 'Lead every first meeting with discovery',
+          periodEnd: day(120),
+        },
       });
       assert.strictEqual(edited.title, 'Lead every first meeting with discovery');
       assert.strictEqual(edited.periodEnd, day(120));
       const focusWhileActive = yield* api.development
         .updatePlan({
           params: { id: plan.id },
-          payload: { focusSkills: [{ skillId: skill('transparency'), targetLevel: 2 }] },
+          payload: {
+            version: edited.version,
+            focusSkills: [{ skillId: skill('transparency'), targetLevel: 2 }],
+          },
         })
         .pipe(Effect.flip);
       assert.strictEqual(focusWhileActive._tag, 'Unprocessable');
@@ -122,15 +137,25 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
           focusSkills: [{ skillId: skill('relationship-deepening'), targetLevel: 2 }],
         },
       });
-      yield* api.development.planEvent({ params: { id: grace.id }, payload: { event: 'CANCEL' } });
+      const canceled = yield* api.development.planEvent({
+        params: { id: grace.id },
+        payload: { event: 'CANCEL', version: grace.version },
+      });
       const closed = yield* api.development
-        .updatePlan({ params: { id: grace.id }, payload: { title: 'Rewritten after the fact' } })
+        .updatePlan({
+          params: { id: grace.id },
+          payload: { version: canceled.version, title: 'Rewritten after the fact' },
+        })
         .pipe(Effect.flip);
       assert.strictEqual(closed._tag, 'Unprocessable');
       const withSummary = yield* api.development
         .updatePlan({
           params: { id: grace.id },
-          payload: { title: 'Rewritten after the fact', closingSummary: 'Done.' } as never,
+          payload: {
+            version: yield* versionOf(grace.id),
+            title: 'Rewritten after the fact',
+            closingSummary: 'Done.',
+          } as never,
         })
         .pipe(Effect.flip);
       assert.strictEqual(withSummary._tag, 'Unprocessable');
@@ -144,13 +169,13 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
     'revising an agreed plan clears the agreement, endorsement and an unconfirmed review; it is agreed again',
     () =>
       Effect.gen(function* () {
-        const { api, ids, skill, mayaPlan, planRow, auditOf, reviewOf } = yield* setup;
+        const { api, ids, skill, mayaPlan, planRow, versionOf, auditOf, reviewOf } = yield* setup;
         const plan = yield* mayaPlan();
         // Her leader endorses; she records a closing review she has not had confirmed.
         yield* signInAs('Leo Okonkwo');
         yield* api.development.planEvent({
           params: { id: plan.id },
-          payload: { event: 'ENDORSE' },
+          payload: { event: 'ENDORSE', version: plan.version },
         });
         yield* signInAs('Maya Chen');
         yield* api.development.recordPlanReview(yield* reviewOf(plan.id, 'partly'));
@@ -160,7 +185,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
         assert.include(asSam.actions, 'REVISE');
         const draft = yield* api.development.planEvent({
           params: { id: plan.id },
-          payload: { event: 'REVISE' },
+          payload: { event: 'REVISE', version: asSam.version },
         });
         assert.strictEqual(draft.status, 'draft');
         assert.isNull(draft.agreedBy);
@@ -190,20 +215,37 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
         yield* api.development.updatePlan({
           params: { id: plan.id },
           payload: {
+            version: again.version,
             focusSkills: [
               { skillId: skill('client-discovery'), targetLevel: 4 },
               { skillId: skill('behavioral-coaching'), targetLevel: 3 },
             ],
           },
         });
-        yield* api.development.planEvent({
+        const proposed = yield* api.development.planEvent({
           params: { id: plan.id },
-          payload: { event: 'PROPOSE' },
+          payload: { event: 'PROPOSE', version: yield* versionOf(plan.id) },
         });
+        // Sam opens the proposal; Maya changes its end date before he agrees.
+        const seenBySam = yield* mayaPlan('Sam Rivera');
+        yield* signInAs('Maya Chen');
+        yield* api.development.updatePlan({
+          params: { id: plan.id },
+          payload: { version: proposed.version, periodEnd: addDaysIso(proposed.periodEnd, 30) },
+        });
+        // Agreeing to the plan he saw is refused: it is no longer that plan.
         yield* signInAs('Sam Rivera');
+        const stale = yield* api.development
+          .planEvent({
+            params: { id: plan.id },
+            payload: { event: 'AGREE', version: seenBySam.version },
+          })
+          .pipe(Effect.flip);
+        assert.strictEqual(stale._tag, 'Conflict');
+        assert.strictEqual((yield* planRow(plan.id))?.status, 'proposed');
         const agreed = yield* api.development.planEvent({
           params: { id: plan.id },
-          payload: { event: 'AGREE' },
+          payload: { event: 'AGREE', version: (yield* mayaPlan('Sam Rivera')).version },
         });
         assert.strictEqual(agreed.status, 'active');
         assert.strictEqual(agreed.agreedBy?.id, ids.sam);
@@ -220,8 +262,10 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
     'the closing review: the owner records it until an agreer confirms it; then it is fixed',
     () =>
       Effect.gen(function* () {
-        const { db, api, ids, mayaPlan, planRow, auditOf, reviewOf } = yield* setup;
+        const { db, api, ids, mayaPlan, planRow, versionOf, auditOf, reviewOf } = yield* setup;
         const plan = yield* mayaPlan();
+        const confirm = (version: number) =>
+          api.development.confirmPlanReview({ params: { id: plan.id }, payload: { version } });
         const ledger = Effect.all([
           db.select({ n: count() }).from(schema.creditEntry),
           db.select({ n: count() }).from(schema.badgeAward),
@@ -236,9 +280,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
             .pipe(Effect.flip))._tag,
           'Forbidden',
         );
-        const nothingYet = yield* api.development
-          .confirmPlanReview({ params: { id: plan.id } })
-          .pipe(Effect.flip);
+        const nothingYet = yield* confirm(yield* versionOf(plan.id)).pipe(Effect.flip);
         assert.strictEqual(nothingYet._tag, 'Unprocessable');
         yield* signInAs('Maya Chen');
         const partial = yield* reviewOf(plan.id, 'achieved');
@@ -258,22 +300,21 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
         assert.strictEqual(recorded.review?.recordedBy.id, ids.maya);
         assert.isNull(recorded.review?.confirmedBy);
         assert.isFalse(recorded.canConfirmReview);
-        assert.strictEqual(
-          (yield* api.development.confirmPlanReview({ params: { id: plan.id } }).pipe(Effect.flip))
-            ._tag,
-          'Forbidden',
-        );
+        assert.strictEqual((yield* confirm(recorded.version).pipe(Effect.flip))._tag, 'Forbidden');
         // Her skip-level leader is neither coach nor leader: not an agreer.
         yield* signInAs('Rhea Castillo');
-        assert.strictEqual(
-          (yield* api.development.confirmPlanReview({ params: { id: plan.id } }).pipe(Effect.flip))
-            ._tag,
-          'Forbidden',
-        );
+        assert.strictEqual((yield* confirm(recorded.version).pipe(Effect.flip))._tag, 'Forbidden');
 
+        // Sam reads the review; Maya records it again before he confirms. Confirming
+        // what he read is refused: he confirms only the review he has seen.
         const asSam = yield* mayaPlan('Sam Rivera');
         assert.isTrue(asSam.canConfirmReview);
-        const confirmed = yield* api.development.confirmPlanReview({ params: { id: plan.id } });
+        yield* signInAs('Maya Chen');
+        yield* api.development.recordPlanReview(yield* reviewOf(plan.id, 'achieved'));
+        yield* signInAs('Sam Rivera');
+        assert.strictEqual((yield* confirm(asSam.version).pipe(Effect.flip))._tag, 'Conflict');
+        assert.isNull((yield* planRow(plan.id))?.reviewConfirmedAt);
+        const confirmed = yield* confirm((yield* mayaPlan('Sam Rivera')).version);
         assert.strictEqual(confirmed.review?.confirmedBy?.id, ids.sam);
         assert.isFalse(confirmed.canConfirmReview);
         assert.notInclude(confirmed.actions, 'REVISE');
@@ -289,14 +330,16 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
         );
         assert.strictEqual(
           (yield* api.development
-            .planEvent({ params: { id: plan.id }, payload: { event: 'REVISE' } })
+            .planEvent({
+              params: { id: plan.id },
+              payload: { event: 'REVISE', version: confirmed.version },
+            })
             .pipe(Effect.flip))._tag,
           'InvalidTransition',
         );
         yield* signInAs('Sam Rivera');
         assert.strictEqual(
-          (yield* api.development.confirmPlanReview({ params: { id: plan.id } }).pipe(Effect.flip))
-            ._tag,
+          (yield* confirm(confirmed.version).pipe(Effect.flip))._tag,
           'Unprocessable',
         );
         assert.strictEqual((yield* planRow(plan.id))?.reviewConfirmedById, ids.sam);
@@ -304,7 +347,8 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
         // A review is a person's judgement: it writes no credit and no badge.
         assert.deepStrictEqual(yield* ledger, before);
         const events = (yield* auditOf(plan.id)).map((e) => e.event);
-        assert.deepStrictEqual(events.slice(-3), [
+        assert.deepStrictEqual(events.slice(-4), [
+          'REVIEW_RECORDED',
           'REVIEW_RECORDED',
           'REVIEW_RECORDED',
           'REVIEW_CONFIRMED',
@@ -320,6 +364,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
             .recordPlanReview({
               params: { id: daniel?.id as PlanId },
               payload: {
+                version: daniel?.version ?? -1,
                 outcomes: (daniel?.focusSkills ?? []).map((f) => ({
                   skillId: f.skill.id,
                   outcome: 'partly' as const,
@@ -337,7 +382,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
     'unfinished plans past their period expire, drafts included; a recorded review neither exempts nor is lost',
     () =>
       Effect.gen(function* () {
-        const { api, ids, skill, day, planRow, auditOf, reviewOf } = yield* setup;
+        const { api, ids, skill, day, planRow, versionOf, auditOf, reviewOf } = yield* setup;
         const period = { periodStart: day(-200), periodEnd: day(-30) };
         // Grace's plan was revised late and stayed a draft past its period.
         yield* signInAs('Grace Liu');
@@ -373,12 +418,12 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
         });
         yield* api.development.planEvent({
           params: { id: marcus.id },
-          payload: { event: 'PROPOSE' },
+          payload: { event: 'PROPOSE', version: yield* versionOf(marcus.id) },
         });
         yield* signInAs('Priya Raman');
         yield* api.development.planEvent({
           params: { id: marcus.id },
-          payload: { event: 'AGREE' },
+          payload: { event: 'AGREE', version: yield* versionOf(marcus.id) },
         });
         yield* signInAs('Marcus Hill');
         yield* api.development.recordPlanReview(yield* reviewOf(marcus.id, 'partly'));
@@ -421,7 +466,10 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
           closed?.focusSkills.map((f) => f.outcome),
           ['partly'],
         );
-        const confirmed = yield* api.development.confirmPlanReview({ params: { id: marcus.id } });
+        const confirmed = yield* api.development.confirmPlanReview({
+          params: { id: marcus.id },
+          payload: { version: closed?.version ?? -1 },
+        });
         assert.strictEqual(confirmed.review?.confirmedBy?.id, ids.priya);
       }),
   );
@@ -435,10 +483,19 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
       yield* signInAs(OUTSIDER);
       const answers = yield* Effect.all(
         [
-          api.development.updatePlan({ params: { id: plan.id }, payload: { title: 'Taken over' } }),
-          api.development.planEvent({ params: { id: plan.id }, payload: { event: 'REVISE' } }),
+          api.development.updatePlan({
+            params: { id: plan.id },
+            payload: { version: plan.version, title: 'Taken over' },
+          }),
+          api.development.planEvent({
+            params: { id: plan.id },
+            payload: { event: 'REVISE', version: plan.version },
+          }),
           api.development.recordPlanReview(review),
-          api.development.confirmPlanReview({ params: { id: plan.id } }),
+          api.development.confirmPlanReview({
+            params: { id: plan.id },
+            payload: { version: plan.version },
+          }),
         ].map((call) =>
           call.pipe(
             Effect.flip,

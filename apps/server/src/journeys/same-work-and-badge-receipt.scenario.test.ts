@@ -69,7 +69,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('same work once; how this was earned'
         assert.isDefined(annual);
         yield* api.development.setActivityValue({
           params: { id: annual.id },
-          payload: { skillId, points: 12, reason: REASON },
+          payload: { version: annual.version, skillId, points: 12, reason: REASON },
         });
         yield* atScenarioTime;
 

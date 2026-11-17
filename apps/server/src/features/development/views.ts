@@ -69,6 +69,29 @@ import {
 import { observedActivityIds } from './use-cases.ts';
 
 type PlanRow = typeof schema.plan.$inferSelect;
+
+/**
+ * What the viewer may do with one piece of work: lifecycle events (the owner
+ * only), and the flags from the same refusal functions the use cases call.
+ */
+const workCapabilities = (
+  who: PlanRelation,
+  plan: PlanRow,
+  activity: typeof schema.activity.$inferSelect,
+  policy: CreditPolicy,
+  observed: boolean,
+): Pick<ActivityView, 'actions' | 'canEdit' | 'canSetValue'> => ({
+  actions: who.isOwner
+    ? ActivityLifecycle.allowed(activity.status as ActivityStatus, {}, [
+        { type: 'LOG_INTERACTION' },
+        { type: 'COMPLETE' },
+        { type: 'CANCEL' },
+      ])
+    : [],
+  canEdit: editWorkRefusal(who, plan, activity) === null,
+  canSetValue:
+    setValueRefusal(who, policy.activityOverrides, plan, { ...activity, observed }) === null,
+});
 type SkillRow = typeof schema.skill.$inferSelect;
 type CreditRow = typeof schema.creditEntry.$inferSelect;
 type People = ReadonlyMap<PersonId, PersonSummary>;
@@ -327,7 +350,6 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     actor.tenantId,
     activities.flatMap((a) => (a.templateId ? [a.templateId] : [])),
   );
-  const isOwner = plan.ownerId === actor.personId;
   const who: PlanRelation = planRelation(actor, plan.ownerId, facts, on);
   const values = { on, timeZone: yield* BusinessTimeZone };
 
@@ -348,19 +370,8 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
       const summary = i.activityId === a.id ? summaries.get(i.id) : undefined;
       return summary ? [summary] : [];
     }),
-    actions: isOwner
-      ? ActivityLifecycle.allowed(a.status as ActivityStatus, {}, [
-          { type: 'LOG_INTERACTION' },
-          { type: 'COMPLETE' },
-          { type: 'CANCEL' },
-        ])
-      : [],
-    canEdit: editWorkRefusal(who, plan, a) === null,
-    canSetValue:
-      setValueRefusal(who, policy.activityOverrides, plan, {
-        ...a,
-        observed: observed.has(a.id),
-      }) === null,
+    ...workCapabilities(who, plan, a, policy, observed.has(a.id)),
+    version: a.version,
   }));
   const optional = (id: PersonId | null | undefined): PersonSummary | null =>
     id ? (people.get(id) ?? null) : null;
@@ -400,6 +411,7 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     valueRange: policy.activityOverrides.enabled
       ? { min: policy.activityOverrides.minPoints, max: policy.activityOverrides.maxPoints }
       : null,
+    version: plan.version,
   } satisfies PlanView;
 });
 
@@ -534,6 +546,7 @@ export const buildDevelopmentView = Effect.fn('development.view')(function* (
         review: reviewView(p, people),
         canRecordReview,
         canConfirmReview,
+        version: p.version,
       };
     }),
     otherProgress: yield* progressFor(actor.tenantId, personId, other),

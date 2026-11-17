@@ -49,7 +49,7 @@ import {
 import { recordAudit } from '../shared/audit.ts';
 import { notify } from '../shared/notify.ts';
 import { digestOf } from '../shared/notes.ts';
-import { decide, requireUpdated } from '../shared/mutation.ts';
+import { decide, requireUpdated, requireVersion } from '../shared/mutation.ts';
 import { loadActivitySkillRows, loadPlanSkills } from '../shared/catalog-reads.ts';
 import { tenantCreditPolicy } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
@@ -163,6 +163,8 @@ export const updatePlan = Effect.fn('useCase.updatePlan')(function* (
   // A closed plan is never edited; its closing review has its own use case.
   const refusal = editPlanRefusal(who, plan);
   if (refusal) return yield* refuse(refusal);
+  yield* requireVersion('plan', input.version, plan.version);
+  const { version: _loaded, ...edit } = input;
   if (input.focusSkills && plan.status !== 'draft') {
     return yield* Effect.fail(
       new Unprocessable({
@@ -212,7 +214,7 @@ export const updatePlan = Effect.fn('useCase.updatePlan')(function* (
         entityId: plan.id,
         event: 'EDIT',
         data: {
-          fields: Object.keys(input),
+          fields: Object.keys(edit),
           ...(input.periodEnd !== undefined && {
             periodEnd: { before: plan.periodEnd, after: input.periodEnd },
           }),
@@ -225,13 +227,20 @@ export const updatePlan = Effect.fn('useCase.updatePlan')(function* (
   );
 });
 
+/**
+ * A plan lifecycle event. `loadedVersion` is the plan as the person saw it
+ * (every API call sends it): agreeing, revising or completing a plan that has
+ * changed since is a Conflict. Only the seed omits it.
+ */
 export const planEvent = Effect.fn('useCase.planEvent')(function* (
   planId: PlanId,
   event: PlanEventType,
+  loadedVersion?: number,
 ) {
   const actor = yield* CurrentActor;
   const db = yield* Db;
   const plan = yield* loadPlan(planId);
+  if (loadedVersion !== undefined) yield* requireVersion('plan', loadedVersion, plan.version);
   const on = yield* today;
   const facts = yield* loadRelationshipFacts(actor.tenantId);
   const isOwner = plan.ownerId === actor.personId;
@@ -575,6 +584,7 @@ export const updateActivity = Effect.fn('useCase.updateActivity')(function* (
   const { activity, plan, facts, who } = yield* loadWork(activityId);
   const refusal = editWorkRefusal(who, plan, activity);
   if (refusal) return yield* refuse(refusal);
+  yield* requireVersion('work', input.version, activity.version);
   const before =
     (yield* loadActivitySkillRows(actor.tenantId, [activity.id])).get(activity.id) ?? [];
   yield* requireWorkSkills(actor.tenantId, input.skills, new Set(before.map((row) => row.skillId)));
@@ -697,6 +707,7 @@ export const setActivityValue = Effect.fn('useCase.setActivityValue')(function* 
   const observed = (yield* observedActivityIds(actor.tenantId, [activity.id])).has(activity.id);
   const refusal = setValueRefusal(who, policy.activityOverrides, plan, { ...activity, observed });
   if (refusal) return yield* refuse(refusal);
+  yield* requireVersion('work', input.version, activity.version);
   const reason = input.reason.trim();
   if (reason.length < 10) {
     return yield* Effect.fail(

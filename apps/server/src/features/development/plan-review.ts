@@ -6,7 +6,7 @@ import { Effect } from 'effect';
 import { now, today } from '../../platform/time.ts';
 import { recordAudit } from '../shared/audit.ts';
 import { loadPlanSkills } from '../shared/catalog-reads.ts';
-import { requireUpdated } from '../shared/mutation.ts';
+import { requireUpdated, requireVersion } from '../shared/mutation.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { confirmReviewRefusal, planRelation, recordReviewRefusal } from './permissions.ts';
 import { loadPlan, refuse } from './use-cases.ts';
@@ -28,6 +28,7 @@ export const recordPlanReview = Effect.fn('useCase.recordPlanReview')(function* 
   const facts = yield* loadRelationshipFacts(actor.tenantId);
   const refusal = recordReviewRefusal(planRelation(actor, plan.ownerId, facts, yield* today), plan);
   if (refusal) return yield* refuse(refusal);
+  yield* requireVersion('plan', input.version, plan.version);
   const focus = (yield* loadPlanSkills(actor.tenantId, [plan.id])).get(plan.id) ?? [];
   const outcomes = new Map(input.outcomes.map((o) => [o.skillId, o.outcome]));
   const exact =
@@ -86,7 +87,15 @@ export const recordPlanReview = Effect.fn('useCase.recordPlanReview')(function* 
   );
 });
 
-export const confirmPlanReview = Effect.fn('useCase.confirmPlanReview')(function* (planId: PlanId) {
+/**
+ * An agreer confirms the review they read. `loadedVersion` is the plan as they
+ * loaded it: a review recorded again since (which bumps the plan's version) is
+ * a Conflict, so nobody fixes outcomes or a summary they never saw.
+ */
+export const confirmPlanReview = Effect.fn('useCase.confirmPlanReview')(function* (
+  planId: PlanId,
+  loadedVersion: number,
+) {
   const actor = yield* CurrentActor;
   const db = yield* Db;
   const plan = yield* loadPlan(planId);
@@ -96,6 +105,7 @@ export const confirmPlanReview = Effect.fn('useCase.confirmPlanReview')(function
     plan,
   );
   if (refusal) return yield* refuse(refusal);
+  yield* requireVersion('plan', loadedVersion, plan.version);
   const at = yield* now;
   yield* transactionally(
     Effect.gen(function* () {
