@@ -49,6 +49,10 @@ screenshot, such as autosave debounce or keyboard shortcuts.
    IDs are random but never asserted, and the AI is the deterministic mock.
 8. **Fast by default.** The default suite needs no Docker and no network.
    Slow or environment-dependent lanes are opt-in and named as such.
+9. **Never switch off an integrity control.** No test disables or drops a
+   trigger or constraint to build a state the rules forbid. Build legacy rows
+   by migrating, as `packages/db/src/migration-compat.test.ts` does, or test
+   the logic as a pure function over the facts.
 
 ## What "safe" means in an agentic codebase
 

@@ -278,6 +278,13 @@ export const ProfileScreen = ({ profile }: { readonly profile: ProfileView }) =>
 
 type ReceiptWork = BadgeReceiptView['work'][number];
 
+/** Why a credit on the receipt did not add its points, if it did not. */
+const creditNote = (c: ReceiptWork['credits'][number], shared: boolean) => {
+  if (c.reversed) return 'reversed after the award (observation voided), not counted';
+  if (shared && !c.counted) return 'same work, not added again';
+  return null;
+};
+
 /** One piece of work on the receipt: every observer who saw it; it counted once. */
 const ReceiptWorkItem = ({ work }: { readonly work: ReceiptWork }) => {
   const shared = work.credits.length > 1;
@@ -304,8 +311,8 @@ const ReceiptWorkItem = ({ work }: { readonly work: ReceiptWork }) => {
             </div>
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <CreditFacts role={c.role} points={c.points} source={c.pointsSource} />
-              {shared && !c.counted ? (
-                <span className="text-meta text-ink-3">· same work, not added again</span>
+              {creditNote(c, shared) ? (
+                <span className="text-meta text-ink-3">· {creditNote(c, shared)}</span>
               ) : null}
             </p>
             {c.narrativeSaw ? (
@@ -325,6 +332,22 @@ const ReceiptWorkItem = ({ work }: { readonly work: ReceiptWork }) => {
  * it, the role and value of each credit, and the total against what the badge
  * needed when it was awarded.
  */
+const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
+
+/** Every criterion the award was judged by, in plain words. */
+const neededSentence = (required: NonNullable<BadgeReceiptView['required']>) =>
+  [
+    `${required.points} points from at least ${many(required.interactions, 'piece', 'pieces')} of work`,
+    many(required.observers, 'observer', 'observers'),
+    `at least ${Math.round(required.firstHandShare * 100)}% of the work seen or reviewed first-hand`,
+    `${many(required.spanDays, 'day', 'days')} between the first and last`,
+    ...(required.primaryPoints > 0
+      ? [`${required.primaryPoints} points with it as the primary skill`]
+      : []),
+  ]
+    .join(', ')
+    .replace(/, ([^,]*)$/, ' and $1');
+
 export const BadgeReceiptScreen = ({ receipt }: { readonly receipt: BadgeReceiptView }) => {
   const first = receipt.holder.displayName.split(' ')[0];
   const legacy = receipt.work.some((w) => w.credits.some((c) => c.role === 'unclassified'));
@@ -350,38 +373,39 @@ export const BadgeReceiptScreen = ({ receipt }: { readonly receipt: BadgeReceipt
         </div>
       </header>
       <p className="mt-6 text-body text-ink-2">{receipt.facts}</p>
-      {receipt.required ? (
+      {receipt.required && receipt.points !== null ? (
         <p className="mt-2 text-ui text-ink-2 tabular">
-          {receipt.points} points from {receipt.work.length}{' '}
-          {receipt.work.length === 1 ? 'piece' : 'pieces'} of work. When it was awarded, this badge
-          needed {receipt.required.points} points from at least {receipt.required.interactions}{' '}
-          {receipt.required.interactions === 1 ? 'piece' : 'pieces'} of work and{' '}
-          {receipt.required.observers} {receipt.required.observers === 1 ? 'observer' : 'observers'}
-          {receipt.required.primaryPoints > 0
-            ? `, ${receipt.required.primaryPoints} of them as the primary skill`
-            : ''}
-          .
+          {receipt.points} points count now. When it was awarded, this badge needed{' '}
+          {neededSentence(receipt.required)}.
         </p>
       ) : null}
-      <section className="mt-10 grid gap-4" aria-labelledby="receipt">
-        <SectionLabel id="receipt">How this was earned</SectionLabel>
-        <ol className="grid gap-4">
-          {receipt.work.map((w) => (
-            <ReceiptWorkItem key={w.interactionId} work={w} />
-          ))}
-        </ol>
-        {legacy ? (
-          <p className="text-meta text-ink-3">
-            Observed before roles: credit signed before skills had a primary or secondary role. It
-            counts its value but never as primary.
-          </p>
-        ) : null}
-        {!receipt.narrativesVisible ? (
-          <p className="text-ui text-ink-3">
-            Narratives are visible to {first}, their coaches and their direct leader.
-          </p>
-        ) : null}
-      </section>
+      {receipt.detailVisible ? null : (
+        <p className="mt-2 text-ui text-ink-3">
+          How it was earned, observation by observation, is visible to {first}, their coaches and
+          their leaders.
+        </p>
+      )}
+      {receipt.detailVisible ? (
+        <section className="mt-10 grid gap-4" aria-labelledby="receipt">
+          <SectionLabel id="receipt">How this was earned</SectionLabel>
+          <ol className="grid gap-4">
+            {receipt.work.map((w) => (
+              <ReceiptWorkItem key={w.interactionId} work={w} />
+            ))}
+          </ol>
+          {legacy ? (
+            <p className="text-meta text-ink-3">
+              Observed before roles: credit signed before skills had a primary or secondary role. It
+              counts its value but never as primary.
+            </p>
+          ) : null}
+          {receipt.narrativesVisible ? null : (
+            <p className="text-ui text-ink-3">
+              Narratives are visible to {first}, their coaches and their direct leader.
+            </p>
+          )}
+        </section>
+      ) : null}
     </Page>
   );
 };

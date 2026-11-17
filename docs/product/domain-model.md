@@ -278,18 +278,18 @@ only by the dispatcher).
 
 ## Visibility
 
-| Data                                                                                                 | Who can see it                                                                                                        |
-| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Catalog (including a skill's own values and a template's roles and values), earned badges, directory | Everyone in the tenant                                                                                                |
-| Plans, progress (including points), interactions, levels, roles                                      | The person, their active coaches, their whole leader chain                                                            |
-| **Observation narratives**                                                                           | The person, the observer who wrote them, active coaches, and the **direct** leader. The wider chain sees levels only. |
-| Held or escalated evidence                                                                           | Its author, plus tenant admins or compliance reviewers                                                                |
-| Assistant checks                                                                                     | The observer (not the subject).                                                                                       |
-| Audit trail and AI usage                                                                             | Tenant admins and compliance reviewers. Reading them is itself audited.                                               |
-| Designations for a person                                                                            | The person, the designee, the person's leader and coaches                                                             |
-| Adoption view                                                                                        | Program owners. Aggregates only, no names, no cell under five people                                                  |
-| Credit rules, catalog administration and their change history                                        | Program owners and tenant admins. Nothing per person                                                                  |
-| Notifications                                                                                        | The recipient. A message carries names, a verb, counts, dates and a link only                                         |
+| Data                                                                                                                        | Who can see it                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Catalog (including a skill's own values and a template's roles and values), earned badges with their plain facts, directory | Everyone in the tenant                                                                                                |
+| Plans, progress (including points, and how a badge was earned credit by credit), interactions, levels, roles                | The person, their active coaches, their whole leader chain                                                            |
+| **Observation narratives**                                                                                                  | The person, the observer who wrote them, active coaches, and the **direct** leader. The wider chain sees levels only. |
+| Held or escalated evidence                                                                                                  | Its author, plus tenant admins or compliance reviewers                                                                |
+| Assistant checks                                                                                                            | The observer (not the subject).                                                                                       |
+| Audit trail and AI usage                                                                                                    | Tenant admins and compliance reviewers. Reading them is itself audited.                                               |
+| Designations for a person                                                                                                   | The person, the designee, the person's leader and coaches                                                             |
+| Adoption view                                                                                                               | Program owners. Aggregates only, no names, no cell under five people                                                  |
+| Credit rules, catalog administration and their change history                                                               | Program owners and tenant admins. Nothing per person                                                                  |
+| Notifications                                                                                                               | The recipient. A message carries names, a verb, counts, dates and a link only                                         |
 
 ## Designed next
 
