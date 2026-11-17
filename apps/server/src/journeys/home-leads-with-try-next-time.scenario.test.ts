@@ -1,8 +1,8 @@
 import { Api } from '@repo/api';
-import type { ObservationId, PersonId } from '@repo/domain';
+import type { IsoDate, ObservationId, PersonId } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { assert, layer } from '@effect/vitest';
-import { and, eq, isNotNull, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, ne } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { HttpApiTest } from 'effect/http-api';
 import { seedWorld } from '../scripts/seed-world.ts';
@@ -12,7 +12,9 @@ import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
  * Journey: Home leads with what to practise.
  * Protects the Home "Try next time" invariant: it is the viewer's latest
  * signed "What next" (signed or under review), never a draft's words and never
- * a voided observation's, with who wrote it, when, and a link to it.
+ * a voided observation's, with who wrote it, when, and a link to it. The plan
+ * card's "times observed" counts each piece of work once, however many focus
+ * skills it was credited in.
  */
 const client = HttpApiTest.groups(Api, ['support', 'observations']);
 
@@ -53,6 +55,7 @@ layer(ScenarioLayer, { timeout: 60_000 })('Home leads with try next time', (it) 
       yield* seedWorld;
       const api = yield* client;
       const mayaId = yield* signInAs('Maya Chen');
+      const db = yield* Db;
 
       // The latest signed "What next" about Maya leads Home, with its author and link.
       const before = yield* withNextAbout(mayaId);
@@ -71,7 +74,6 @@ layer(ScenarioLayer, { timeout: 60_000 })('Home leads with try next time', (it) 
       assert.strictEqual(Date.parse(shown?.signedAt ?? ''), latestSignedTime(before));
       // The progress line stays, under it.
       assert.isNotNull(home.nextStep);
-
       // Leo saves a newer draft for Maya with its own "What next": Home does not change.
       yield* signInAs('Leo Okonkwo');
       const inbox = yield* api.observations.inbox();
@@ -110,7 +112,6 @@ layer(ScenarioLayer, { timeout: 60_000 })('Home leads with try next time', (it) 
       const fallbackRow = after.find((r) => r.id === fallback?.observationId);
       assert.include(['signed', 'under_review'], fallbackRow?.status);
       assert.strictEqual(Date.parse(fallback?.signedAt ?? ''), latestSignedTime(after));
-      const db = yield* Db;
       const voided = yield* db
         .select({ id: schema.observation.id })
         .from(schema.observation)
@@ -121,6 +122,56 @@ layer(ScenarioLayer, { timeout: 60_000 })('Home leads with try next time', (it) 
         voided.map((v) => v.id),
         [shown?.observationId],
       );
+
+      // Sam saw one meeting that showed both focus skills. "Times observed" on
+      // the plan card counts that work once: pieces of work with standing credit
+      // in a focus skill, however many skills each was credited in.
+      const focus = (yield* api.support.home()).plan?.focusSkills ?? [];
+      assert.lengthOf(focus, 2);
+      yield* signInAs('Sam Rivera');
+      const both = yield* api.observations.start({
+        payload: {
+          subjectId: mayaId,
+          activityId: null,
+          title: null,
+          occurredOn: '2026-11-16' as IsoDate,
+          kind: 'client_meeting',
+          mode: 'saw_it',
+          skillIds: focus.map((f) => f.id),
+        },
+      });
+      yield* api.observations.sign({
+        params: { id: both.id },
+        payload: {
+          version: both.version,
+          mode: 'saw_it',
+          ratings: focus.map((f) => ({ skillId: f.id, level: 3, indicatorIds: [], credit: true })),
+          narrativeSaw:
+            'She named the couple’s worry before showing any numbers, then asked about it.',
+          narrativeNext: '',
+        },
+      });
+      const standing = yield* db
+        .select({ interactionId: schema.creditEntry.interactionId })
+        .from(schema.creditEntry)
+        .leftJoin(
+          schema.creditReversal,
+          eq(schema.creditReversal.creditEntryId, schema.creditEntry.id),
+        )
+        .where(
+          and(
+            eq(schema.creditEntry.personId, mayaId),
+            inArray(
+              schema.creditEntry.skillId,
+              focus.map((f) => f.id),
+            ),
+            isNull(schema.creditReversal.id),
+          ),
+        );
+      const pieces = new Set(standing.map((c) => c.interactionId)).size;
+      assert.isAbove(standing.length, pieces);
+      yield* signInAs('Maya Chen');
+      assert.strictEqual((yield* api.support.home()).plan?.observedCount, pieces);
     }),
   );
 });

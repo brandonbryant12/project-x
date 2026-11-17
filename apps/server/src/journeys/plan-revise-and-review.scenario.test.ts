@@ -17,14 +17,15 @@ import { OUTSIDER, seedSecondTenant } from '../test/second-tenant.ts';
  * owner edits an open one; a revision of an agreed plan clears the agreement,
  * the endorsement and a review that is not confirmed, and the plan can be
  * agreed again; a confirmed review is fixed and stops revision; the closing
- * review is recorded by the owner, confirmed by an agreer and never writes
+ * review is recorded by the owner, waits on an agreer's Home until they
+ * confirm it, is confirmed by an agreer and never writes
  * credit or a badge; unfinished plans past their period expire, drafts
  * included, whether or not a review is recorded, and the review survives
  * expiry. Every plan write names the version the person saw: agreeing to or
  * confirming a plan that changed since is refused (Conflict). The tests share
  * one seeded tenant and run in order.
  */
-const client = HttpApiTest.groups(Api, ['development']);
+const client = HttpApiTest.groups(Api, ['development', 'support']);
 
 layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
   const setup = Effect.gen(function* () {
@@ -309,6 +310,14 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
         // what he read is refused: he confirms only the review he has seen.
         const asSam = yield* mayaPlan('Sam Rivera');
         assert.isTrue(asSam.canConfirmReview);
+        // It waits on Sam on Home, linking to Maya's plan.
+        const waiting = (yield* api.support.home()).needsYou.filter(
+          (q) => q.kind === 'confirm_review',
+        );
+        assert.deepStrictEqual(
+          waiting.map((q) => [q.id, q.href]),
+          [[plan.id, `/team/${ids.maya}`]],
+        );
         yield* signInAs('Maya Chen');
         yield* api.development.recordPlanReview(yield* reviewOf(plan.id, 'achieved'));
         yield* signInAs('Sam Rivera');
@@ -317,6 +326,9 @@ layer(ScenarioLayer, { timeout: 120_000 })('plan revise and review', (it) => {
         const confirmed = yield* confirm((yield* mayaPlan('Sam Rivera')).version);
         assert.strictEqual(confirmed.review?.confirmedBy?.id, ids.sam);
         assert.isFalse(confirmed.canConfirmReview);
+        assert.isFalse(
+          (yield* api.support.home()).needsYou.some((q) => q.kind === 'confirm_review'),
+        );
         assert.notInclude(confirmed.actions, 'REVISE');
 
         // Fixed: not recorded again, not confirmed again, and the plan is no longer revised.
