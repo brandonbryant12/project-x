@@ -13,7 +13,7 @@ import {
 import { Link } from '@tanstack/react-router';
 import { EyeIcon } from 'lucide-react';
 import { useState } from 'react';
-import { FirstRunStep } from '@/components/first-run.tsx';
+import { FirstRunStep, ObserverFirstRun, ProgramHealthCard } from '@/components/first-run.tsx';
 import { Page, SkillChip } from '@/components/page.tsx';
 import { ServerLink } from '@/components/server-link.tsx';
 import { RequestObservationDialog } from '@/features/development/request-observation-dialog.tsx';
@@ -271,14 +271,22 @@ const YourPlan = ({ home }: { readonly home: HomeView }) => {
   );
 };
 
+/** The first-run card, by persona: program owner, then observer, then advisor. */
+const FirstStep = ({ home, observer }: { readonly home: HomeView; readonly observer: boolean }) => {
+  if (home.programHealth) return <ProgramHealthCard health={home.programHealth} />;
+  if (observer) return <ObserverFirstRun />;
+  return <FirstRunStep leader={home.leader} coaches={home.coaches} />;
+};
+
 /** Home: waiting on you, your plan (with the next step), and what happened recently. */
 export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
   const [requesting, setRequesting] = useState<string | null>(null);
   const session = useSession();
   const waiting = home.needsYouTotal;
-  // First run: no plan, nothing waiting, nobody to observe. One next step, at the top.
+  const observer = session.relations.canObserve;
+  // First run: no plan, nothing waiting or worth observing, nothing yet. One next step, at the top.
   const firstRun =
-    !home.plan && waiting === 0 && !session.relations.canObserve && home.recently.length === 0;
+    !home.plan && waiting === 0 && home.toObserve.length === 0 && home.recently.length === 0;
   return (
     <Page width="reading">
       <div className="grid content-start gap-10">
@@ -291,7 +299,7 @@ export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
               ? 'Here is where things stand.'
               : `${waiting === 1 ? 'One thing is' : `${waiting} things are`} waiting on you.`}
           </p>
-          {session.relations.canObserve ? (
+          {observer && !firstRun ? (
             <Button variant="primary" asChild className="mt-2 justify-self-start">
               <Link to="/observations/new">
                 <EyeIcon /> I saw this
@@ -301,7 +309,7 @@ export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
         </header>
 
         {firstRun ? (
-          <FirstRunStep leader={home.leader} coaches={home.coaches} />
+          <FirstStep home={home} observer={observer} />
         ) : (
           <>
             <WaitingOnYou home={home} onRequest={setRequesting} />
@@ -319,7 +327,7 @@ export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
             </ul>
           ) : (
             <p className="py-3 text-ui text-ink-3">
-              When someone signs an observation of your work, their words appear here.
+              Nothing signed yet. Ask your leader or coach to watch your next client meeting.
             </p>
           )}
         </section>

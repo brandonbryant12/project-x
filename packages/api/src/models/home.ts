@@ -72,6 +72,15 @@ export const HomeView = Schema.Struct({
   leader: Schema.NullOr(PersonSummary),
   /** Observers: people worth observing this week, at most three. Part of "Waiting on you". */
   toObserve: Schema.Array(ObserveSuggestion),
+  /** Program owners: the adoption view's first two numbers (ADR 0021). Null for everyone else. */
+  programHealth: Schema.NullOr(
+    Schema.Struct({
+      withPlan: Schema.Number,
+      /** Null under the minimum cell size. */
+      observedRecently: Schema.NullOr(Schema.Number),
+      minimumCell: Schema.Number,
+    }),
+  ),
 });
 export type HomeView = typeof HomeView.Type;
 

@@ -23,6 +23,7 @@ import { progressFor } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { loadSkills, refsFor, toSkillRef } from '../shared/skills.ts';
 import { currentPlanOf, planAgreers } from '../shared/plans.ts';
+import { MIN_CELL, planCoverage } from '../shared/program.ts';
 import { readReceipts, worthObserving } from './brief.ts';
 
 /** One recognition moment per person and skill: the highest level earned (independent review). */
@@ -383,6 +384,9 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
   const { nextStep, plan } = yield* planSummary(actor);
   const recently = yield* recentFeed(actor, facts, on);
   const toObserve = yield* worthObserving(actor, facts, on);
+  const coverage = actor.grants.includes('program_owner')
+    ? yield* planCoverage(actor.tenantId, on)
+    : null;
   const coachIds = coachesOf(facts, me, on);
   const leaderId = leaderOf(facts, me, on);
   const support = yield* loadPeople(actor.tenantId, [...coachIds, ...(leaderId ? [leaderId] : [])]);
@@ -400,5 +404,12 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
     coaches: coachIds.map((id) => personFrom(support, id)),
     leader: leaderId ? personFrom(support, leaderId) : null,
     toObserve,
+    programHealth: coverage
+      ? {
+          withPlan: coverage.withPlan,
+          observedRecently: coverage.observed,
+          minimumCell: MIN_CELL,
+        }
+      : null,
   } satisfies HomeView;
 });
