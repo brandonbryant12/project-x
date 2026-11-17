@@ -234,18 +234,18 @@ flowchart LR
 
 ## 8. Cross-cutting choices
 
-| Concern              | Choice                                                                                      | ADR              |
-| -------------------- | ------------------------------------------------------------------------------------------- | ---------------- |
-| Language and runtime | TypeScript, Effect 4 (HttpApi, Schema, layers), Node 24                                     | 0002, 0003       |
-| State                | XState machines, enforced server-side with pure transitions                                 | 0005             |
-| Data                 | Postgres 18 + Drizzle's Effect driver; PGlite runs the same migrations in tests             | 0004             |
-| Identity             | Entra OIDC; app roles mirrored to dated grants; relationships carry authority               | 0006, 0014       |
-| Credit | Only from SIGN; append-only demonstrations, each with a frozen role and points; badges by a points total and corroboration criteria | 0007 |
-| Program administration | Program owners change the credit rules, skills and templates at run time, audited | 0023 |
-| AI                   | Advisory only; privacy screen only; explainable records; learning loop deferred             | 0008, 0015, 0016 |
-| Privacy and audit    | No client PII; purgeable notes; append-only audit with `seq`                                | 0012, 0015       |
-| Observability        | Effect native OTLP to Datadog                                                               | 0013             |
-| Notifications        | Transactional outbox, dispatcher in the scheduler, no content in messages                   | 0018             |
-| Coaching rhythm      | Deferred until pilot feedback: meetings stay in Outlook, next steps stay on the observation | 0019             |
-| Observer supply      | Designated observers, bounded and anti-collusion                                            | 0020             |
-| Adoption | Program owner sees aggregates only; a figure is withheld under five distinct people or when it would reveal a smaller group | 0021 |
+| Concern                | Choice                                                                                                                              | ADR              |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| Language and runtime   | TypeScript, Effect 4 (HttpApi, Schema, layers), Node 24                                                                             | 0002, 0003       |
+| State                  | XState machines, enforced server-side with pure transitions                                                                         | 0005             |
+| Data                   | Postgres 18 + Drizzle's Effect driver; PGlite runs the same migrations in tests                                                     | 0004             |
+| Identity               | Entra OIDC; app roles mirrored to dated grants; relationships carry authority                                                       | 0006, 0014       |
+| Credit                 | Only from SIGN; append-only demonstrations, each with a frozen role and points; badges by a points total and corroboration criteria | 0007             |
+| Program administration | Program owners change the credit rules, skills and templates at run time, audited                                                   | 0023             |
+| AI                     | Advisory only; privacy screen only; explainable records; learning loop deferred                                                     | 0008, 0015, 0016 |
+| Privacy and audit      | No client PII; purgeable notes; append-only audit with `seq`                                                                        | 0012, 0015       |
+| Observability          | Effect native OTLP to Datadog                                                                                                       | 0013             |
+| Notifications          | Transactional outbox, dispatcher in the scheduler, no content in messages                                                           | 0018             |
+| Coaching rhythm        | Deferred until pilot feedback: meetings stay in Outlook, next steps stay on the observation                                         | 0019             |
+| Observer supply        | Designated observers, bounded and anti-collusion                                                                                    | 0020             |
+| Adoption               | Program owner sees aggregates only; a figure is withheld under five distinct people or when it would reveal a smaller group         | 0021             |

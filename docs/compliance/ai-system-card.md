@@ -19,8 +19,8 @@ set releases, LangSmith) were removed on 2026-11-17 and are **deferred** with
 ADR 0016: the provider runs as a deterministic mock and live use is not yet
 cleared, so there is nothing to calibrate.
 
-| Question set        | Input                                                                   | What it may do                                                                                                                                  | What it never does |
-| ------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| Question set        | Input                                                                                                                                       | What it may do                                                                                                                                  | What it never does |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
 | `privacy-screen` v1 | A coachee's reflection, after the local deterministic screen has passed it; the local screen runs again on the exact text before it is sent | **Hold** suspected client PII (hidden until revised or released by an admin); **escalate** complaints or specific recommendations to compliance | Release anything   |
 
 ## 2. Intended use and limits (Map)

@@ -71,7 +71,7 @@ of truth for the entity's states, events and transition guards.**
 
 ## Amendment (2026-11-17): plan revision, draft expiry, catalog versions and facts beside a machine
 
-The machines changed in three places; the generated
+The machines changed in four places; the generated
 [lifecycles](../architecture/lifecycles.md) page shows them.
 
 - **Plan `REVISE`** goes from `proposed` or `active` back to `draft`, sent by
@@ -86,6 +86,10 @@ The machines changed in three places; the generated
   unfinished plan past its period plus the grace days, drafts included, so a
   plan revised late can never block the owner's next one. A recorded closing
   review no longer exempts a plan from expiry.
+- **Observation `RESUBMIT` is guarded** by the fact `reflectionHeld`: a
+  returned request is resent only once the requester's reflection is no longer
+  held for privacy, so held text never goes to an observer. The requester may
+  still withdraw it, and signing is never blocked by the reflection.
 - **Catalog item `PUBLISH` on a published item** publishes its draft as the
   next immutable skill version, guarded by a complete draft (ADR 0023).
 

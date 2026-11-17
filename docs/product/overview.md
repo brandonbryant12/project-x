@@ -147,16 +147,16 @@ and offline; they never feed recognition.
 Nothing here is deployed or used by a client yet; there has been no pilot.
 "Built" means built and tested in this repository.
 
-| Area | State |
-| --- | --- |
-| Domain rules, data model, API, auth, seed | Built and tested (Postgres 18) |
-| Web app | Built: Home, My plan, To sign, My team, People I coach, Skills, Adoption, Credit rules, Skill catalog, Activity templates, Assistant checks, Audit trail. See [DESIGN.md](../../apps/web/DESIGN.md) |
-| Weighted signed credit | Built: roles, points frozen at signing, one piece of work counted once, badge criteria and legacy conversion (ADR 0007). The values are working defaults awaiting the firm's experts ([open questions](open-questions.md) 26 to 35) |
-| Credit rules and catalog | Built: program owners and tenant admins change the credit rules, skills (with immutable published versions) and activity templates at run time, with an audit record (ADR 0023) |
-| Plans | Built: edit, revise and agree again, add and edit work with roles, individual values, closing review |
-| Notifications | Email (immediate and a weekly digest) through the notification outbox, delivered at least once; two settings: email on or off, digest on or off |
-| Assistant privacy screen | Built. Runs on a deterministic mock unless configured otherwise (`DECISIONS_MODE` defaults to `mock`; `disabled` turns it off). Live mode needs an API key and the paid-tier confirmation, and waits for infosec and compliance (open question 15) |
-| Directory | CSV import with a dry run (API only); Graph sync waits for IT |
-| Behind a switch, off by default | Designated observers (`FEATURE_DESIGNATED_OBSERVERS`, [ADR 0020](../adr/0020-designated-observers.md)) |
-| Not built | Level 4 badges, waivers, reciprocal-pair exclusion, purge jobs, Graph directory sync, coaching conversations (ADR 0019), skill profiles (ADR 0017), the AI learning loop (ADR 0016), calendar logging (ADR 0022). See the [backlog](../backlog.md) |
-| Needs a client decision | See [open questions](open-questions.md) and [questions for domain experts](domain-expert-questions.md) |
+| Area                                      | State                                                                                                                                                                                                                                              |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain rules, data model, API, auth, seed | Built and tested (Postgres 18)                                                                                                                                                                                                                     |
+| Web app                                   | Built: Home, My plan, To sign, My team, People I coach, Skills, Adoption, Credit rules, Skill catalog, Activity templates, Assistant checks, Audit trail. See [DESIGN.md](../../apps/web/DESIGN.md)                                                |
+| Weighted signed credit                    | Built: roles, points frozen at signing, one piece of work counted once, badge criteria and legacy conversion (ADR 0007). The values are working defaults awaiting the firm's experts ([open questions](open-questions.md) 26 to 35)                |
+| Credit rules and catalog                  | Built: program owners and tenant admins change the credit rules, skills (with immutable published versions) and activity templates at run time, with an audit record (ADR 0023)                                                                    |
+| Plans                                     | Built: edit, revise and agree again, add and edit work with roles, individual values, closing review                                                                                                                                               |
+| Notifications                             | Email (immediate and a weekly digest) through the notification outbox, delivered at least once; two settings: email on or off, digest on or off                                                                                                    |
+| Assistant privacy screen                  | Built. Runs on a deterministic mock unless configured otherwise (`DECISIONS_MODE` defaults to `mock`; `disabled` turns it off). Live mode needs an API key and the paid-tier confirmation, and waits for infosec and compliance (open question 15) |
+| Directory                                 | CSV import with a dry run (API only); Graph sync waits for IT                                                                                                                                                                                      |
+| Behind a switch, off by default           | Designated observers (`FEATURE_DESIGNATED_OBSERVERS`, [ADR 0020](../adr/0020-designated-observers.md))                                                                                                                                             |
+| Not built                                 | Level 4 badges, waivers, reciprocal-pair exclusion, purge jobs, Graph directory sync, coaching conversations (ADR 0019), skill profiles (ADR 0017), the AI learning loop (ADR 0016), calendar logging (ADR 0022). See the [backlog](../backlog.md) |
+| Needs a client decision                   | See [open questions](open-questions.md) and [questions for domain experts](domain-expert-questions.md)                                                                                                                                             |
