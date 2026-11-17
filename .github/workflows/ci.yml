@@ -34,7 +34,8 @@ jobs:
       - run: pnpm lint:strict
 
   # Every cited path and relative link resolves, banned terms are absent and
-  # the ADR index matches the directory.
+  # the ADR index matches the directory; the feature map cites only what exists
+  # and claims every route, endpoint and scenario test (tools/verify, no install).
   docs-check:
     runs-on: ubuntu-latest
     steps:
@@ -43,6 +44,7 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: node scripts/docs-check.mjs
+      - run: node tools/verify/cli.mjs check
 
   # The Postgres lane (docs/testing/strategy.md): integrity and scenario suites
   # on real PostgreSQL 18. Each suite creates and drops its own database.
