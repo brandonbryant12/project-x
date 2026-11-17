@@ -16,6 +16,7 @@ import { Effect, Layer, Schedule } from 'effect';
 import { Settings } from '../platform/settings.ts';
 import { addDaysIso, now, today } from '../platform/time.ts';
 import { recordAudit } from '../features/shared/audit.ts';
+import { runScreeningSweep } from './screening.ts';
 
 /**
  * Expiry sweeps (ADR 0011). Every expiry goes through the lifecycle machine,
@@ -180,6 +181,11 @@ export const SchedulerLive = Layer.effectDiscard(
     yield* runSweeps().pipe(
       Effect.catchCause((cause) => Effect.logError('sweep failed', cause)),
       Effect.repeat(Schedule.spaced('1 minute')),
+      Effect.forkScoped,
+    );
+    yield* runScreeningSweep().pipe(
+      Effect.catchCause((cause) => Effect.logError('screening sweep failed', cause)),
+      Effect.repeat(Schedule.spaced('5 minutes')),
       Effect.forkScoped,
     );
   }),

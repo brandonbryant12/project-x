@@ -1,6 +1,6 @@
 import { Decisions, type DecisionResult, type DecisionsError } from '@repo/ai';
 import type { Actor } from '@repo/api';
-import { AdvisoryCheckId, type QuestionSetId, type TenantId } from '@repo/domain';
+import { AdvisoryCheckId, screenLocally, type QuestionSetId, type TenantId } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { eq } from 'drizzle-orm';
 import { Effect } from 'effect';
@@ -16,7 +16,13 @@ export type CheckOutcome =
       readonly id: AdvisoryCheckId;
       readonly interpretation: Interpretation;
     }
-  | { readonly status: 'failed' | 'skipped'; readonly id: AdvisoryCheckId };
+  | { readonly status: 'failed'; readonly id: AdvisoryCheckId }
+  | {
+      readonly status: 'skipped';
+      readonly id: AdvisoryCheckId;
+      /** The local screen's reasons when it held the text, so nothing was sent. */
+      readonly heldLocally: ReadonlyArray<string> | null;
+    };
 
 export interface CheckRequest {
   readonly actor: Pick<Actor, 'tenantId'> & { readonly tenantId: TenantId };
@@ -34,11 +40,18 @@ export interface CheckRequest {
  * Runs one advisory check and writes its explainable decision record
  * (ADR 0015). Never inside a DB transaction; never logs the input text.
  * Failures are recorded as `failed` and never treated as a pass.
+ *
+ * The provider boundary: the deterministic local screen runs again on the
+ * exact text about to be sent, and text it holds is never sent (the check is
+ * recorded as `skipped`, provider `local`). That covers every caller, and text
+ * that was written before a local rule was added.
  */
 export const runCheck = Effect.fn('advisory.check')(function* (request: CheckRequest) {
   const db = yield* Db;
   const decisions = yield* Decisions;
   const id = AdvisoryCheckId.generate();
+  // The Effect clock, not the database's: the screening sweep's retry interval reads it.
+  const startedAt = yield* now;
   const questionsDigest = sha256(JSON.stringify(request.built.questions));
   const base = {
     id,
@@ -53,11 +66,29 @@ export const runCheck = Effect.fn('advisory.check')(function* (request: CheckReq
     inputDigest: sha256(request.text),
     questionsDigest,
     thresholds: request.built.thresholds,
+    createdAt: startedAt,
   };
   yield* Effect.annotateCurrentSpan({
     'ai.question_set': request.questionSet.id,
     'ai.provider': decisions.availability.provider,
   });
+
+  const local = screenLocally(request.text);
+  if (local.held) {
+    yield* db.insert(schema.advisoryCheck).values({
+      ...base,
+      provider: 'local',
+      model: null,
+      status: 'skipped',
+      rationale: 'Not sent to the assistant: the local privacy screen holds this text.',
+      completedAt: yield* now,
+    });
+    return {
+      status: 'skipped',
+      id,
+      heldLocally: local.reasons,
+    } satisfies CheckOutcome as CheckOutcome;
+  }
 
   if (!decisions.availability.enabled || Object.keys(request.built.questions).length === 0) {
     yield* db.insert(schema.advisoryCheck).values({
@@ -68,7 +99,7 @@ export const runCheck = Effect.fn('advisory.check')(function* (request: CheckReq
         : 'Assistant checks are turned off.',
       completedAt: yield* now,
     });
-    return { status: 'skipped', id } satisfies CheckOutcome as CheckOutcome;
+    return { status: 'skipped', id, heldLocally: null } satisfies CheckOutcome as CheckOutcome;
   }
 
   yield* db.insert(schema.advisoryCheck).values({ ...base, status: 'pending' });

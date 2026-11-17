@@ -4,8 +4,10 @@ import { defineLifecycle } from './lifecycle.ts';
 /**
  * AdvisoryCheck: one Decisions API evaluation (ADR 0008). It may hold or nudge;
  * nothing downstream treats `completed` as clearance. `skipped` means Decisions
- * is disabled or the input was empty; `failed` covers provider errors and
- * unknown outcomes, which are never retried automatically.
+ * is disabled, the input was empty, or the local screen held the text so it was
+ * never sent; `failed` covers provider errors and unknown outcomes. A check is
+ * never retried in place; the server's screening sweep may start a new check,
+ * a bounded number of times.
  */
 export type AdvisoryCheckEvent =
   | { readonly type: 'COMPLETE' }
