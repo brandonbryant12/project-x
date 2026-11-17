@@ -41,14 +41,27 @@ pnpm verify run to-sign --kind browser
 
 ## I saw this
 
-- **Personas:** Jordan Blake (observer), Tom Whitaker (subject), Sam Rivera
-  (browser check).
+- **Personas:** Jordan Blake (observer, Tom's coach), Tom Whitaker (subject),
+  Priya Raman (Tom's leader, designates), Marcus Hill (designee with no
+  development access to Tom), Sam Rivera (browser check).
 - **Steps in the UI:** as Tom log work; as Jordan open "I saw this", pick Tom,
-  choose the work he already logged, rate and sign.
+  choose the work he already logged, rate and sign. Then the designee case:
+  "Asked to observe" is behind `FEATURE_DESIGNATED_OBSERVERS` (off in the QA
+  environment), so either start the server with it on (see
+  [Designated observers](people-and-coaching.md#designated-observers)) and
+  designate Marcus from Tom's profile as Priya, or designate through the API
+  (`POST /api/designations`, as the `saw-this` journey does before it ends
+  the designation). As Marcus open "I saw this" and pick Tom.
 - **Look at:** the logged work is offered by title and kind only, never the
-  reflection; attaching does not create a second piece of work.
+  reflection; attaching does not create a second piece of work. Logged work
+  is offered only to the person's coaches and leader chain, and only work
+  dated when they were an eligible observer: Marcus sees Tom but no logged
+  work, records what he saw as new work, and never sees Tom's reflection
+  unless Tom asks him for that work himself.
 - **Refusals:** attaching the same work twice (`Conflict`); someone else's work
-  (`NotFound`); work older than 14 days.
+  (`NotFound`); a designee without development access attaching logged work
+  (`NotFound`); logged work dated before the viewer was eligible (`Forbidden`);
+  work older than 14 days.
 - **Commands:**
 
 ```sh
@@ -97,9 +110,10 @@ pnpm verify run acknowledge-review --kind tests
 - **Steps in the UI:** only on a QA database you will reseed: as Nina void one
   of Maya's signed observations with a reason. As Maya open the badge receipt;
   as Leo open My team.
-- **Look at:** the voided state and reason; the receipt no longer counts the
-  work; a badge revoked and, when still met under today's rules, re-awarded;
-  team coverage falls back to the previous real observation.
+- **Look at:** the voided state and reason; the receipt marks the voided
+  credit "reversed" and no longer counts it; a badge revoked and, when still
+  met under today's rules, re-awarded; team coverage falls back to the
+  previous real observation.
 - **Refusals:** anyone else voiding.
 - **Commands:**
 

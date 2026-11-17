@@ -87,6 +87,10 @@ real:
   _absent_ from the UI, not disabled; the API must answer the right tag
   (`Forbidden` 403, `NotFound` 404, `InvalidTransition` or `Conflict` 409,
   `Unprocessable` 422).
+- **Stale writes.** Open the same form in two windows, save in one, then in
+  the other. Plans, work, values, templates, skills, credit rules and
+  observation drafts send the version they loaded: the second save must be
+  refused (`Conflict`) and the screen must reload, never overwrite.
 - **Lifecycle edges.** Every state's pill and actions must match the machine
   in `packages/domain/src/lifecycles`. Buttons come only from a view's
   `actions`.
