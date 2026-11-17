@@ -1,6 +1,6 @@
 # ADR 0012: No client PII, append-only audit events, explicit retention
 
-- Status: Accepted
+- Status: Accepted (amended)
 - Date: 2026-11-16
 
 ## Context
@@ -89,3 +89,24 @@ transition and every sensitive read or export writes an append-only
 The `legal_hold` table was removed unwritten. Until purge jobs exist there is
 nothing for a hold to block, so a legal hold is recorded in the incident or
 deprovisioning ticket (see the runbooks). Model it again with the purge jobs.
+
+## Amendment (2026-11-17): the local screen runs at the provider boundary
+
+- The deterministic local screen now also runs inside the check runner, on
+  the exact text about to be sent, so held text can never reach the model
+  whoever calls the check. A reflection that the local rules hold at that
+  point is held by them, with reason code `privacy_local`. See the
+  [ADR 0008 amendment](./0008-decisions-api-is-advisory.md#amendment-2026-11-17-the-local-screen-guards-the-provider-boundary-and-a-sweep-recovers-missed-screens).
+- A screening sweep recovers assistant screens that were lost between commit
+  and run. It looks back only two days, so switching the assistant on never
+  sends older reflections to the provider: that would be a new data flow,
+  which this ADR reserves for compliance.
+- Every change to the credit rules, a skill, an activity template, an
+  individual activity value and a plan's closing review now writes an audit
+  event in the same transaction. A human reason, where one is given, is a
+  purgeable note of kind `policy_change`, `catalog_change` or
+  `value_override` ([ADR 0023](./0023-program-owners-administer-credit-rules-and-catalog.md)).
+  The closing summary of a plan is content and stays on the plan; its audit
+  events record only the outcomes. The schema also allows a `plan_review`
+  note kind and four matching reason codes, which nothing writes yet: when a
+  note is attached, the audit row's reason code is `note`.

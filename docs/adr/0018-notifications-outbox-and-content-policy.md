@@ -11,6 +11,22 @@
 > notification-to-action conversion (ADR 0021 amendment). The text below is
 > the original decision.
 
+> **Amended, 2026-11-17: delivery is at least once.** Delivery is at least
+> once. The dispatcher claims a row in a short transaction (counting the
+> attempt and leasing the row for 10 minutes), sends it with no transaction
+> open and a 60-second timeout, then acknowledges it with an update that
+> applies only if the row is still pending at the attempt it claimed. If the
+> process dies or the acknowledgement is lost after the transport accepted a
+> message, the row becomes due again when the lease ends and is sent again;
+> the dedupe key prevents duplicate rows, not that duplicate send. A row
+> claimed five times without an acknowledgement is marked failed at its next
+> claim. Before this amendment the send ran inside the claiming transaction.
+> The code is `apps/server/src/features/notifications/dispatcher.ts`; the
+> journey test is
+> `apps/server/src/journeys/notification-delivery-at-least-once.scenario.test.ts`.
+> The Dispatch section below is corrected where it said that two replicas
+> never send the same row.
+
 ## Context
 
 The independent review graded product usefulness B-. The loop depends on
@@ -82,9 +98,10 @@ comparisons and never says "behind". An empty digest is not sent.
 
 - The dispatcher runs in the existing scheduler, once a minute. It claims
   each pending row with `FOR UPDATE SKIP LOCKED` in its own short
-  transaction, so two replicas never send the same row. (The expiry sweeps
-  use a Postgres advisory lock instead; both keep replicas from doing the same
-  work twice.)
+  transaction and leases it, so two replicas do not claim the same row while
+  its lease holds. _Corrected 2026-11-17: this does not mean a row is never
+  sent twice; delivery is at least once (see the amendment above)._ (The
+  expiry sweeps use a Postgres advisory lock instead.)
 - It reads the recipient's `notification_preference` (`channel`: `email`,
   `teams` or `off`; `weekly_digest` on or off). Defaults: email, digest on.
   A row whose recipient has turned notifications off is marked `skipped`, and
