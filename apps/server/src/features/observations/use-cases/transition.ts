@@ -104,7 +104,13 @@ export const transitionObservation = Effect.fn('useCase.transitionObservation')(
           updatedAt: at,
           ...(input.event === 'ACKNOWLEDGE' && { acknowledgedAt: at }),
         })
-        .where(and(eq(schema.observation.id, row.id), eq(schema.observation.version, row.version)))
+        .where(
+          and(
+            eq(schema.observation.tenantId, actor.tenantId),
+            eq(schema.observation.id, row.id),
+            eq(schema.observation.version, row.version),
+          ),
+        )
         .returning({ id: schema.observation.id })
         .pipe(Effect.flatMap(requireUpdated('observation')));
       const kind = NOTE_KIND[input.event as keyof typeof NOTE_KIND];
@@ -218,7 +224,9 @@ const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
     yield* db
       .update(schema.badgeAward)
       .set({ status: 'revoked', revokedAt: at, revokedByReversalId: reversals[0]?.id ?? null })
-      .where(eq(schema.badgeAward.id, badge.id));
+      .where(
+        and(eq(schema.badgeAward.tenantId, actor.tenantId), eq(schema.badgeAward.id, badge.id)),
+      );
     yield* recordAudit(actor, {
       entityType: 'badge_award',
       entityId: badge.id,

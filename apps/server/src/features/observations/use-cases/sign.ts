@@ -80,7 +80,12 @@ const writeDraft = Effect.fn('observations.writeDraft')(function* (
   const existing = yield* db
     .select()
     .from(schema.observationRating)
-    .where(eq(schema.observationRating.observationId, row.id));
+    .where(
+      and(
+        eq(schema.observationRating.tenantId, actor.tenantId),
+        eq(schema.observationRating.observationId, row.id),
+      ),
+    );
   const roles = yield* rolesFor(
     yield* skillsOfWork(actor.tenantId, row.interactionId),
     input.ratings.map((r) => ({
@@ -131,15 +136,31 @@ const writeDraft = Effect.fn('observations.writeDraft')(function* (
       version: row.version + 1,
       updatedAt: yield* now,
     })
-    .where(and(eq(schema.observation.id, row.id), eq(schema.observation.version, row.version)))
+    .where(
+      and(
+        eq(schema.observation.tenantId, actor.tenantId),
+        eq(schema.observation.id, row.id),
+        eq(schema.observation.version, row.version),
+      ),
+    )
     .returning()
     .pipe(Effect.flatMap(requireUpdated('observation')));
   yield* db
     .delete(schema.observationIndicator)
-    .where(eq(schema.observationIndicator.observationId, row.id));
+    .where(
+      and(
+        eq(schema.observationIndicator.tenantId, actor.tenantId),
+        eq(schema.observationIndicator.observationId, row.id),
+      ),
+    );
   yield* db
     .delete(schema.observationRating)
-    .where(eq(schema.observationRating.observationId, row.id));
+    .where(
+      and(
+        eq(schema.observationRating.tenantId, actor.tenantId),
+        eq(schema.observationRating.observationId, row.id),
+      ),
+    );
   if (input.ratings.length > 0) {
     yield* db.insert(schema.observationRating).values(
       input.ratings.map((r, position) => ({
@@ -185,7 +206,12 @@ const appendCredits = Effect.fn('observations.appendCredits')(function* (
   const ratings = yield* db
     .select()
     .from(schema.observationRating)
-    .where(eq(schema.observationRating.observationId, row.id));
+    .where(
+      and(
+        eq(schema.observationRating.tenantId, actor.tenantId),
+        eq(schema.observationRating.observationId, row.id),
+      ),
+    );
   const valueOf = yield* creditValues(
     actor.tenantId,
     policy,
@@ -277,7 +303,12 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
   const [interaction] = yield* db
     .select()
     .from(schema.interaction)
-    .where(eq(schema.interaction.id, row.interactionId));
+    .where(
+      and(
+        eq(schema.interaction.tenantId, actor.tenantId),
+        eq(schema.interaction.id, row.interactionId),
+      ),
+    );
   if (!interaction) return yield* Effect.die('invariant: observation without interaction');
   yield* requireEligible(actor.tenantId, {
     observerId: actor.personId,
@@ -335,7 +366,11 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
           updatedAt: signedAt,
         })
         .where(
-          and(eq(schema.observation.id, row.id), eq(schema.observation.version, drafted.version)),
+          and(
+            eq(schema.observation.tenantId, actor.tenantId),
+            eq(schema.observation.id, row.id),
+            eq(schema.observation.version, drafted.version),
+          ),
         )
         .returning({ id: schema.observation.id })
         .pipe(Effect.flatMap(requireUpdated('observation')));

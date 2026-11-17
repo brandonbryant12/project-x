@@ -355,7 +355,13 @@ export const updateSkill = Effect.fn('program.updateSkill')(function* (
           version: row.version + 1,
           updatedAt: yield* now,
         })
-        .where(and(eq(schema.skill.id, row.id), eq(schema.skill.version, row.version)))
+        .where(
+          and(
+            eq(schema.skill.tenantId, actor.tenantId),
+            eq(schema.skill.id, row.id),
+            eq(schema.skill.version, row.version),
+          ),
+        )
         .returning({ id: schema.skill.id })
         .pipe(Effect.flatMap(requireUpdated('skill')));
       yield* recordAudit(actor, {
@@ -399,7 +405,13 @@ export const setSkillValues = Effect.fn('program.setSkillValues')(function* (
       yield* db
         .update(schema.skill)
         .set({ ...input.values, version: row.version + 1, updatedAt: yield* now })
-        .where(and(eq(schema.skill.id, row.id), eq(schema.skill.version, row.version)))
+        .where(
+          and(
+            eq(schema.skill.tenantId, actor.tenantId),
+            eq(schema.skill.id, row.id),
+            eq(schema.skill.version, row.version),
+          ),
+        )
         .returning({ id: schema.skill.id })
         .pipe(Effect.flatMap(requireUpdated('skill')));
       yield* recordAudit(actor, {
@@ -517,7 +529,13 @@ export const skillTransition = Effect.fn('program.skillTransition')(function* (
           version: row.version + 1,
           updatedAt: at,
         })
-        .where(and(eq(schema.skill.id, row.id), eq(schema.skill.version, row.version)))
+        .where(
+          and(
+            eq(schema.skill.tenantId, actor.tenantId),
+            eq(schema.skill.id, row.id),
+            eq(schema.skill.version, row.version),
+          ),
+        )
         .returning({ id: schema.skill.id })
         .pipe(Effect.flatMap(requireUpdated('skill')));
     }),

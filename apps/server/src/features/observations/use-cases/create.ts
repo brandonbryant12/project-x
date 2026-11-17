@@ -335,7 +335,9 @@ export const startObservation = Effect.fn('useCase.startObservation')(function* 
         const [activity] = yield* db
           .select()
           .from(schema.activity)
-          .where(eq(schema.activity.id, activityId));
+          .where(
+            and(eq(schema.activity.tenantId, actor.tenantId), eq(schema.activity.id, activityId)),
+          );
         if (!activity) return yield* Effect.die('invariant: activity vanished');
         const next = ActivityLifecycle.next(
           activity.status as ActivityStatus,
@@ -346,7 +348,13 @@ export const startObservation = Effect.fn('useCase.startObservation')(function* 
           yield* db
             .update(schema.activity)
             .set({ status: next, version: activity.version + 1, updatedAt: yield* now })
-            .where(eq(schema.activity.id, activity.id));
+            .where(
+              and(
+                eq(schema.activity.tenantId, actor.tenantId),
+                eq(schema.activity.id, activity.id),
+                eq(schema.activity.version, activity.version),
+              ),
+            );
         }
         yield* db.insert(schema.interaction).values({
           id: interactionId,

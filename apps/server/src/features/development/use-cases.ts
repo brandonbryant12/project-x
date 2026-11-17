@@ -194,7 +194,13 @@ export const updatePlan = Effect.fn('useCase.updatePlan')(function* (
           version: plan.version + 1,
           updatedAt: yield* now,
         })
-        .where(and(eq(schema.plan.id, plan.id), eq(schema.plan.version, plan.version)))
+        .where(
+          and(
+            eq(schema.plan.tenantId, actor.tenantId),
+            eq(schema.plan.id, plan.id),
+            eq(schema.plan.version, plan.version),
+          ),
+        )
         .returning({ id: schema.plan.id })
         .pipe(Effect.flatMap(requireUpdated('plan')));
       if (input.focusSkills) {
@@ -323,7 +329,13 @@ export const planEvent = Effect.fn('useCase.planEvent')(function* (
           }),
           ...(event === 'ENDORSE' && { endorsedById: actor.personId, endorsedAt: at }),
         })
-        .where(and(eq(schema.plan.id, plan.id), eq(schema.plan.version, plan.version)))
+        .where(
+          and(
+            eq(schema.plan.tenantId, actor.tenantId),
+            eq(schema.plan.id, plan.id),
+            eq(schema.plan.version, plan.version),
+          ),
+        )
         .returning({ id: schema.plan.id })
         .pipe(Effect.flatMap(requireUpdated('plan')));
       if (revise) {
@@ -615,7 +627,11 @@ export const updateActivity = Effect.fn('useCase.updateActivity')(function* (
           updatedAt: at,
         })
         .where(
-          and(eq(schema.activity.id, activity.id), eq(schema.activity.version, activity.version)),
+          and(
+            eq(schema.activity.tenantId, actor.tenantId),
+            eq(schema.activity.id, activity.id),
+            eq(schema.activity.version, activity.version),
+          ),
         )
         .returning({ id: schema.activity.id })
         .pipe(Effect.flatMap(requireUpdated('work')));
@@ -744,7 +760,11 @@ export const setActivityValue = Effect.fn('useCase.setActivityValue')(function* 
         .update(schema.activity)
         .set({ version: activity.version + 1, updatedAt: at })
         .where(
-          and(eq(schema.activity.id, activity.id), eq(schema.activity.version, activity.version)),
+          and(
+            eq(schema.activity.tenantId, actor.tenantId),
+            eq(schema.activity.id, activity.id),
+            eq(schema.activity.version, activity.version),
+          ),
         )
         .returning({ id: schema.activity.id })
         .pipe(Effect.flatMap(requireUpdated('work')));
@@ -805,7 +825,13 @@ export const activityEvent = Effect.fn('useCase.activityEvent')(function* (
       yield* db
         .update(schema.activity)
         .set({ status: to, version: row.version + 1, updatedAt: yield* now })
-        .where(and(eq(schema.activity.id, row.id), eq(schema.activity.version, row.version)))
+        .where(
+          and(
+            eq(schema.activity.tenantId, actor.tenantId),
+            eq(schema.activity.id, row.id),
+            eq(schema.activity.version, row.version),
+          ),
+        )
         .returning({ id: schema.activity.id })
         .pipe(Effect.flatMap(requireUpdated('activity')));
       yield* recordAudit(actor, { entityType: 'activity', entityId: row.id, event, from, to });
@@ -1006,7 +1032,11 @@ export const reviseEvidence = Effect.fn('useCase.reviseEvidence')(function* (
           updatedAt: yield* now,
         })
         .where(
-          and(eq(schema.evidence.id, evidence.id), eq(schema.evidence.version, evidence.version)),
+          and(
+            eq(schema.evidence.tenantId, actor.tenantId),
+            eq(schema.evidence.id, evidence.id),
+            eq(schema.evidence.version, evidence.version),
+          ),
         )
         .returning({ id: schema.evidence.id })
         .pipe(Effect.flatMap(requireUpdated('reflection')));

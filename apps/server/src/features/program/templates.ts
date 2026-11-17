@@ -302,6 +302,7 @@ export const updateTemplate = Effect.fn('program.updateTemplate')(function* (
         .set({ ...fields, version: row.version + 1, updatedAt: yield* now })
         .where(
           and(
+            eq(schema.activityTemplate.tenantId, actor.tenantId),
             eq(schema.activityTemplate.id, row.id),
             eq(schema.activityTemplate.version, row.version),
           ),
@@ -369,6 +370,7 @@ export const templateTransition = Effect.fn('program.templateTransition')(functi
         .set({ status: to, version: row.version + 1, updatedAt: yield* now })
         .where(
           and(
+            eq(schema.activityTemplate.tenantId, actor.tenantId),
             eq(schema.activityTemplate.id, row.id),
             eq(schema.activityTemplate.version, row.version),
           ),

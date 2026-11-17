@@ -58,7 +58,13 @@ export const recordPlanReview = Effect.fn('useCase.recordPlanReview')(function* 
           version: plan.version + 1,
           updatedAt: at,
         })
-        .where(and(eq(schema.plan.id, plan.id), eq(schema.plan.version, plan.version)))
+        .where(
+          and(
+            eq(schema.plan.tenantId, actor.tenantId),
+            eq(schema.plan.id, plan.id),
+            eq(schema.plan.version, plan.version),
+          ),
+        )
         .returning({ id: schema.plan.id })
         .pipe(Effect.flatMap(requireUpdated('plan')));
       for (const [skillId, outcome] of outcomes) {
@@ -118,7 +124,13 @@ export const confirmPlanReview = Effect.fn('useCase.confirmPlanReview')(function
           version: plan.version + 1,
           updatedAt: at,
         })
-        .where(and(eq(schema.plan.id, plan.id), eq(schema.plan.version, plan.version)))
+        .where(
+          and(
+            eq(schema.plan.tenantId, actor.tenantId),
+            eq(schema.plan.id, plan.id),
+            eq(schema.plan.version, plan.version),
+          ),
+        )
         .returning({ id: schema.plan.id })
         .pipe(Effect.flatMap(requireUpdated('plan')));
       yield* recordAudit(actor, {
