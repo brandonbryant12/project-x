@@ -218,16 +218,23 @@ export type CreditPolicyChange =
  * A replacement of the tenant's policy, compared and set on its version: it
  * applies only to the version the editor saw, stores every field, and bumps the
  * version. `storedVersion` is 0 when the stored policy has no valid version, so
- * a broken policy can still be repaired. The caller writes it with the same
- * version condition in SQL and audits it.
+ * a broken policy can still be repaired. `highestRecorded` is the highest
+ * version the tenant has ever used (its audit events and credits): the new
+ * version is always above it, so a policy that lost its version never reuses
+ * one already on the record. The caller writes it with the same version
+ * condition in SQL and audits it.
  */
 export const replaceCreditPolicy = (
   storedVersion: number,
   expectedVersion: number,
   proposed: Omit<CreditPolicy, 'version'>,
+  highestRecorded = 0,
 ): CreditPolicyChange => {
   if (storedVersion !== expectedVersion) return { ok: false, reason: 'stale' };
-  const policy: CreditPolicy = { ...proposed, version: storedVersion + 1 };
+  const policy: CreditPolicy = {
+    ...proposed,
+    version: Math.max(storedVersion, highestRecorded) + 1,
+  };
   const problems = validateCreditPolicy(policy);
   return problems.length > 0 ? { ok: false, reason: 'invalid', problems } : { ok: true, policy };
 };

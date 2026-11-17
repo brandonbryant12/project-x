@@ -293,6 +293,41 @@ export const lockPersonLedger = Effect.fn('credits.lock')(function* (
 });
 
 /**
+ * The highest credit-policy version this tenant has on record: the versions its
+ * policy saves were audited at, and the `#N` of its credits' policy versions.
+ * A repair of a policy that lost its version continues above it, never from 1.
+ */
+const highestRecordedPolicyVersion = Effect.fn('tenant.highestPolicyVersion')(function* (
+  tenantId: TenantId,
+) {
+  const db = yield* Db;
+  const [audited] = yield* db
+    .select({
+      n: sql<number | null>`max(${schema.auditEvent.toState}::integer)`,
+    })
+    .from(schema.auditEvent)
+    .where(
+      and(
+        eq(schema.auditEvent.tenantId, tenantId),
+        eq(schema.auditEvent.entityType, 'credit_policy'),
+        sql`${schema.auditEvent.toState} ~ '^[0-9]+$'`,
+      ),
+    );
+  const [credited] = yield* db
+    .select({
+      n: sql<number | null>`max(split_part(${schema.creditEntry.policyVersion}, '#', 2)::integer)`,
+    })
+    .from(schema.creditEntry)
+    .where(
+      and(
+        eq(schema.creditEntry.tenantId, tenantId),
+        sql`${schema.creditEntry.policyVersion} ~ '#[0-9]+$'`,
+      ),
+    );
+  return Math.max(0, Number(audited?.n ?? 0), Number(credited?.n ?? 0));
+});
+
+/**
  * Replaces the tenant's credit policy, compared and set on its stored version
  * (design §2): a stale editor gets `Conflict`, an invalid policy
  * `Unprocessable`; the stored policy is always complete and the version bumps.
@@ -307,7 +342,12 @@ export const saveCreditPolicy = Effect.fn('tenant.saveCreditPolicy')(function* (
 ) {
   const db = yield* Db;
   const { reading, version, rawVersion } = yield* inspectTenantCreditPolicy(tenantId);
-  const change = replaceCreditPolicy(version, expectedVersion, proposed);
+  const change = replaceCreditPolicy(
+    version,
+    expectedVersion,
+    proposed,
+    yield* highestRecordedPolicyVersion(tenantId),
+  );
   const stale = new Conflict({
     message: 'The credit policy changed since you opened it. Reload to continue.',
   });

@@ -272,6 +272,19 @@ layer(ScenarioLayer, { timeout: 120_000 })('program administration', (it) => {
       assert.deepStrictEqual(repaired.history[0]?.changes, [
         { field: 'minObservers', before: null, after: DEFAULT_CREDIT_POLICY.minObservers },
       ]);
+
+      // A policy that lost its version is repaired above every version on record,
+      // never back at 1 (credits and audit events already carry 1 to 4).
+      yield* db
+        .update(schema.tenant)
+        .set({ settings: sql`${schema.tenant.settings} #- '{creditPolicy,version}'` })
+        .where(eq(schema.tenant.id, tenantId));
+      const unversioned = yield* api.program.creditPolicy();
+      assert.deepInclude(unversioned, { version: 0, valid: false });
+      const renumbered = yield* api.program.saveCreditPolicy({
+        payload: { expectedVersion: 0, policy: policy(), reason: REASON },
+      });
+      assert.deepInclude(renumbered, { version: 5, valid: true });
     }),
   );
 

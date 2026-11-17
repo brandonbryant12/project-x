@@ -660,8 +660,13 @@ describe('credit policy', () => {
       ok: false,
       reason: 'invalid',
     });
-    // A broken policy with no valid version is repaired from version 0.
+    // A broken policy with no valid version is repaired from version 0, above
+    // every version already on the record (I35).
     expect(replaceCreditPolicy(0, 0, proposed)).toMatchObject({ ok: true, policy: { version: 1 } });
+    expect(replaceCreditPolicy(0, 0, proposed, 5)).toMatchObject({
+      ok: true,
+      policy: { version: 6 },
+    });
   });
 
   it('composes the version recorded on credits and awards', () => {
