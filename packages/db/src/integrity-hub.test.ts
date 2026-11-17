@@ -14,7 +14,7 @@ import { Db, schema } from './index.ts';
 import { layerTestDb } from './testing.ts';
 
 /**
- * The hub round's integrity rules (migration `*_hub_integrity`), each proven by
+ * The hub round's integrity rules (migration `*_integrity`), each proven by
  * attempted violation. Invariants in docs/testing/invariants.md.
  */
 const d = (s: string) => s as IsoDate;

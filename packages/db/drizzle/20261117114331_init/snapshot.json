@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "1c224aec-8102-4236-ae8a-0f6e60dbcc1c",
+  "id": "3c060f99-9b56-4a8b-bbe7-45f7611ad9f3",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -32,6 +32,45 @@
       "statementTarget": [
         "table",
         "public",
+        "job_family"
+      ],
+      "writes": [
+        "s|tbl|public.job_family",
+        "n|tbl|public.job_family",
+        "e|tbl|public.job_family",
+        "n|rel|public.job_family",
+        "n|type|public.job_family",
+        "n|rel|public.job_family_pkey",
+        "n|rel|public.job_family_tenant_id_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "notification_preference"
+      ],
+      "writes": [
+        "s|tbl|public.notification_preference",
+        "n|tbl|public.notification_preference",
+        "e|tbl|public.notification_preference",
+        "n|rel|public.notification_preference",
+        "n|type|public.notification_preference",
+        "n|rel|public.notification_preference_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
         "person"
       ],
       "writes": [
@@ -42,6 +81,26 @@
         "n|type|public.person",
         "n|rel|public.person_pkey",
         "n|rel|public.person_tenant_id_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "person_position"
+      ],
+      "writes": [
+        "s|tbl|public.person_position",
+        "n|tbl|public.person_position",
+        "e|tbl|public.person_position",
+        "n|rel|public.person_position",
+        "n|type|public.person_position",
+        "n|rel|public.person_position_pkey",
+        "n|rel|public.person_position_person_key"
       ],
       "reads": [
         "n|sch|public"
@@ -271,6 +330,26 @@
       "statementTarget": [
         "table",
         "public",
+        "observer_designation"
+      ],
+      "writes": [
+        "s|tbl|public.observer_designation",
+        "n|tbl|public.observer_designation",
+        "e|tbl|public.observer_designation",
+        "n|rel|public.observer_designation",
+        "n|type|public.observer_designation",
+        "n|rel|public.observer_designation_pkey",
+        "n|rel|public.observer_designation_parties_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
         "activity"
       ],
       "writes": [
@@ -433,25 +512,6 @@
       "statementTarget": [
         "table",
         "public",
-        "badge_waiver"
-      ],
-      "writes": [
-        "s|tbl|public.badge_waiver",
-        "n|tbl|public.badge_waiver",
-        "e|tbl|public.badge_waiver",
-        "n|rel|public.badge_waiver",
-        "n|type|public.badge_waiver",
-        "n|rel|public.badge_waiver_pkey"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
         "credit_entry"
       ],
       "writes": [
@@ -503,6 +563,7 @@
         "n|type|public.observation",
         "n|rel|public.observation_pkey",
         "n|rel|public.observation_tenant_id_key",
+        "n|rel|public.observation_subject_key",
         "n|rel|public.observation_parties_key"
       ],
       "reads": [
@@ -593,123 +654,6 @@
       "statementTarget": [
         "table",
         "public",
-        "advisory_exposure"
-      ],
-      "writes": [
-        "s|tbl|public.advisory_exposure",
-        "n|tbl|public.advisory_exposure",
-        "e|tbl|public.advisory_exposure",
-        "n|rel|public.advisory_exposure",
-        "n|type|public.advisory_exposure",
-        "n|rel|public.advisory_exposure_pkey"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
-        "advisory_label"
-      ],
-      "writes": [
-        "s|tbl|public.advisory_label",
-        "n|tbl|public.advisory_label",
-        "e|tbl|public.advisory_label",
-        "n|rel|public.advisory_label",
-        "n|type|public.advisory_label",
-        "n|rel|public.advisory_label_pkey",
-        "n|rel|public.advisory_label_once"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
-        "advisory_question_snapshot"
-      ],
-      "writes": [
-        "s|tbl|public.advisory_question_snapshot",
-        "n|tbl|public.advisory_question_snapshot",
-        "e|tbl|public.advisory_question_snapshot",
-        "n|rel|public.advisory_question_snapshot",
-        "n|type|public.advisory_question_snapshot",
-        "n|rel|public.advisory_question_snapshot_pkey"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
-        "question_set_release"
-      ],
-      "writes": [
-        "s|tbl|public.question_set_release",
-        "n|tbl|public.question_set_release",
-        "e|tbl|public.question_set_release",
-        "n|rel|public.question_set_release",
-        "n|type|public.question_set_release",
-        "n|rel|public.question_set_release_pkey",
-        "n|rel|public.question_set_release_version_key"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
-        "second_read"
-      ],
-      "writes": [
-        "s|tbl|public.second_read",
-        "n|tbl|public.second_read",
-        "e|tbl|public.second_read",
-        "n|rel|public.second_read",
-        "n|type|public.second_read",
-        "n|rel|public.second_read_pkey",
-        "n|rel|public.second_read_tenant_id_key"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
-        "second_read_rating"
-      ],
-      "writes": [
-        "s|tbl|public.second_read_rating",
-        "n|tbl|public.second_read_rating",
-        "e|tbl|public.second_read_rating",
-        "n|rel|public.second_read_rating",
-        "n|type|public.second_read_rating",
-        "n|rel|public.second_read_rating_pkey"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
         "audit_event"
       ],
       "writes": [
@@ -719,25 +663,6 @@
         "n|rel|public.audit_event",
         "n|type|public.audit_event",
         "n|rel|public.audit_event_pkey"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
-        "legal_hold"
-      ],
-      "writes": [
-        "s|tbl|public.legal_hold",
-        "n|tbl|public.legal_hold",
-        "e|tbl|public.legal_hold",
-        "n|rel|public.legal_hold",
-        "n|type|public.legal_hold",
-        "n|rel|public.legal_hold_pkey"
       ],
       "reads": [
         "n|sch|public"
@@ -763,6 +688,25 @@
       ]
     },
     {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "notification"
+      ],
+      "writes": [
+        "s|tbl|public.notification",
+        "n|tbl|public.notification",
+        "e|tbl|public.notification",
+        "n|rel|public.notification",
+        "n|type|public.notification",
+        "n|rel|public.notification_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
       "statementType": "create_index",
       "statementTarget": [
         "index",
@@ -781,6 +725,27 @@
         "n|sch|public",
         "n|col|public.business_function.tenant_id",
         "n|col|public.business_function.name"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "job_family",
+        "job_family_tenant_name_unique"
+      ],
+      "writes": [
+        "s|idx|public.job_family_tenant_name_unique",
+        "n|idx|public.job_family_tenant_name_unique",
+        "e|idx|public.job_family_tenant_name_unique",
+        "n|rel|public.job_family_tenant_name_unique"
+      ],
+      "reads": [
+        "n|tbl|public.job_family",
+        "n|sch|public",
+        "n|col|public.job_family.tenant_id",
+        "n|col|public.job_family.name"
       ]
     },
     {
@@ -843,6 +808,27 @@
         "n|sch|public",
         "n|col|public.person.tenant_id",
         "n|col|public.person.display_name"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "person_position",
+        "person_position_one_open"
+      ],
+      "writes": [
+        "s|idx|public.person_position_one_open",
+        "n|idx|public.person_position_one_open",
+        "e|idx|public.person_position_one_open",
+        "n|rel|public.person_position_one_open"
+      ],
+      "reads": [
+        "n|tbl|public.person_position",
+        "n|sch|public",
+        "n|col|public.person_position.tenant_id",
+        "n|col|public.person_position.person_id"
       ]
     },
     {
@@ -1177,6 +1163,48 @@
         "n|col|public.engagement.tenant_id",
         "n|col|public.engagement.coach_id",
         "n|col|public.engagement.coachee_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "observer_designation",
+        "observer_designation_subject_idx"
+      ],
+      "writes": [
+        "s|idx|public.observer_designation_subject_idx",
+        "n|idx|public.observer_designation_subject_idx",
+        "e|idx|public.observer_designation_subject_idx",
+        "n|rel|public.observer_designation_subject_idx"
+      ],
+      "reads": [
+        "n|tbl|public.observer_designation",
+        "n|sch|public",
+        "n|col|public.observer_designation.tenant_id",
+        "n|col|public.observer_designation.subject_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "observer_designation",
+        "observer_designation_observer_idx"
+      ],
+      "writes": [
+        "s|idx|public.observer_designation_observer_idx",
+        "n|idx|public.observer_designation_observer_idx",
+        "e|idx|public.observer_designation_observer_idx",
+        "n|rel|public.observer_designation_observer_idx"
+      ],
+      "reads": [
+        "n|tbl|public.observer_designation",
+        "n|sch|public",
+        "n|col|public.observer_designation.tenant_id",
+        "n|col|public.observer_designation.observer_id"
       ]
     },
     {
@@ -1698,50 +1726,6 @@
       "statementTarget": [
         "index",
         "public",
-        "advisory_label",
-        "advisory_label_set_idx"
-      ],
-      "writes": [
-        "s|idx|public.advisory_label_set_idx",
-        "n|idx|public.advisory_label_set_idx",
-        "e|idx|public.advisory_label_set_idx",
-        "n|rel|public.advisory_label_set_idx"
-      ],
-      "reads": [
-        "n|tbl|public.advisory_label",
-        "n|sch|public",
-        "n|col|public.advisory_label.question_set",
-        "n|col|public.advisory_label.question_set_version",
-        "n|col|public.advisory_label.created_at"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "public",
-        "second_read",
-        "second_read_reader_idx"
-      ],
-      "writes": [
-        "s|idx|public.second_read_reader_idx",
-        "n|idx|public.second_read_reader_idx",
-        "e|idx|public.second_read_reader_idx",
-        "n|rel|public.second_read_reader_idx"
-      ],
-      "reads": [
-        "n|tbl|public.second_read",
-        "n|sch|public",
-        "n|col|public.second_read.tenant_id",
-        "n|col|public.second_read.reader_id",
-        "n|col|public.second_read.status"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "public",
         "audit_event",
         "audit_event_seq_unique"
       ],
@@ -1827,27 +1811,6 @@
       "statementTarget": [
         "index",
         "public",
-        "legal_hold",
-        "legal_hold_person_idx"
-      ],
-      "writes": [
-        "s|idx|public.legal_hold_person_idx",
-        "n|idx|public.legal_hold_person_idx",
-        "e|idx|public.legal_hold_person_idx",
-        "n|rel|public.legal_hold_person_idx"
-      ],
-      "reads": [
-        "n|tbl|public.legal_hold",
-        "n|sch|public",
-        "n|col|public.legal_hold.tenant_id",
-        "n|col|public.legal_hold.person_id"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "public",
         "note",
         "note_entity_idx"
       ],
@@ -1864,6 +1827,70 @@
         "n|col|public.note.entity_type",
         "n|col|public.note.entity_id",
         "n|col|public.note.created_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notification",
+        "notification_dedupe_unique"
+      ],
+      "writes": [
+        "s|idx|public.notification_dedupe_unique",
+        "n|idx|public.notification_dedupe_unique",
+        "e|idx|public.notification_dedupe_unique",
+        "n|rel|public.notification_dedupe_unique"
+      ],
+      "reads": [
+        "n|tbl|public.notification",
+        "n|sch|public",
+        "n|col|public.notification.tenant_id",
+        "n|col|public.notification.dedupe_key"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notification",
+        "notification_dispatch_idx"
+      ],
+      "writes": [
+        "s|idx|public.notification_dispatch_idx",
+        "n|idx|public.notification_dispatch_idx",
+        "e|idx|public.notification_dispatch_idx",
+        "n|rel|public.notification_dispatch_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notification",
+        "n|sch|public",
+        "n|col|public.notification.status",
+        "n|col|public.notification.send_after"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notification",
+        "notification_recipient_idx"
+      ],
+      "writes": [
+        "s|idx|public.notification_recipient_idx",
+        "n|idx|public.notification_recipient_idx",
+        "e|idx|public.notification_recipient_idx",
+        "n|rel|public.notification_recipient_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notification",
+        "n|sch|public",
+        "n|col|public.notification.tenant_id",
+        "n|col|public.notification.recipient_id",
+        "n|col|public.notification.created_at"
       ]
     },
     {
@@ -1887,6 +1914,54 @@
         "n|col|public.business_function.tenant_id",
         "n|col|public.tenant.id",
         "e|uniqueness|public.tenant.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "job_family"
+      ],
+      "writes": [
+        "s|fk|public.job_family.job_family_tenant_id_tenant_id_fkey",
+        "n|fk|public.job_family.job_family_tenant_id_tenant_id_fkey",
+        "e|fk|public.job_family.job_family_tenant_id_tenant_id_fkey",
+        "n|con|public.job_family.job_family_tenant_id_tenant_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.job_family",
+        "n|sch|public",
+        "n|tbl|public.tenant",
+        "n|sch|public",
+        "n|col|public.job_family.tenant_id",
+        "n|col|public.tenant.id",
+        "e|uniqueness|public.tenant.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "notification_preference"
+      ],
+      "writes": [
+        "s|fk|public.notification_preference.notification_preference_person_fk",
+        "n|fk|public.notification_preference.notification_preference_person_fk",
+        "e|fk|public.notification_preference.notification_preference_person_fk",
+        "n|con|public.notification_preference.notification_preference_person_fk"
+      ],
+      "reads": [
+        "n|tbl|public.notification_preference",
+        "n|sch|public",
+        "n|tbl|public.person",
+        "n|sch|public",
+        "n|col|public.notification_preference.tenant_id",
+        "n|col|public.notification_preference.person_id",
+        "n|col|public.person.tenant_id",
+        "n|col|public.person.id",
+        "e|uniqueness|public.person.id.tenant_id"
       ]
     },
     {
@@ -1932,6 +2007,81 @@
         "n|sch|public",
         "n|col|public.person.tenant_id",
         "n|col|public.person.business_function_id",
+        "n|col|public.business_function.tenant_id",
+        "n|col|public.business_function.id",
+        "e|uniqueness|public.business_function.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "person_position"
+      ],
+      "writes": [
+        "s|fk|public.person_position.person_position_person_fk",
+        "n|fk|public.person_position.person_position_person_fk",
+        "e|fk|public.person_position.person_position_person_fk",
+        "n|con|public.person_position.person_position_person_fk"
+      ],
+      "reads": [
+        "n|tbl|public.person_position",
+        "n|sch|public",
+        "n|tbl|public.person",
+        "n|sch|public",
+        "n|col|public.person_position.tenant_id",
+        "n|col|public.person_position.person_id",
+        "n|col|public.person.tenant_id",
+        "n|col|public.person.id",
+        "e|uniqueness|public.person.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "person_position"
+      ],
+      "writes": [
+        "s|fk|public.person_position.person_position_job_family_fk",
+        "n|fk|public.person_position.person_position_job_family_fk",
+        "e|fk|public.person_position.person_position_job_family_fk",
+        "n|con|public.person_position.person_position_job_family_fk"
+      ],
+      "reads": [
+        "n|tbl|public.person_position",
+        "n|sch|public",
+        "n|tbl|public.job_family",
+        "n|sch|public",
+        "n|col|public.person_position.tenant_id",
+        "n|col|public.person_position.job_family_id",
+        "n|col|public.job_family.tenant_id",
+        "n|col|public.job_family.id",
+        "e|uniqueness|public.job_family.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "person_position"
+      ],
+      "writes": [
+        "s|fk|public.person_position.person_position_business_function_fk",
+        "n|fk|public.person_position.person_position_business_function_fk",
+        "e|fk|public.person_position.person_position_business_function_fk",
+        "n|con|public.person_position.person_position_business_function_fk"
+      ],
+      "reads": [
+        "n|tbl|public.person_position",
+        "n|sch|public",
+        "n|tbl|public.business_function",
+        "n|sch|public",
+        "n|col|public.person_position.tenant_id",
+        "n|col|public.person_position.business_function_id",
         "n|col|public.business_function.tenant_id",
         "n|col|public.business_function.id",
         "e|uniqueness|public.business_function.id.tenant_id"
@@ -2305,6 +2455,81 @@
         "n|sch|public",
         "n|col|public.engagement.tenant_id",
         "n|col|public.engagement.proposed_by_id",
+        "n|col|public.person.tenant_id",
+        "n|col|public.person.id",
+        "e|uniqueness|public.person.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "observer_designation"
+      ],
+      "writes": [
+        "s|fk|public.observer_designation.observer_designation_subject_fk",
+        "n|fk|public.observer_designation.observer_designation_subject_fk",
+        "e|fk|public.observer_designation.observer_designation_subject_fk",
+        "n|con|public.observer_designation.observer_designation_subject_fk"
+      ],
+      "reads": [
+        "n|tbl|public.observer_designation",
+        "n|sch|public",
+        "n|tbl|public.person",
+        "n|sch|public",
+        "n|col|public.observer_designation.tenant_id",
+        "n|col|public.observer_designation.subject_id",
+        "n|col|public.person.tenant_id",
+        "n|col|public.person.id",
+        "e|uniqueness|public.person.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "observer_designation"
+      ],
+      "writes": [
+        "s|fk|public.observer_designation.observer_designation_observer_fk",
+        "n|fk|public.observer_designation.observer_designation_observer_fk",
+        "e|fk|public.observer_designation.observer_designation_observer_fk",
+        "n|con|public.observer_designation.observer_designation_observer_fk"
+      ],
+      "reads": [
+        "n|tbl|public.observer_designation",
+        "n|sch|public",
+        "n|tbl|public.person",
+        "n|sch|public",
+        "n|col|public.observer_designation.tenant_id",
+        "n|col|public.observer_designation.observer_id",
+        "n|col|public.person.tenant_id",
+        "n|col|public.person.id",
+        "e|uniqueness|public.person.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "observer_designation"
+      ],
+      "writes": [
+        "s|fk|public.observer_designation.observer_designation_designated_by_fk",
+        "n|fk|public.observer_designation.observer_designation_designated_by_fk",
+        "e|fk|public.observer_designation.observer_designation_designated_by_fk",
+        "n|con|public.observer_designation.observer_designation_designated_by_fk"
+      ],
+      "reads": [
+        "n|tbl|public.observer_designation",
+        "n|sch|public",
+        "n|tbl|public.person",
+        "n|sch|public",
+        "n|col|public.observer_designation.tenant_id",
+        "n|col|public.observer_designation.designated_by_id",
         "n|col|public.person.tenant_id",
         "n|col|public.person.id",
         "e|uniqueness|public.person.id.tenant_id"
@@ -2844,56 +3069,6 @@
       "statementTarget": [
         "table",
         "public",
-        "badge_waiver"
-      ],
-      "writes": [
-        "s|fk|public.badge_waiver.badge_waiver_person_fk",
-        "n|fk|public.badge_waiver.badge_waiver_person_fk",
-        "e|fk|public.badge_waiver.badge_waiver_person_fk",
-        "n|con|public.badge_waiver.badge_waiver_person_fk"
-      ],
-      "reads": [
-        "n|tbl|public.badge_waiver",
-        "n|sch|public",
-        "n|tbl|public.person",
-        "n|sch|public",
-        "n|col|public.badge_waiver.tenant_id",
-        "n|col|public.badge_waiver.person_id",
-        "n|col|public.person.tenant_id",
-        "n|col|public.person.id",
-        "e|uniqueness|public.person.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "badge_waiver"
-      ],
-      "writes": [
-        "s|fk|public.badge_waiver.badge_waiver_granted_by_fk",
-        "n|fk|public.badge_waiver.badge_waiver_granted_by_fk",
-        "e|fk|public.badge_waiver.badge_waiver_granted_by_fk",
-        "n|con|public.badge_waiver.badge_waiver_granted_by_fk"
-      ],
-      "reads": [
-        "n|tbl|public.badge_waiver",
-        "n|sch|public",
-        "n|tbl|public.person",
-        "n|sch|public",
-        "n|col|public.badge_waiver.tenant_id",
-        "n|col|public.badge_waiver.granted_by_id",
-        "n|col|public.person.tenant_id",
-        "n|col|public.person.id",
-        "e|uniqueness|public.person.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
         "credit_entry"
       ],
       "writes": [
@@ -2974,6 +3149,33 @@
         "n|col|public.interaction.id",
         "n|col|public.interaction.occurred_on",
         "e|uniqueness|public.interaction.id.occurred_on.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "credit_entry"
+      ],
+      "writes": [
+        "s|fk|public.credit_entry.credit_entry_position_fk",
+        "n|fk|public.credit_entry.credit_entry_position_fk",
+        "e|fk|public.credit_entry.credit_entry_position_fk",
+        "n|con|public.credit_entry.credit_entry_position_fk"
+      ],
+      "reads": [
+        "n|tbl|public.credit_entry",
+        "n|sch|public",
+        "n|tbl|public.person_position",
+        "n|sch|public",
+        "n|col|public.credit_entry.tenant_id",
+        "n|col|public.credit_entry.subject_position_id",
+        "n|col|public.credit_entry.person_id",
+        "n|col|public.person_position.tenant_id",
+        "n|col|public.person_position.id",
+        "n|col|public.person_position.person_id",
+        "e|uniqueness|public.person_position.id.person_id.tenant_id"
       ]
     },
     {
@@ -3166,6 +3368,35 @@
       "statementTarget": [
         "table",
         "public",
+        "observation"
+      ],
+      "writes": [
+        "s|fk|public.observation.observation_basis_designation_fk",
+        "n|fk|public.observation.observation_basis_designation_fk",
+        "e|fk|public.observation.observation_basis_designation_fk",
+        "n|con|public.observation.observation_basis_designation_fk"
+      ],
+      "reads": [
+        "n|tbl|public.observation",
+        "n|sch|public",
+        "n|tbl|public.observer_designation",
+        "n|sch|public",
+        "n|col|public.observation.tenant_id",
+        "n|col|public.observation.basis_designation_id",
+        "n|col|public.observation.observer_id",
+        "n|col|public.observation.subject_id",
+        "n|col|public.observer_designation.tenant_id",
+        "n|col|public.observer_designation.id",
+        "n|col|public.observer_designation.observer_id",
+        "n|col|public.observer_designation.subject_id",
+        "e|uniqueness|public.observer_designation.id.observer_id.subject_id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
         "observation_indicator"
       ],
       "writes": [
@@ -3297,54 +3528,6 @@
       "statementTarget": [
         "table",
         "public",
-        "advisory_check"
-      ],
-      "writes": [
-        "s|fk|public.advisory_check.advisory_check_release_fk",
-        "n|fk|public.advisory_check.advisory_check_release_fk",
-        "e|fk|public.advisory_check.advisory_check_release_fk",
-        "n|con|public.advisory_check.advisory_check_release_fk"
-      ],
-      "reads": [
-        "n|tbl|public.advisory_check",
-        "n|sch|public",
-        "n|tbl|public.question_set_release",
-        "n|sch|public",
-        "n|col|public.advisory_check.question_set",
-        "n|col|public.advisory_check.question_set_version",
-        "n|col|public.question_set_release.question_set",
-        "n|col|public.question_set_release.set_version",
-        "e|uniqueness|public.question_set_release.question_set.set_version"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "advisory_check"
-      ],
-      "writes": [
-        "s|fk|public.advisory_check.advisory_check_questions_fk",
-        "n|fk|public.advisory_check.advisory_check_questions_fk",
-        "e|fk|public.advisory_check.advisory_check_questions_fk",
-        "n|con|public.advisory_check.advisory_check_questions_fk"
-      ],
-      "reads": [
-        "n|tbl|public.advisory_check",
-        "n|sch|public",
-        "n|tbl|public.advisory_question_snapshot",
-        "n|sch|public",
-        "n|col|public.advisory_check.questions_digest",
-        "n|col|public.advisory_question_snapshot.digest",
-        "e|uniqueness|public.advisory_question_snapshot.digest"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
         "advisory_disposition"
       ],
       "writes": [
@@ -3388,181 +3571,6 @@
         "n|col|public.person.tenant_id",
         "n|col|public.person.id",
         "e|uniqueness|public.person.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "advisory_exposure"
-      ],
-      "writes": [
-        "s|fk|public.advisory_exposure.advisory_exposure_check_fk",
-        "n|fk|public.advisory_exposure.advisory_exposure_check_fk",
-        "e|fk|public.advisory_exposure.advisory_exposure_check_fk",
-        "n|con|public.advisory_exposure.advisory_exposure_check_fk"
-      ],
-      "reads": [
-        "n|tbl|public.advisory_exposure",
-        "n|sch|public",
-        "n|tbl|public.advisory_check",
-        "n|sch|public",
-        "n|col|public.advisory_exposure.tenant_id",
-        "n|col|public.advisory_exposure.check_id",
-        "n|col|public.advisory_check.tenant_id",
-        "n|col|public.advisory_check.id",
-        "e|uniqueness|public.advisory_check.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "advisory_exposure"
-      ],
-      "writes": [
-        "s|fk|public.advisory_exposure.advisory_exposure_viewer_fk",
-        "n|fk|public.advisory_exposure.advisory_exposure_viewer_fk",
-        "e|fk|public.advisory_exposure.advisory_exposure_viewer_fk",
-        "n|con|public.advisory_exposure.advisory_exposure_viewer_fk"
-      ],
-      "reads": [
-        "n|tbl|public.advisory_exposure",
-        "n|sch|public",
-        "n|tbl|public.person",
-        "n|sch|public",
-        "n|col|public.advisory_exposure.tenant_id",
-        "n|col|public.advisory_exposure.viewer_id",
-        "n|col|public.person.tenant_id",
-        "n|col|public.person.id",
-        "e|uniqueness|public.person.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "advisory_label"
-      ],
-      "writes": [
-        "s|fk|public.advisory_label.advisory_label_check_fk",
-        "n|fk|public.advisory_label.advisory_label_check_fk",
-        "e|fk|public.advisory_label.advisory_label_check_fk",
-        "n|con|public.advisory_label.advisory_label_check_fk"
-      ],
-      "reads": [
-        "n|tbl|public.advisory_label",
-        "n|sch|public",
-        "n|tbl|public.advisory_check",
-        "n|sch|public",
-        "n|col|public.advisory_label.tenant_id",
-        "n|col|public.advisory_label.check_id",
-        "n|col|public.advisory_check.tenant_id",
-        "n|col|public.advisory_check.id",
-        "e|uniqueness|public.advisory_check.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "advisory_label"
-      ],
-      "writes": [
-        "s|fk|public.advisory_label.advisory_label_labeler_fk",
-        "n|fk|public.advisory_label.advisory_label_labeler_fk",
-        "e|fk|public.advisory_label.advisory_label_labeler_fk",
-        "n|con|public.advisory_label.advisory_label_labeler_fk"
-      ],
-      "reads": [
-        "n|tbl|public.advisory_label",
-        "n|sch|public",
-        "n|tbl|public.person",
-        "n|sch|public",
-        "n|col|public.advisory_label.tenant_id",
-        "n|col|public.advisory_label.labeler_id",
-        "n|col|public.person.tenant_id",
-        "n|col|public.person.id",
-        "e|uniqueness|public.person.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "second_read"
-      ],
-      "writes": [
-        "s|fk|public.second_read.second_read_observation_fk",
-        "n|fk|public.second_read.second_read_observation_fk",
-        "e|fk|public.second_read.second_read_observation_fk",
-        "n|con|public.second_read.second_read_observation_fk"
-      ],
-      "reads": [
-        "n|tbl|public.second_read",
-        "n|sch|public",
-        "n|tbl|public.observation",
-        "n|sch|public",
-        "n|col|public.second_read.tenant_id",
-        "n|col|public.second_read.observation_id",
-        "n|col|public.observation.tenant_id",
-        "n|col|public.observation.id",
-        "e|uniqueness|public.observation.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "second_read"
-      ],
-      "writes": [
-        "s|fk|public.second_read.second_read_reader_fk",
-        "n|fk|public.second_read.second_read_reader_fk",
-        "e|fk|public.second_read.second_read_reader_fk",
-        "n|con|public.second_read.second_read_reader_fk"
-      ],
-      "reads": [
-        "n|tbl|public.second_read",
-        "n|sch|public",
-        "n|tbl|public.person",
-        "n|sch|public",
-        "n|col|public.second_read.tenant_id",
-        "n|col|public.second_read.reader_id",
-        "n|col|public.person.tenant_id",
-        "n|col|public.person.id",
-        "e|uniqueness|public.person.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "second_read_rating"
-      ],
-      "writes": [
-        "s|fk|public.second_read_rating.second_read_rating_read_fk",
-        "n|fk|public.second_read_rating.second_read_rating_read_fk",
-        "e|fk|public.second_read_rating.second_read_rating_read_fk",
-        "n|con|public.second_read_rating.second_read_rating_read_fk"
-      ],
-      "reads": [
-        "n|tbl|public.second_read_rating",
-        "n|sch|public",
-        "n|tbl|public.second_read",
-        "n|sch|public",
-        "n|col|public.second_read_rating.tenant_id",
-        "n|col|public.second_read_rating.second_read_id",
-        "n|col|public.second_read.tenant_id",
-        "n|col|public.second_read.id",
-        "e|uniqueness|public.second_read.id.tenant_id"
       ]
     },
     {
@@ -3618,56 +3626,6 @@
       "statementTarget": [
         "table",
         "public",
-        "legal_hold"
-      ],
-      "writes": [
-        "s|fk|public.legal_hold.legal_hold_person_fk",
-        "n|fk|public.legal_hold.legal_hold_person_fk",
-        "e|fk|public.legal_hold.legal_hold_person_fk",
-        "n|con|public.legal_hold.legal_hold_person_fk"
-      ],
-      "reads": [
-        "n|tbl|public.legal_hold",
-        "n|sch|public",
-        "n|tbl|public.person",
-        "n|sch|public",
-        "n|col|public.legal_hold.tenant_id",
-        "n|col|public.legal_hold.person_id",
-        "n|col|public.person.tenant_id",
-        "n|col|public.person.id",
-        "e|uniqueness|public.person.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "legal_hold"
-      ],
-      "writes": [
-        "s|fk|public.legal_hold.legal_hold_placed_by_fk",
-        "n|fk|public.legal_hold.legal_hold_placed_by_fk",
-        "e|fk|public.legal_hold.legal_hold_placed_by_fk",
-        "n|con|public.legal_hold.legal_hold_placed_by_fk"
-      ],
-      "reads": [
-        "n|tbl|public.legal_hold",
-        "n|sch|public",
-        "n|tbl|public.person",
-        "n|sch|public",
-        "n|col|public.legal_hold.tenant_id",
-        "n|col|public.legal_hold.placed_by_id",
-        "n|col|public.person.tenant_id",
-        "n|col|public.person.id",
-        "e|uniqueness|public.person.id.tenant_id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
         "note"
       ],
       "writes": [
@@ -3687,6 +3645,56 @@
         "n|col|public.person.id",
         "e|uniqueness|public.person.id.tenant_id"
       ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "notification"
+      ],
+      "writes": [
+        "s|fk|public.notification.notification_recipient_fk",
+        "n|fk|public.notification.notification_recipient_fk",
+        "e|fk|public.notification.notification_recipient_fk",
+        "n|con|public.notification.notification_recipient_fk"
+      ],
+      "reads": [
+        "n|tbl|public.notification",
+        "n|sch|public",
+        "n|tbl|public.person",
+        "n|sch|public",
+        "n|col|public.notification.tenant_id",
+        "n|col|public.notification.recipient_id",
+        "n|col|public.person.tenant_id",
+        "n|col|public.person.id",
+        "e|uniqueness|public.person.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "notification"
+      ],
+      "writes": [
+        "s|fk|public.notification.notification_actor_fk",
+        "n|fk|public.notification.notification_actor_fk",
+        "e|fk|public.notification.notification_actor_fk",
+        "n|con|public.notification.notification_actor_fk"
+      ],
+      "reads": [
+        "n|tbl|public.notification",
+        "n|sch|public",
+        "n|tbl|public.person",
+        "n|sch|public",
+        "n|col|public.notification.tenant_id",
+        "n|col|public.notification.actor_id",
+        "n|col|public.person.tenant_id",
+        "n|col|public.person.id",
+        "e|uniqueness|public.person.id.tenant_id"
+      ]
     }
   ],
   "ddl": [
@@ -3698,7 +3706,25 @@
     },
     {
       "schema": "public",
+      "name": "job_family",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "name": "notification_preference",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
       "name": "person",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "name": "person_position",
       "isRlsEnabled": false,
       "entityType": "tables"
     },
@@ -3770,6 +3796,12 @@
     },
     {
       "schema": "public",
+      "name": "observer_designation",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
       "name": "activity",
       "isRlsEnabled": false,
       "entityType": "tables"
@@ -3818,12 +3850,6 @@
     },
     {
       "schema": "public",
-      "name": "badge_waiver",
-      "isRlsEnabled": false,
-      "entityType": "tables"
-    },
-    {
-      "schema": "public",
       "name": "credit_entry",
       "isRlsEnabled": false,
       "entityType": "tables"
@@ -3866,55 +3892,19 @@
     },
     {
       "schema": "public",
-      "name": "advisory_exposure",
-      "isRlsEnabled": false,
-      "entityType": "tables"
-    },
-    {
-      "schema": "public",
-      "name": "advisory_label",
-      "isRlsEnabled": false,
-      "entityType": "tables"
-    },
-    {
-      "schema": "public",
-      "name": "advisory_question_snapshot",
-      "isRlsEnabled": false,
-      "entityType": "tables"
-    },
-    {
-      "schema": "public",
-      "name": "question_set_release",
-      "isRlsEnabled": false,
-      "entityType": "tables"
-    },
-    {
-      "schema": "public",
-      "name": "second_read",
-      "isRlsEnabled": false,
-      "entityType": "tables"
-    },
-    {
-      "schema": "public",
-      "name": "second_read_rating",
-      "isRlsEnabled": false,
-      "entityType": "tables"
-    },
-    {
-      "schema": "public",
       "name": "audit_event",
       "isRlsEnabled": false,
       "entityType": "tables"
     },
     {
       "schema": "public",
-      "name": "legal_hold",
+      "name": "note",
       "isRlsEnabled": false,
       "entityType": "tables"
     },
     {
       "schema": "public",
-      "name": "note",
+      "name": "notification",
       "isRlsEnabled": false,
       "entityType": "tables"
     },
@@ -3953,6 +3943,136 @@
       "notNull": true,
       "dimensions": 0,
       "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "job_family",
+      "name": "id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "job_family",
+      "name": "tenant_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "job_family",
+      "name": "name",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "job_family",
+      "name": "status",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'active'",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "job_family",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification_preference",
+      "name": "tenant_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification_preference",
+      "name": "person_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification_preference",
+      "name": "channel",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'email'",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification_preference",
+      "name": "weekly_digest",
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "true",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification_preference",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
       "generated": null,
       "identity": null,
       "entityType": "columns"
@@ -4091,6 +4211,136 @@
       "schema": "public",
       "table": "person",
       "name": "updated_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "tenant_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "person_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "job_family_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "title",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "business_function_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "valid_from",
+      "type": "date",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "valid_to",
+      "type": "date",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "source",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'directory'",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "created_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
@@ -5285,6 +5535,136 @@
     },
     {
       "schema": "public",
+      "table": "observer_designation",
+      "name": "id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "tenant_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "subject_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "designated_by_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "designator_basis",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "valid_from",
+      "type": "date",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "valid_to",
+      "type": "date",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "ended_on",
+      "type": "date",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
       "table": "activity",
       "name": "id",
       "type": "text",
@@ -6286,123 +6666,6 @@
     },
     {
       "schema": "public",
-      "table": "badge_waiver",
-      "name": "id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "badge_waiver",
-      "name": "tenant_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "badge_waiver",
-      "name": "person_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "badge_waiver",
-      "name": "criterion",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "badge_waiver",
-      "name": "granted_by_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "badge_waiver",
-      "name": "reason_code",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "badge_waiver",
-      "name": "valid_from",
-      "type": "date",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "badge_waiver",
-      "name": "valid_to",
-      "type": "date",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "badge_waiver",
-      "name": "created_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
       "table": "credit_entry",
       "name": "id",
       "type": "text",
@@ -6512,6 +6775,19 @@
       "type": "integer",
       "typeSchema": null,
       "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "credit_entry",
+      "name": "subject_position_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
       "dimensions": 0,
       "default": null,
       "generated": null,
@@ -6794,6 +7070,19 @@
     {
       "schema": "public",
       "table": "observation",
+      "name": "basis_designation_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "observation",
       "name": "mode",
       "type": "text",
       "typeSchema": null,
@@ -7014,19 +7303,6 @@
     },
     {
       "schema": "public",
-      "table": "observation_indicator",
-      "name": "suggested",
-      "type": "boolean",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "false",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
       "table": "observation_rating",
       "name": "tenant_id",
       "type": "text",
@@ -7203,19 +7479,6 @@
       "notNull": true,
       "dimensions": 0,
       "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_check",
-      "name": "arm",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "'shown'",
       "generated": null,
       "identity": null,
       "entityType": "columns"
@@ -7405,19 +7668,6 @@
     {
       "schema": "public",
       "table": "advisory_check",
-      "name": "trace_run_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_check",
       "name": "created_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
@@ -7528,682 +7778,6 @@
       "notNull": true,
       "dimensions": 0,
       "default": "now()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_exposure",
-      "name": "tenant_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_exposure",
-      "name": "check_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_exposure",
-      "name": "viewer_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_exposure",
-      "name": "first_seen_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_exposure",
-      "name": "expanded",
-      "type": "boolean",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "false",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "tenant_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "check_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "question_key",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "question_set",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "question_set_version",
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "model_probability",
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "threshold",
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "label_value",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "source",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "strength",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "arm",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "labeler_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "labeler_role",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "input_entity_type",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "input_entity_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "input_digest",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "created_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_question_snapshot",
-      "name": "digest",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_question_snapshot",
-      "name": "questions",
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_question_snapshot",
-      "name": "created_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "question_set",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "set_version",
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "template_digest",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "thresholds",
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "effect",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "dataset_ref",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "experiment_ref",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "metrics",
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "approved_by",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "approved_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "notes",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "created_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "tenant_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "observation_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "reader_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "assigned_reason",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "narrative_specific",
-      "type": "boolean",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "status",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "'assigned'",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "created_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "completed_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read_rating",
-      "name": "tenant_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read_rating",
-      "name": "second_read_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read_rating",
-      "name": "skill_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "second_read_rating",
-      "name": "level",
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
       "generated": null,
       "identity": null,
       "entityType": "columns"
@@ -8427,97 +8001,6 @@
     },
     {
       "schema": "public",
-      "table": "legal_hold",
-      "name": "id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "legal_hold",
-      "name": "tenant_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "legal_hold",
-      "name": "person_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "legal_hold",
-      "name": "placed_by_id",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "legal_hold",
-      "name": "reason_code",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "legal_hold",
-      "name": "placed_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "legal_hold",
-      "name": "released_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
       "table": "note",
       "name": "id",
       "type": "text",
@@ -8648,8 +8131,244 @@
     },
     {
       "schema": "public",
+      "table": "notification",
+      "name": "id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "tenant_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "recipient_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "kind",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "entity_type",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "entity_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "actor_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "due_on",
+      "type": "date",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "item_count",
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "dedupe_key",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "status",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'pending'",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "channel",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "attempts",
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "send_after",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "sent_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
       "table": "business_function",
       "name": "business_function_tenant_name_unique",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "tenant_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "name",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "job_family",
+      "name": "job_family_tenant_name_unique",
       "nameExplicit": true,
       "columns": [
         {
@@ -8753,6 +8472,34 @@
       ],
       "isUnique": false,
       "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "person_position_one_open",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "tenant_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "person_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"valid_to\" is null",
       "with": "",
       "method": "btree",
       "concurrently": false,
@@ -9187,6 +8934,62 @@
       ],
       "isUnique": true,
       "where": "\"status\" in ('proposed', 'active', 'paused')",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_subject_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "tenant_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "subject_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_observer_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "tenant_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "observer_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
       "with": "",
       "method": "btree",
       "concurrently": false,
@@ -9936,76 +9739,6 @@
     },
     {
       "schema": "public",
-      "table": "advisory_label",
-      "name": "advisory_label_set_idx",
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "question_set",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "question_set_version",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "created_at",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "entityType": "indexes"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "second_read_reader_idx",
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "tenant_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "reader_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "status",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "entityType": "indexes"
-    },
-    {
-      "schema": "public",
       "table": "audit_event",
       "name": "audit_event_seq_unique",
       "nameExplicit": true,
@@ -10125,34 +9858,6 @@
     },
     {
       "schema": "public",
-      "table": "legal_hold",
-      "name": "legal_hold_person_idx",
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "tenant_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "person_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "entityType": "indexes"
-    },
-    {
-      "schema": "public",
       "table": "note",
       "name": "note_entity_idx",
       "nameExplicit": true,
@@ -10195,6 +9900,97 @@
     },
     {
       "schema": "public",
+      "table": "notification",
+      "name": "notification_dedupe_unique",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "tenant_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "dedupe_key",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_dispatch_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "status",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "send_after",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_recipient_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "tenant_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "recipient_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "created_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
       "table": "business_function",
       "name": "business_function_tenant_id_tenant_id_fkey",
       "nameExplicit": false,
@@ -10204,6 +10000,42 @@
       "schemaTo": "public",
       "tableTo": "tenant",
       "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "job_family",
+      "name": "job_family_tenant_id_tenant_id_fkey",
+      "nameExplicit": false,
+      "columns": [
+        "tenant_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "tenant",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "notification_preference",
+      "name": "notification_preference_person_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "person_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "person",
+      "columnsTo": [
+        "tenant_id",
         "id"
       ],
       "onUpdate": "NO ACTION",
@@ -10231,6 +10063,63 @@
       "schema": "public",
       "table": "person",
       "name": "person_business_function_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "business_function_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "business_function",
+      "columnsTo": [
+        "tenant_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "person_position_person_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "person_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "person",
+      "columnsTo": [
+        "tenant_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "person_position_job_family_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "job_family_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "job_family",
+      "columnsTo": [
+        "tenant_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "person_position_business_function_fk",
       "nameExplicit": true,
       "columns": [
         "tenant_id",
@@ -10518,6 +10407,63 @@
       "columns": [
         "tenant_id",
         "proposed_by_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "person",
+      "columnsTo": [
+        "tenant_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_subject_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "subject_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "person",
+      "columnsTo": [
+        "tenant_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_observer_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "observer_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "person",
+      "columnsTo": [
+        "tenant_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_designated_by_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "designated_by_id"
       ],
       "schemaTo": "public",
       "tableTo": "person",
@@ -10934,44 +10880,6 @@
     },
     {
       "schema": "public",
-      "table": "badge_waiver",
-      "name": "badge_waiver_person_fk",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "person_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "person",
-      "columnsTo": [
-        "tenant_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "badge_waiver",
-      "name": "badge_waiver_granted_by_fk",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "granted_by_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "person",
-      "columnsTo": [
-        "tenant_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
       "table": "credit_entry",
       "name": "credit_entry_observation_fk",
       "nameExplicit": true,
@@ -11034,6 +10942,27 @@
         "tenant_id",
         "id",
         "occurred_on"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "credit_entry",
+      "name": "credit_entry_position_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "subject_position_id",
+        "person_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "person_position",
+      "columnsTo": [
+        "tenant_id",
+        "id",
+        "person_id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "NO ACTION",
@@ -11184,6 +11113,29 @@
     },
     {
       "schema": "public",
+      "table": "observation",
+      "name": "observation_basis_designation_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "basis_designation_id",
+        "observer_id",
+        "subject_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "observer_designation",
+      "columnsTo": [
+        "tenant_id",
+        "id",
+        "observer_id",
+        "subject_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
       "table": "observation_indicator",
       "name": "observation_indicator_rating_fk",
       "nameExplicit": true,
@@ -11285,42 +11237,6 @@
     },
     {
       "schema": "public",
-      "table": "advisory_check",
-      "name": "advisory_check_release_fk",
-      "nameExplicit": true,
-      "columns": [
-        "question_set",
-        "question_set_version"
-      ],
-      "schemaTo": "public",
-      "tableTo": "question_set_release",
-      "columnsTo": [
-        "question_set",
-        "set_version"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_check",
-      "name": "advisory_check_questions_fk",
-      "nameExplicit": true,
-      "columns": [
-        "questions_digest"
-      ],
-      "schemaTo": "public",
-      "tableTo": "advisory_question_snapshot",
-      "columnsTo": [
-        "digest"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
       "table": "advisory_disposition",
       "name": "advisory_disposition_check_fk",
       "nameExplicit": true,
@@ -11349,139 +11265,6 @@
       ],
       "schemaTo": "public",
       "tableTo": "person",
-      "columnsTo": [
-        "tenant_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_exposure",
-      "name": "advisory_exposure_check_fk",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "check_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "advisory_check",
-      "columnsTo": [
-        "tenant_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_exposure",
-      "name": "advisory_exposure_viewer_fk",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "viewer_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "person",
-      "columnsTo": [
-        "tenant_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "advisory_label_check_fk",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "check_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "advisory_check",
-      "columnsTo": [
-        "tenant_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "advisory_label_labeler_fk",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "labeler_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "person",
-      "columnsTo": [
-        "tenant_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "second_read_observation_fk",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "observation_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "observation",
-      "columnsTo": [
-        "tenant_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "second_read_reader_fk",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "reader_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "person",
-      "columnsTo": [
-        "tenant_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "second_read_rating",
-      "name": "second_read_rating_read_fk",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "second_read_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "second_read",
       "columnsTo": [
         "tenant_id",
         "id"
@@ -11528,50 +11311,50 @@
     },
     {
       "schema": "public",
-      "table": "legal_hold",
-      "name": "legal_hold_person_fk",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "person_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "person",
-      "columnsTo": [
-        "tenant_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "legal_hold",
-      "name": "legal_hold_placed_by_fk",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "placed_by_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "person",
-      "columnsTo": [
-        "tenant_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
       "table": "note",
       "name": "note_author_fk",
       "nameExplicit": true,
       "columns": [
         "tenant_id",
         "author_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "person",
+      "columnsTo": [
+        "tenant_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_recipient_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "recipient_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "person",
+      "columnsTo": [
+        "tenant_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_actor_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "actor_id"
       ],
       "schemaTo": "public",
       "tableTo": "person",
@@ -11662,28 +11445,6 @@
     },
     {
       "schema": "public",
-      "table": "advisory_exposure",
-      "name": "advisory_exposure_pkey",
-      "columns": [
-        "check_id",
-        "viewer_id"
-      ],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "schema": "public",
-      "table": "second_read_rating",
-      "name": "second_read_rating_pkey",
-      "columns": [
-        "second_read_id",
-        "skill_id"
-      ],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "schema": "public",
       "table": "business_function",
       "name": "business_function_pkey",
       "columns": [
@@ -11694,8 +11455,38 @@
     },
     {
       "schema": "public",
+      "table": "job_family",
+      "name": "job_family_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "notification_preference",
+      "name": "notification_preference_pkey",
+      "columns": [
+        "person_id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
       "table": "person",
       "name": "person_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "person_position_pkey",
       "columns": [
         "id"
       ],
@@ -11794,6 +11585,16 @@
     },
     {
       "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
       "table": "activity",
       "name": "activity_pkey",
       "columns": [
@@ -11836,16 +11637,6 @@
       "schema": "public",
       "table": "badge_award",
       "name": "badge_award_pkey",
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "schema": "public",
-      "table": "badge_waiver",
-      "name": "badge_waiver_pkey",
       "columns": [
         "id"
       ],
@@ -11904,46 +11695,6 @@
     },
     {
       "schema": "public",
-      "table": "advisory_label",
-      "name": "advisory_label_pkey",
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_question_snapshot",
-      "name": "advisory_question_snapshot_pkey",
-      "columns": [
-        "digest"
-      ],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "question_set_release_pkey",
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "second_read_pkey",
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "schema": "public",
       "table": "audit_event",
       "name": "audit_event_pkey",
       "columns": [
@@ -11954,8 +11705,8 @@
     },
     {
       "schema": "public",
-      "table": "legal_hold",
-      "name": "legal_hold_pkey",
+      "table": "note",
+      "name": "note_pkey",
       "columns": [
         "id"
       ],
@@ -11964,8 +11715,8 @@
     },
     {
       "schema": "public",
-      "table": "note",
-      "name": "note_pkey",
+      "table": "notification",
+      "name": "notification_pkey",
       "columns": [
         "id"
       ],
@@ -11986,12 +11737,37 @@
     },
     {
       "schema": "public",
+      "table": "job_family",
+      "name": "job_family_tenant_id_key",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "id"
+      ],
+      "nullsNotDistinct": false,
+      "entityType": "uniques"
+    },
+    {
+      "schema": "public",
       "table": "person",
       "name": "person_tenant_id_key",
       "nameExplicit": true,
       "columns": [
         "tenant_id",
         "id"
+      ],
+      "nullsNotDistinct": false,
+      "entityType": "uniques"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "person_position_person_key",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "id",
+        "person_id"
       ],
       "nullsNotDistinct": false,
       "entityType": "uniques"
@@ -12119,6 +11895,20 @@
         "id",
         "coach_id",
         "coachee_id"
+      ],
+      "nullsNotDistinct": false,
+      "entityType": "uniques"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_parties_key",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "id",
+        "observer_id",
+        "subject_id"
       ],
       "nullsNotDistinct": false,
       "entityType": "uniques"
@@ -12297,6 +12087,19 @@
     {
       "schema": "public",
       "table": "observation",
+      "name": "observation_subject_key",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "id",
+        "subject_id"
+      ],
+      "nullsNotDistinct": false,
+      "entityType": "uniques"
+    },
+    {
+      "schema": "public",
+      "table": "observation",
       "name": "observation_parties_key",
       "nameExplicit": true,
       "columns": [
@@ -12349,47 +12152,37 @@
     },
     {
       "schema": "public",
-      "table": "advisory_label",
-      "name": "advisory_label_once",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "check_id",
-        "question_key",
-        "source"
-      ],
-      "nullsNotDistinct": false,
-      "entityType": "uniques"
+      "table": "job_family",
+      "name": "job_family_status_check",
+      "value": "\"status\" in ('active', 'retired')",
+      "entityType": "checks"
     },
     {
       "schema": "public",
-      "table": "question_set_release",
-      "name": "question_set_release_version_key",
-      "nameExplicit": true,
-      "columns": [
-        "question_set",
-        "set_version"
-      ],
-      "nullsNotDistinct": false,
-      "entityType": "uniques"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "second_read_tenant_id_key",
-      "nameExplicit": true,
-      "columns": [
-        "tenant_id",
-        "id"
-      ],
-      "nullsNotDistinct": false,
-      "entityType": "uniques"
+      "table": "notification_preference",
+      "name": "notification_preference_channel_check",
+      "value": "\"channel\" in ('email', 'off')",
+      "entityType": "checks"
     },
     {
       "schema": "public",
       "table": "person",
       "name": "person_status_check",
       "value": "\"status\" in ('active', 'on_leave', 'departed')",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "person_position_interval",
+      "value": "\"valid_to\" is null or \"valid_to\" > \"valid_from\"",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "person_position",
+      "name": "person_position_source_check",
+      "value": "\"source\" in ('directory', 'import', 'seed')",
       "entityType": "checks"
     },
     {
@@ -12410,7 +12203,7 @@
       "schema": "public",
       "table": "role_grant",
       "name": "role_grant_role_check",
-      "value": "\"role\" in ('coach', 'catalog_keeper', 'tenant_admin', 'compliance_reviewer')",
+      "value": "\"role\" in ('coach', 'tenant_admin', 'compliance_reviewer', 'program_owner')",
       "entityType": "checks"
     },
     {
@@ -12502,6 +12295,41 @@
       "table": "engagement",
       "name": "engagement_accepted_when_live",
       "value": "(\"status\" in ('active', 'paused', 'ended')) = (\"accepted_on\" is not null)",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_not_self",
+      "value": "\"observer_id\" <> \"subject_id\"",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_distinct_designator",
+      "value": "\"designated_by_id\" not in (\"observer_id\", \"subject_id\")",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_window",
+      "value": "\"valid_to\" > \"valid_from\" and \"valid_to\" <= \"valid_from\" + 90",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_ended",
+      "value": "\"ended_on\" is null or (\"ended_on\" >= \"valid_from\" and \"ended_on\" < \"valid_to\")",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "observer_designation",
+      "name": "observer_designation_basis_check",
+      "value": "\"designator_basis\" in ('leader', 'coach')",
       "entityType": "checks"
     },
     {
@@ -12639,20 +12467,6 @@
     },
     {
       "schema": "public",
-      "table": "badge_waiver",
-      "name": "badge_waiver_criterion_check",
-      "value": "\"criterion\" in ('observers', 'firstHand')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "badge_waiver",
-      "name": "badge_waiver_not_self",
-      "value": "\"person_id\" <> \"granted_by_id\"",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
       "table": "credit_entry",
       "name": "credit_entry_level_check",
       "value": "\"level\" in (1, 2, 3, 4)",
@@ -12683,7 +12497,7 @@
       "schema": "public",
       "table": "observation",
       "name": "observation_basis_shape",
-      "value": "((\"basis\" = 'leader') = (\"basis_reporting_line_id\" is not null)) and ((\"basis\" = 'coach') = (\"basis_engagement_id\" is not null))",
+      "value": "((\"basis\" = 'leader') = (\"basis_reporting_line_id\" is not null)) and ((\"basis\" = 'coach') = (\"basis_engagement_id\" is not null)) and ((\"basis\" = 'designated') = (\"basis_designation_id\" is not null))",
       "entityType": "checks"
     },
     {
@@ -12697,7 +12511,7 @@
       "schema": "public",
       "table": "observation",
       "name": "observation_basis_check",
-      "value": "\"basis\" in ('leader', 'coach')",
+      "value": "\"basis\" in ('leader', 'coach', 'designated')",
       "entityType": "checks"
     },
     {
@@ -12760,14 +12574,7 @@
       "schema": "public",
       "table": "advisory_check",
       "name": "advisory_check_question_set_check",
-      "value": "\"question_set\" in ('privacy-screen', 'narrative-indicators', 'narrative-quality', 'mode-consistency', 'skill-suggest')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_check",
-      "name": "advisory_check_arm_check",
-      "value": "\"arm\" in ('shown', 'shadow')",
+      "value": "\"question_set\" in ('privacy-screen')",
       "entityType": "checks"
     },
     {
@@ -12793,69 +12600,6 @@
     },
     {
       "schema": "public",
-      "table": "advisory_label",
-      "name": "advisory_label_source_check",
-      "value": "\"source\" in ('tick_kept', 'tick_removed', 'skill_final', 'hold_released', 'hold_revised', 'reported_miss', 'mode_changed', 'mode_kept', 'second_read')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "advisory_label_strength_check",
-      "value": "\"strength\" in ('gold', 'silver', 'weak')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "advisory_label_arm_check",
-      "value": "\"arm\" in ('shown', 'shadow')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "advisory_label",
-      "name": "advisory_label_question_set_check",
-      "value": "\"question_set\" in ('privacy-screen', 'narrative-indicators', 'narrative-quality', 'mode-consistency', 'skill-suggest')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "question_set_release_set_check",
-      "value": "\"question_set\" in ('privacy-screen', 'narrative-indicators', 'narrative-quality', 'mode-consistency', 'skill-suggest')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "question_set_release",
-      "name": "question_set_release_effect_check",
-      "value": "\"effect\" in ('hold', 'escalate', 'nudge')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "second_read_reason_check",
-      "value": "\"assigned_reason\" in ('random', 'model_disagreement', 'new_observer')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "second_read",
-      "name": "second_read_status_check",
-      "value": "\"status\" in ('assigned', 'completed', 'skipped')",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "second_read_rating",
-      "name": "second_read_rating_level",
-      "value": "\"level\" between 1 and 4",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
       "table": "audit_event",
       "name": "audit_event_reason_code_check",
       "value": "\"reason_code\" is null or \"reason_code\" in ('note', 'privacy_local', 'privacy_assistant', 'assistant_unavailable', 'expired', 'directory_change', 'admin_release', 'compliance_resolution', 'data_correction')",
@@ -12873,6 +12617,69 @@
       "table": "note",
       "name": "note_purge_shape",
       "value": "(\"body\" is null) = (\"purged_at\" is not null)",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_kind_check",
+      "value": "\"kind\" in ('observation_requested', 'observation_signed', 'observation_returned', 'plan_proposed', 'engagement_proposed', 'request_expiring', 'weekly_digest')",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_entity_type_check",
+      "value": "\"entity_type\" in ('observation', 'plan', 'engagement', 'digest')",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_status_check",
+      "value": "\"status\" in ('pending', 'sent', 'skipped', 'failed')",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_channel_check",
+      "value": "\"channel\" is null or \"channel\" in ('email', 'log')",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_entity_shape",
+      "value": "(\"entity_type\" = 'digest') = (\"entity_id\" is null) and (\"entity_id\" is null or \"entity_id\" ~ '^[a-z]{3}_[0-9a-z]+$')",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_dedupe_key_shape",
+      "value": "\"dedupe_key\" ~ '^[a-z_]+(:[0-9a-z_-]+)+$'",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_item_count",
+      "value": "\"item_count\" is null or \"item_count\" between 0 and 999",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_sent_shape",
+      "value": "(\"status\" = 'sent') = (\"sent_at\" is not null)",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "notification",
+      "name": "notification_attempts",
+      "value": "\"attempts\" between 0 and 20",
       "entityType": "checks"
     }
   ]
