@@ -297,6 +297,7 @@ export const createSkill = Effect.fn('program.createSkill')(function* (input: Sk
       });
       yield* recordAudit(actor, {
         entityType: ENTITY,
+        reasonCode: 'catalog_change',
         entityId: id,
         event: 'CREATE',
         to: 'draft',
@@ -359,6 +360,7 @@ export const updateSkill = Effect.fn('program.updateSkill')(function* (
         .pipe(Effect.flatMap(requireUpdated('skill')));
       yield* recordAudit(actor, {
         entityType: ENTITY,
+        reasonCode: 'catalog_change',
         entityId: row.id,
         event: 'UPDATE',
         from: row.status,
@@ -402,6 +404,7 @@ export const setSkillValues = Effect.fn('program.setSkillValues')(function* (
         .pipe(Effect.flatMap(requireUpdated('skill')));
       yield* recordAudit(actor, {
         entityType: ENTITY,
+        reasonCode: 'catalog_change',
         entityId: row.id,
         event: 'SET_VALUES',
         from: row.status,
@@ -482,6 +485,7 @@ export const skillTransition = Effect.fn('program.skillTransition')(function* (
         published = { versionId, number };
         yield* recordAudit(actor, {
           entityType: ENTITY,
+          reasonCode: 'catalog_change',
           entityId: row.id,
           event: 'PUBLISH',
           from,
@@ -496,6 +500,7 @@ export const skillTransition = Effect.fn('program.skillTransition')(function* (
       } else {
         yield* recordAudit(actor, {
           entityType: ENTITY,
+          reasonCode: 'catalog_change',
           entityId: row.id,
           event: input.event,
           from,

@@ -77,6 +77,7 @@ export const recordPlanReview = Effect.fn('useCase.recordPlanReview')(function* 
         entityType: 'plan',
         entityId: plan.id,
         event: 'REVIEW_RECORDED',
+        reasonCode: 'plan_review',
         data: {
           // The summary is content and stays on the plan; the audit keeps the facts.
           outcomes: Object.fromEntries(outcomes),
@@ -124,6 +125,7 @@ export const confirmPlanReview = Effect.fn('useCase.confirmPlanReview')(function
         entityType: 'plan',
         entityId: plan.id,
         event: 'REVIEW_CONFIRMED',
+        reasonCode: 'plan_review',
         data: { recordedBy: plan.reviewRecordedById },
       });
     }),

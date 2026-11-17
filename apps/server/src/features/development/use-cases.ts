@@ -347,6 +347,7 @@ export const planEvent = Effect.fn('useCase.planEvent')(function* (
           entityType: 'plan',
           entityId: plan.id,
           event: 'REVIEW_CLEARED',
+          reasonCode: 'plan_review',
           data: { by: 'REVISE', recordedBy: plan.reviewRecordedById },
         });
       }

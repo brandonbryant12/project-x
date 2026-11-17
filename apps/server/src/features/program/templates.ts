@@ -33,6 +33,7 @@ import {
   requireProgramAdmin,
   type ChangedValue,
 } from './changes.ts';
+import { requireReason } from './credit-policy.ts';
 import { optionalText, refuseProblems, requireText, uniqueSlug } from './input.ts';
 
 type TemplateRow = typeof schema.activityTemplate.$inferSelect;
@@ -256,6 +257,7 @@ export const createTemplate = Effect.fn('program.createTemplate')(function* (inp
       yield* writeSkills(actor.tenantId, id, skills);
       yield* recordAudit(actor, {
         entityType: ENTITY,
+        reasonCode: 'catalog_change',
         entityId: id,
         event: 'CREATE',
         to: 'draft',
@@ -269,7 +271,9 @@ export const createTemplate = Effect.fn('program.createTemplate')(function* (inp
 /**
  * `PUT /program/activity-templates/:id`: edits a draft or published template,
  * audited with before and after. Roles and values are copied onto an activity
- * when work is added, so an edit affects only work added afterwards.
+ * when work is added, so an edit affects only work added afterwards. Changing
+ * the skills, their roles or their values needs a reason, as skill values and
+ * the credit rules do.
  */
 export const updateTemplate = Effect.fn('program.updateTemplate')(function* (
   id: ActivityTemplateId,
@@ -285,6 +289,11 @@ export const updateTemplate = Effect.fn('program.updateTemplate')(function* (
   if (row.version !== input.version) return yield* Effect.fail(staleWrite('template'));
   const { skills, slugs, ...fields } = yield* checkedInput(actor.tenantId, input);
   const before = (yield* templateSkillViews(actor.tenantId, [id])).get(id) ?? [];
+  const skillsBefore = before.map((s) => ({ slug: s.skill.slug, role: s.role, points: s.points }));
+  const valuesChanged = skillsText(skillsBefore) !== skillsText(withSlugs(skills, slugs));
+  const reason = valuesChanged
+    ? yield* requireReason(input.reason ?? '')
+    : input.reason?.trim() || null;
   const db = yield* Db;
   yield* transactionally(
     Effect.gen(function* () {
@@ -302,10 +311,12 @@ export const updateTemplate = Effect.fn('program.updateTemplate')(function* (
       yield* writeSkills(actor.tenantId, id, skills);
       yield* recordAudit(actor, {
         entityType: ENTITY,
+        reasonCode: 'catalog_change',
         entityId: id,
         event: 'UPDATE',
         from: row.status,
         to: row.status,
+        ...(reason && { note: { kind: 'catalog_change' as const, body: reason } }),
         data: {
           changes: changedFields(
             record(
@@ -316,7 +327,7 @@ export const updateTemplate = Effect.fn('program.updateTemplate')(function* (
                 observationTip: row.observationTip,
                 typicalMinutes: row.typicalMinutes,
               },
-              before.map((s) => ({ slug: s.skill.slug, role: s.role, points: s.points })),
+              skillsBefore,
             ),
             record(fields, withSlugs(skills, slugs)),
           ),
@@ -366,6 +377,7 @@ export const templateTransition = Effect.fn('program.templateTransition')(functi
         .pipe(Effect.flatMap(requireUpdated('template')));
       yield* recordAudit(actor, {
         entityType: ENTITY,
+        reasonCode: 'catalog_change',
         entityId: id,
         event: input.event,
         from,

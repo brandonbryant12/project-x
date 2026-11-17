@@ -509,11 +509,19 @@ const TemplateEditorForm = ({
   readonly dirty: boolean;
 }) => {
   const [error, setError] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
   const update = useApiMutation('program', 'updateTemplate', {
     invalidates: ['program', 'catalog'],
-    onSuccess: () => toast.success('Saved.'),
+    onSuccess: () => {
+      toast.success('Saved.');
+      setReason('');
+    },
     onError: (e) => setError(describeError(e)),
   });
+  // Skills, roles and values set what work added from now on is worth: say why they change.
+  const valuesChanged =
+    JSON.stringify(inputOf(form).skills) !== JSON.stringify(inputOf(formOf(template)).skills);
+  const explained = !valuesChanged || reason.trim().length >= 10;
   return (
     <form
       className="grid gap-10"
@@ -522,7 +530,11 @@ const TemplateEditorForm = ({
         setError(null);
         update.mutate({
           params: { id: template.id },
-          payload: { ...inputOf(form), version: template.version },
+          payload: {
+            ...inputOf(form),
+            version: template.version,
+            reason: valuesChanged ? reason.trim() : null,
+          },
         });
       }}
     >
@@ -547,6 +559,22 @@ const TemplateEditorForm = ({
           />
         </Card>
       </section>
+      {valuesChanged ? (
+        <Field>
+          <Label htmlFor="template-reason">Why the skills, roles or values change</Label>
+          <Textarea
+            id="template-reason"
+            aria-describedby="template-reason-hint"
+            value={reason}
+            maxLength={1000}
+            onChange={(e) => setReason(e.target.value)}
+            className="min-h-16"
+          />
+          <FieldHint id="template-reason-hint">
+            At least 10 characters. Kept with the change in its history.
+          </FieldHint>
+        </Field>
+      ) : null}
       <div className="grid gap-2">
         {error ? (
           <p role="alert" className="text-ui text-danger-ink">
@@ -554,7 +582,11 @@ const TemplateEditorForm = ({
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" disabled={!dirty || update.isPending}>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={!dirty || !explained || update.isPending}
+          >
             {update.isPending ? 'Saving…' : 'Save template'}
           </Button>
           {dirty ? (

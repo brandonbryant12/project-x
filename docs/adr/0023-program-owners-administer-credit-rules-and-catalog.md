@@ -84,9 +84,11 @@ section of the navigation.
   - `RETIRE` and `DISCARD` as for skills.
 - **Audit.** Entity types `credit_policy` (entity id: the tenant),
   `skill` and `activity_template`. Each event records the changed fields
-  before and after. A required or optional reason is a purgeable note of kind
-  `policy_change` or `catalog_change`. The screens show each item's change
-  history from these events.
+  before and after, with reason code `policy_change` or `catalog_change`. A
+  required or optional reason is a purgeable note of the same kind; changing
+  a template's skills, roles or values requires one, as skill values and the
+  credit rules do. The screens show each item's change history from these
+  events.
 
 The catalog item lifecycle (`packages/domain/src/lifecycles/catalog-item.ts`)
 gained one transition: `PUBLISH` on a published item, guarded by a complete

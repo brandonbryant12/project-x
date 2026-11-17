@@ -232,7 +232,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('program administration', (it) => {
           event: 'REPLACE',
           fromState: '1',
           toState: '2',
-          reasonCode: 'note',
+          reasonCode: 'policy_change',
           policyVersion: creditPolicyVersion({ version: 2 }),
         });
         assert.deepStrictEqual(yield* tenantCreditPolicy(tenantId), { ...loose, version: 2 });
@@ -482,7 +482,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('program administration', (it) => {
     'a template lists each skill once, at most one primary, published skills only; an edit is audited',
     () =>
       Effect.gen(function* () {
-        const { api, skillIdOf } = yield* setup;
+        const { db, api, skillIdOf } = yield* setup;
         const [discovery, explaining, retired] = [
           yield* skillIdOf('client-discovery'),
           yield* skillIdOf('explaining-simply'),
@@ -543,17 +543,28 @@ layer(ScenarioLayer, { timeout: 120_000 })('program administration', (it) => {
         );
 
         yield* signInAs(PROGRAM_OWNER);
-        const edited = yield* api.program.updateTemplate({
-          params: { id: created.id },
-          payload: {
-            ...templateInput([
-              [discovery, 'primary', 15],
-              [explaining, 'secondary', null],
-            ]),
-            version: published.version,
-          },
-        });
+        const revalue = (reason: string | null) =>
+          api.program.updateTemplate({
+            params: { id: created.id },
+            payload: {
+              ...templateInput([
+                [discovery, 'primary', 15],
+                [explaining, 'secondary', null],
+              ]),
+              version: published.version,
+              reason,
+            },
+          });
+        // A value sets what work added from now on is worth: it needs a reason.
+        assert.strictEqual((yield* revalue(null).pipe(Effect.flip))._tag, 'Unprocessable');
+        const edited = yield* revalue(REASON);
         assert.strictEqual(edited.status, 'published');
+        assert.deepInclude(edited.history[0], { event: 'UPDATE', reason: REASON });
+        const codes = yield* db
+          .select({ code: schema.auditEvent.reasonCode })
+          .from(schema.auditEvent)
+          .where(eq(schema.auditEvent.entityId, created.id));
+        assert.isTrue(codes.length > 1 && codes.every((c) => c.code === 'catalog_change'));
         assert.deepStrictEqual(edited.history[0]?.changes, [
           {
             field: 'skills',
@@ -567,6 +578,7 @@ layer(ScenarioLayer, { timeout: 120_000 })('program administration', (it) => {
             payload: {
               ...templateInput([[discovery, 'primary', null]]),
               version: published.version,
+              reason: REASON,
             },
           })
           .pipe(Effect.flip);
