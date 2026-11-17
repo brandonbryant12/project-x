@@ -22,13 +22,7 @@ import { progressFor } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { loadSkills, refsFor, toSkillRef } from '../shared/skills.ts';
 import { currentPlanOf, planAgreers } from '../shared/plans.ts';
-import {
-  buildCommitmentViews,
-  canSeeCommitment,
-  nextConversationOf,
-  openCommitmentsOf,
-} from '../shared/rhythm.ts';
-import { buildBrief, readReceipts } from './brief.ts';
+import { readReceipts, worthObserving } from './brief.ts';
 
 /** One recognition moment per person and skill: the highest level earned (independent review). */
 const highestPerSkill = <B extends { personId: string; skillId: string; level: number }>(
@@ -368,29 +362,10 @@ const recentFeed = Effect.fn('support.home.feed')(function* (
   return recently;
 });
 
-/** The viewer's open commitments, and those due this week for them and the people they support. */
-const commitmentsSection = Effect.fn('support.home.commitments')(function* (
-  actor: Actor,
-  facts: RelationshipFacts,
-  on: IsoDate,
-  weekOf: IsoDate,
-) {
-  const me = actor.personId;
-  const weekEnd = addDaysIso(weekOf, 7);
-  const supportedForCommitments = [...directReportsOf(facts, me, on), ...coacheesOf(facts, me, on)];
-  const openRows = yield* openCommitmentsOf(actor.tenantId, [me, ...supportedForCommitments]);
-  const mineOpen = openRows.filter((c) => c.ownerId === me);
-  const dueRows = openRows.filter(
-    (c) => c.dueOn !== null && c.dueOn < weekEnd && canSeeCommitment(facts, me, c, on),
-  );
-  const [myCommitments, commitmentsDue] = [
-    yield* buildCommitmentViews(actor, mineOpen),
-    yield* buildCommitmentViews(actor, dueRows),
-  ];
-  return { myCommitments, commitmentsDue };
-});
-
-/** Home: one merged queue of what is waiting on this person, across every relationship. */
+/**
+ * Home: what is waiting on this person across every relationship, their plan
+ * with its next step, and what happened recently.
+ */
 export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
   const db = yield* Db;
   const on = yield* today;
@@ -399,14 +374,7 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
   const queue = yield* needsYouQueue(actor, facts, on);
   const { nextStep, plan } = yield* planSummary(actor);
   const recently = yield* recentFeed(actor, facts, on);
-  const brief = yield* buildBrief(actor, facts, on);
-  const { myCommitments, commitmentsDue } = yield* commitmentsSection(
-    actor,
-    facts,
-    on,
-    brief.thisWeek.weekOf,
-  );
-  const nextConversation = yield* nextConversationOf(actor);
+  const toObserve = yield* worthObserving(actor, facts, on);
   const coachIds = coachesOf(facts, me, on);
   const leaderId = leaderOf(facts, me, on);
   const support = yield* loadPeople(actor.tenantId, [...coachIds, ...(leaderId ? [leaderId] : [])]);
@@ -423,9 +391,6 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
     plan,
     coaches: coachIds.map((id) => personFrom(support, id)),
     leader: leaderId ? personFrom(support, leaderId) : null,
-    today: brief.today,
-    thisWeek: { ...brief.thisWeek, commitmentsDue },
-    myCommitments,
-    nextConversation,
+    toObserve,
   } satisfies HomeView;
 });

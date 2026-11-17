@@ -1,21 +1,17 @@
 import type { IsoDate, PersonId } from '../ids.ts';
 
 /**
- * "Who to observe this week" (path-to-A § 2). A short list with a reason each,
- * in a fixed priority. It is never a ranking of people by progress: everyone
- * else stays behind "everyone you support", sorted by name.
+ * "Worth observing" on Home. A short list with a reason each, in a fixed
+ * priority. It is never a ranking of people by progress, and it never repeats
+ * someone already waiting on the viewer: an open request or draft appears once,
+ * under "Waiting on you".
  *
  * Priority:
- *  1. an open request to the viewer, closing soonest;
- *  2. planned work this week that names the viewer as observer;
- *  3. the longest time since anyone observed one of the person's focus skills;
- *  4. the person has exactly one distinct observer, and it is not the viewer.
+ *  1. planned work this week that names the viewer as observer;
+ *  2. the longest time since anyone observed one of the person's focus skills;
+ *  3. the person has exactly one distinct observer, and it is not the viewer.
  */
-export type ObserveReason =
-  | 'request_closing'
-  | 'planned_this_week'
-  | 'longest_unobserved'
-  | 'second_observer';
+export type ObserveReason = 'planned_this_week' | 'longest_unobserved' | 'second_observer';
 
 export interface SupportedPerson {
   readonly personId: PersonId;
@@ -33,13 +29,12 @@ export interface ObserveInputs {
   readonly today: IsoDate;
   /** People the viewer can observe today (leader, coach or designated). */
   readonly supported: ReadonlyArray<SupportedPerson>;
-  readonly openRequests: ReadonlyArray<{ readonly subjectId: PersonId; readonly dueOn: IsoDate }>;
+  /** People with an open request or draft for the viewer: already under "Waiting on you". */
+  readonly alreadyWaiting: ReadonlyArray<PersonId>;
   readonly plannedThisWeek: ReadonlyArray<{
     readonly subjectId: PersonId;
     readonly dueOn: IsoDate;
   }>;
-  /** Self-set; 0 turns the suggestions off. */
-  readonly capacity: number;
 }
 
 export interface ObserveSuggestion {
@@ -48,8 +43,8 @@ export interface ObserveSuggestion {
   readonly sentence: string;
 }
 
-/** The list never grows past three, whatever the capacity. */
-export const MAX_OBSERVE_SUGGESTIONS = 3;
+/** The list never grows past three. */
+const MAX_OBSERVE_SUGGESTIONS = 3;
 
 const daysSince = (from: IsoDate, to: IsoDate) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
@@ -67,24 +62,14 @@ const when = (iso: IsoDate, today: IsoDate) => {
 };
 
 export const whoToObserve = (input: ObserveInputs): ReadonlyArray<ObserveSuggestion> => {
-  const limit = Math.min(Math.max(input.capacity, 0), MAX_OBSERVE_SUGGESTIONS);
-  if (limit === 0) return [];
   const byId = new Map(input.supported.map((p) => [p.personId, p]));
+  const skip = new Set([input.viewerId, ...input.alreadyWaiting]);
   const chosen = new Map<PersonId, ObserveSuggestion>();
   const add = (s: ObserveSuggestion) => {
-    if (chosen.size < limit && !chosen.has(s.personId) && s.personId !== input.viewerId) {
+    if (chosen.size < MAX_OBSERVE_SUGGESTIONS && !chosen.has(s.personId) && !skip.has(s.personId))
       chosen.set(s.personId, s);
-    }
   };
 
-  for (const r of input.openRequests.toSorted((a, b) => a.dueOn.localeCompare(b.dueOn))) {
-    const name = byId.get(r.subjectId)?.firstName ?? 'Someone';
-    add({
-      personId: r.subjectId,
-      reason: 'request_closing',
-      sentence: `${name} asked you to observe; it closes ${when(r.dueOn, input.today)}.`,
-    });
-  }
   for (const p of input.plannedThisWeek.toSorted((a, b) => a.dueOn.localeCompare(b.dueOn))) {
     const name = byId.get(p.subjectId)?.firstName;
     if (!name) continue;

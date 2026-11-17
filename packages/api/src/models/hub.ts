@@ -16,34 +16,6 @@ import {
 import { Schema } from 'effect';
 import { Instant, PersonSummary, SkillRef } from './common.ts';
 
-/* ---------- Home: Today and This week (path-to-A § 2) ---------- */
-
-export const TodayItem = Schema.Struct({
-  kind: Schema.Literals(['conversation', 'planned_observation', 'activity_due']),
-  id: Schema.String,
-  title: Schema.String,
-  person: Schema.NullOr(PersonSummary),
-  /** A scheduled time, for conversations. */
-  at: Schema.NullOr(Instant),
-  on: IsoDate,
-  href: Schema.String,
-});
-export type TodayItem = typeof TodayItem.Type;
-
-/** One person worth observing this week, and why. Never a ranking. */
-export const ObserveSuggestion = Schema.Struct({
-  person: PersonSummary,
-  reason: Schema.Literals([
-    'request_closing',
-    'planned_this_week',
-    'longest_unobserved',
-    'second_observer',
-  ]),
-  sentence: Schema.String,
-  href: Schema.String,
-});
-export type ObserveSuggestion = typeof ObserveSuggestion.Type;
-
 export const CommitmentView = Schema.Struct({
   id: CommitmentId,
   owner: PersonSummary,
@@ -58,19 +30,6 @@ export const CommitmentView = Schema.Struct({
   actions: Schema.Array(Schema.Literals(CommitmentLifecycle.events)),
 });
 export type CommitmentView = typeof CommitmentView.Type;
-
-export const ThisWeek = Schema.Struct({
-  /** Monday of the current business week (tenant time zone). */
-  weekOf: IsoDate,
-  toObserve: Schema.Array(ObserveSuggestion),
-  /** Commitments due this week: the viewer's own, and those of people they support. */
-  commitmentsDue: Schema.Array(CommitmentView),
-  /** Leaders: "4 of your 9 reports were observed in the last six weeks." */
-  coverageSentence: Schema.NullOr(Schema.String),
-  /** The viewer's self-set capacity. */
-  observeCapacity: Schema.Number,
-});
-export type ThisWeek = typeof ThisWeek.Type;
 
 /* ---------- Conversations (ADR 0019) ---------- */
 

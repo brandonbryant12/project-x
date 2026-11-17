@@ -15,9 +15,9 @@ import {
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
-import { and, asc, eq, gte, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { Effect } from 'effect';
-import { addDays, now, today } from '../../platform/time.ts';
+import { today } from '../../platform/time.ts';
 import { loadPeople, personFrom } from './people.ts';
 import { loadRelationshipFacts } from './relationships.ts';
 
@@ -28,9 +28,6 @@ import { loadRelationshipFacts } from './relationships.ts';
  */
 export type ConversationRow = typeof schema.coachingConversation.$inferSelect;
 export type CommitmentRow = typeof schema.commitment.$inferSelect;
-
-/** A conversation that started up to this long ago still counts as "next" (it may be running). */
-const NEXT_CONVERSATION_GRACE_HOURS = 12;
 
 /* ---------- Conversations ---------- */
 
@@ -212,36 +209,4 @@ export const buildConversationSummaries = Effect.fn('rhythm.conversationSummarie
     openCommitments: open.filter((c) => c.ownerId === r.coacheeId).length,
     href: `/conversations/${r.id}`,
   }));
-});
-
-/**
- * The viewer's next scheduled conversation as either party: the soonest one
- * that has not started, or started within the last few hours and is not yet
- * closed. Null when there is none.
- */
-export const nextConversationOf = Effect.fn('rhythm.nextConversation')(function* (actor: Actor) {
-  const db = yield* Db;
-  const at = yield* now;
-  const [row] = yield* db
-    .select()
-    .from(schema.coachingConversation)
-    .where(
-      and(
-        eq(schema.coachingConversation.tenantId, actor.tenantId),
-        or(
-          eq(schema.coachingConversation.hostId, actor.personId),
-          eq(schema.coachingConversation.coacheeId, actor.personId),
-        ),
-        eq(schema.coachingConversation.status, 'scheduled'),
-        gte(
-          schema.coachingConversation.scheduledFor,
-          addDays(at, -NEXT_CONVERSATION_GRACE_HOURS / 24),
-        ),
-      ),
-    )
-    .orderBy(asc(schema.coachingConversation.scheduledFor))
-    .limit(1);
-  if (!row) return null;
-  const [summary] = yield* buildConversationSummaries(actor, [row]);
-  return summary ?? null;
 });

@@ -1,4 +1,4 @@
-import type { FeedItem, HomeView, QueueItem, TodayItem } from '@repo/api';
+import type { FeedItem, HomeView, QueueItem } from '@repo/api';
 import {
   BadgeSeal,
   Button,
@@ -17,15 +17,7 @@ import { FirstRunStep } from '@/components/first-run.tsx';
 import { Page, SkillChip } from '@/components/page.tsx';
 import { ServerLink } from '@/components/server-link.tsx';
 import { RequestObservationDialog } from '@/features/development/request-observation-dialog.tsx';
-import { CommitmentRow } from '@/features/rhythm/commitments.tsx';
-import {
-  formatDate,
-  formatTime,
-  formatWhen,
-  greeting,
-  humanizeDates,
-  relativeDays,
-} from '@/lib/format.ts';
+import { formatDate, greeting, humanizeDates, relativeDays } from '@/lib/format.ts';
 import { PLAN_STATUS } from '@/lib/lifecycle-presentation.ts';
 import { useSession } from '@/lib/session.ts';
 
@@ -127,143 +119,121 @@ const FeedEntry = ({ item }: { readonly item: FeedItem }) => {
         <p className="text-meta text-ink-3">{relativeDays(item.at)}</p>
       </div>
       <ServerLink href={item.href} className="text-meta text-primary-ink hover:underline">
-        Receipt
+        How this was earned
       </ServerLink>
     </li>
   );
 };
 
-const TODAY_KIND: Record<TodayItem['kind'], string> = {
-  conversation: 'Conversation',
-  planned_observation: 'Planned work you will observe',
-  activity_due: 'Planned work due',
-};
-
-/** Today: what is on the calendar the plan already knows about. No calendar needed. */
-const TodayBand = ({ home }: { readonly home: HomeView }) => {
-  const me = useSession().person.id;
-  const next = home.nextConversation;
-  const nextIsToday = home.today.some((t) => t.kind === 'conversation' && t.id === next?.id);
+/** Waiting on you: one merged queue, then (for observers) who is worth observing. */
+const WaitingOnYou = ({
+  home,
+  onRequest,
+}: {
+  readonly home: HomeView;
+  readonly onRequest: (id: string) => void;
+}) => {
+  const observer = useSession().relations.canObserve;
+  const empty = home.needsYou.length === 0 && home.toObserve.length === 0;
   return (
-    <section className="grid gap-3" aria-labelledby="today">
-      <SectionLabel id="today">Today</SectionLabel>
-      {home.today.length > 0 ? (
-        <ul className="divide-y divide-line border-y border-line">
-          {home.today.map((t) => (
-            <li key={`${t.kind}-${t.id}`} className="flex items-center gap-3 py-3">
-              <span className="w-14 shrink-0 text-meta text-ink-3 tabular">
-                {t.at ? formatTime(t.at) : 'Today'}
-              </span>
-              {t.person ? <PersonAvatar person={t.person} size="sm" /> : null}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-ui text-ink">{t.title}</p>
-                <p className="text-meta text-ink-3">{TODAY_KIND[t.kind]}</p>
-              </div>
-              <ServerLink href={t.href} className="text-meta text-primary-ink hover:underline">
-                Open
-              </ServerLink>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-ui text-ink-3">Nothing is planned for today.</p>
-      )}
-      {next && !nextIsToday ? (
-        <p className="text-ui text-ink-2">
-          Next conversation:{' '}
-          <ServerLink href={next.href} className="text-primary-ink hover:underline">
-            with {(next.host.id === me ? next.coachee : next.host).displayName},{' '}
-            {formatWhen(next.scheduledFor)}
-          </ServerLink>
-        </p>
+    <section className="grid gap-3" aria-labelledby="waiting">
+      <SectionLabel id="waiting">Waiting on you</SectionLabel>
+      {home.needsYou.length > 0 ? (
+        <Card>
+          <ul className="divide-y divide-line">
+            {home.needsYou.map((item) => (
+              <QueueRow key={`${item.kind}-${item.id}`} item={item} onRequest={onRequest} />
+            ))}
+          </ul>
+          {home.needsYouTotal > home.needsYou.length ? (
+            <div className="border-t border-line px-5 py-3">
+              <Link to="/inbox" className="text-ui text-primary-ink hover:underline">
+                See all {home.needsYouTotal}
+              </Link>
+            </div>
+          ) : null}
+        </Card>
+      ) : null}
+      {observer && home.toObserve.length > 0 ? (
+        <div className="grid gap-1">
+          <p className="text-ui font-medium text-ink">Worth observing this week</p>
+          <ul className="divide-y divide-line border-y border-line">
+            {home.toObserve.map((s) => (
+              <li key={s.person.id} className="flex items-center gap-3 py-3">
+                <PersonAvatar person={s.person} size="md" />
+                <div className="min-w-0 flex-1">
+                  <ServerLink href={s.href} className="text-ui text-ink hover:underline">
+                    {s.person.displayName}
+                  </ServerLink>
+                  <p className="text-meta text-ink-3">{s.sentence}</p>
+                </div>
+                <Button size="sm" variant="secondary" asChild>
+                  <Link to="/observations/new" search={{ for: s.person.id }}>
+                    I saw this
+                  </Link>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {empty ? (
+        <EmptyState>
+          Nothing is waiting on you.
+          {observer ? ' A good day to notice someone doing something well.' : ''}
+        </EmptyState>
       ) : null}
     </section>
   );
 };
 
-/** This week: who to observe and why, commitments due, coverage. Never a ranking. */
-const ThisWeekBand = ({ home }: { readonly home: HomeView }) => {
-  const session = useSession();
-  const week = home.thisWeek;
-  const me = session.person.id;
-  const due = week.commitmentsDue;
-  const open = home.myCommitments.filter((c) => !due.some((d) => d.id === c.id));
-  const observer = session.relations.canObserve;
-  const empty =
-    week.toObserve.length === 0 && due.length === 0 && open.length === 0 && !week.coverageSentence;
-  if (empty && !observer) return null;
+/** Your plan, the next step toward a badge, and who supports you. */
+const YourPlan = ({ home }: { readonly home: HomeView }) => {
+  const support = home.coaches.length > 0 || home.leader;
   return (
-    <section className="grid gap-4" aria-labelledby="this-week">
-      <div className="flex items-baseline justify-between gap-3">
-        <SectionLabel id="this-week">This week</SectionLabel>
-        <span className="text-meta text-ink-3">from {formatDate(week.weekOf)}</span>
-      </div>
-      {observer ? (
-        <div className="grid gap-2">
-          <p className="text-ui font-medium text-ink">
-            {week.toObserve.length > 0 ? 'Worth observing' : 'Nobody is waiting to be observed'}
-          </p>
-          {week.toObserve.length > 0 ? (
-            <ul className="divide-y divide-line border-y border-line">
-              {week.toObserve.map((s) => (
-                <li key={s.person.id} className="flex items-center gap-3 py-3">
-                  <PersonAvatar person={s.person} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <ServerLink href={s.href} className="text-ui text-ink hover:underline">
-                      {s.person.displayName}
-                    </ServerLink>
-                    <p className="text-meta text-ink-3">{s.sentence}</p>
-                  </div>
-                  <Button size="sm" variant="secondary" asChild>
-                    <Link to="/observations/new" search={{ for: s.person.id }}>
-                      I saw this
-                    </Link>
-                  </Button>
-                </li>
+    <section className="grid gap-3" aria-labelledby="your-plan">
+      <SectionLabel id="your-plan">Your plan</SectionLabel>
+      {home.plan ? (
+        <Card className="grid gap-4 p-5">
+          <div className="grid gap-2">
+            <div className="flex items-start justify-between gap-3">
+              <Link
+                to="/development"
+                className="font-serif text-h2 font-medium text-ink hover:underline md:text-h1"
+              >
+                {home.plan.title}
+              </Link>
+              <StatusPill {...PLAN_STATUS[home.plan.status]} />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {home.plan.focusSkills.map((s) => (
+                <SkillChip key={s.id} name={s.name} />
               ))}
-            </ul>
+            </div>
+            <p className="text-meta text-ink-3">
+              {home.plan.activityCount} {plural(home.plan.activityCount, 'piece', 'pieces')} of work
+              · {home.plan.observedCount} {plural(home.plan.observedCount, 'time', 'times')}{' '}
+              observed · runs to {formatDate(home.plan.periodEnd)}
+            </p>
+          </div>
+          {home.nextStep ? (
+            <div className="flex items-center gap-4 border-t border-line pt-4">
+              <BadgeSeal level={0} domain={home.nextStep.skill.domain} size={40} />
+              <div className="grid gap-1">
+                <p className="text-meta text-ink-3">Next step</p>
+                <p className="text-body text-ink">{home.nextStep.sentence}</p>
+                <Link
+                  to="/catalog/skills/$slug"
+                  params={{ slug: home.nextStep.skill.slug }}
+                  className="text-meta text-primary-ink hover:underline"
+                >
+                  What {home.nextStep.skill.name.toLowerCase()} looks like
+                </Link>
+              </div>
+            </div>
           ) : null}
-          <p className="text-meta text-ink-3">
-            You plan to observe up to {week.observeCapacity}{' '}
-            {plural(week.observeCapacity, 'person', 'people')} a week.{' '}
-            <Link to="/settings" className="text-primary-ink hover:underline">
-              Change
-            </Link>
-          </p>
-          {week.coverageSentence ? (
-            <p className="text-ui text-ink-2">{week.coverageSentence}</p>
-          ) : null}
-        </div>
-      ) : null}
-      {due.length > 0 ? (
-        <div className="grid gap-1">
-          <p className="text-ui font-medium text-ink">Commitments due</p>
-          <ul className="divide-y divide-line">
-            {due.map((c) => (
-              <CommitmentRow key={c.id} commitment={c} showOwner={c.owner.id !== me} />
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      {open.length > 0 ? (
-        <div className="grid gap-1">
-          <p className="text-ui font-medium text-ink">Your open commitments</p>
-          <ul className="divide-y divide-line">
-            {open.map((c) => (
-              <CommitmentRow key={c.id} commitment={c} showOwner={false} />
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </section>
-  );
-};
-
-const PlanRail = ({ home, firstRun }: { readonly home: HomeView; readonly firstRun: boolean }) => {
-  const session = useSession();
-  return (
-    <aside className="grid content-start gap-6">
-      {!home.plan && !firstRun ? (
+        </Card>
+      ) : (
         <EmptyState
           action={
             <Button asChild variant="secondary" size="sm">
@@ -276,58 +246,32 @@ const PlanRail = ({ home, firstRun }: { readonly home: HomeView; readonly firstR
           You don’t have a plan yet. Start from a template
           {home.coaches.length > 0 ? ', or ask your coach to propose one' : ''}.
         </EmptyState>
-      ) : null}
-      {home.plan ? (
-        <Card className="p-5">
-          <div className="flex items-start justify-between gap-3">
-            <SectionLabel>Your plan</SectionLabel>
-            <StatusPill {...PLAN_STATUS[home.plan.status]} />
-          </div>
-          <Link
-            to="/development"
-            className="mt-2 block font-serif text-h1 font-medium text-ink hover:underline"
-          >
-            {home.plan.title}
-          </Link>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {home.plan.focusSkills.map((s) => (
-              <SkillChip key={s.id} name={s.name} />
+      )}
+      {support ? (
+        <div className="grid gap-2">
+          <p className="text-meta text-ink-3">Your support</p>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            {home.coaches.map((c) => (
+              <Link key={c.id} to="/people/$id" params={{ id: c.id }} className="rounded-control">
+                <PersonChip person={c} subtitle="Your coach" />
+              </Link>
             ))}
+            {home.leader ? (
+              <Link to="/people/$id" params={{ id: home.leader.id }} className="rounded-control">
+                <PersonChip person={home.leader} subtitle="Your leader" />
+              </Link>
+            ) : null}
+            <Link to="/coaching" className="text-meta text-primary-ink hover:underline">
+              Coaching
+            </Link>
           </div>
-          <p className="mt-3 text-meta text-ink-3">
-            {home.plan.activityCount} {plural(home.plan.activityCount, 'activity', 'activities')} ·{' '}
-            {home.plan.observedCount} observed · runs to {formatDate(home.plan.periodEnd)}
-          </p>
-        </Card>
-      ) : null}
-      {home.coaches.length > 0 || home.leader ? (
-        <div className="grid gap-3">
-          <SectionLabel>Your support</SectionLabel>
-          {home.coaches.map((c) => (
-            <Link key={c.id} to="/people/$id" params={{ id: c.id }} className="rounded-control">
-              <PersonChip person={c} subtitle="Your coach" />
-            </Link>
-          ))}
-          {home.leader ? (
-            <Link to="/people/$id" params={{ id: home.leader.id }} className="rounded-control">
-              <PersonChip person={home.leader} subtitle="Your leader" />
-            </Link>
-          ) : null}
         </div>
       ) : null}
-      {session.relations.canObserve ? (
-        // On phones the same action sits under the greeting, above the fold.
-        <Button variant="primary" asChild className="hidden lg:inline-flex">
-          <Link to="/observations/new">
-            <EyeIcon /> I saw this
-          </Link>
-        </Button>
-      ) : null}
-    </aside>
+    </section>
   );
 };
 
-/** Home ("Today"): what needs me, across every relationship (path to A § 2). */
+/** Home: waiting on you, your plan (with the next step), and what happened recently. */
 export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
   const [requesting, setRequesting] = useState<string | null>(null);
   const session = useSession();
@@ -336,98 +280,49 @@ export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
   const firstRun =
     !home.plan && waiting === 0 && !session.relations.canObserve && home.recently.length === 0;
   return (
-    <Page>
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,720px)_320px] lg:justify-between">
-        <div className="grid content-start gap-10">
-          <header className="grid gap-2">
-            <h1 className="font-serif text-display font-medium text-ink">
-              {greeting()}, {home.firstName}.
-            </h1>
-            <p className="text-body text-ink-2">
-              {waiting === 0
-                ? 'Here is where things stand.'
-                : `${waiting === 1 ? 'One thing is' : `${waiting} things are`} waiting on you.`}
-            </p>
-            {session.relations.canObserve ? (
-              <Button variant="primary" asChild className="mt-2 justify-self-start lg:hidden">
-                <Link to="/observations/new">
-                  <EyeIcon /> I saw this
-                </Link>
-              </Button>
-            ) : null}
-          </header>
-
-          {firstRun ? (
-            <FirstRunStep leader={home.leader} coaches={home.coaches} />
-          ) : (
-            <>
-              <TodayBand home={home} />
-              <section className="grid gap-3" aria-labelledby="needs-you">
-                <SectionLabel id="needs-you">Needs you</SectionLabel>
-                {home.needsYou.length > 0 ? (
-                  <Card>
-                    <ul className="divide-y divide-line">
-                      {home.needsYou.map((item) => (
-                        <QueueRow
-                          key={`${item.kind}-${item.id}`}
-                          item={item}
-                          onRequest={setRequesting}
-                        />
-                      ))}
-                    </ul>
-                    {home.needsYouTotal > home.needsYou.length ? (
-                      <div className="border-t border-line px-5 py-3">
-                        <Link to="/inbox" className="text-ui text-primary-ink hover:underline">
-                          See all {home.needsYouTotal} in Inbox
-                        </Link>
-                      </div>
-                    ) : null}
-                  </Card>
-                ) : (
-                  <EmptyState>
-                    Nothing is waiting on you. A good day to notice someone doing something well.
-                  </EmptyState>
-                )}
-              </section>
-              <ThisWeekBand home={home} />
-            </>
-          )}
-
-          {home.nextStep ? (
-            <section className="grid gap-3" aria-labelledby="next-step">
-              <SectionLabel id="next-step">Your next step</SectionLabel>
-              <Card className="flex items-center gap-4 p-5">
-                <BadgeSeal level={0} domain={home.nextStep.skill.domain} size={56} />
-                <div className="grid gap-1">
-                  <p className="text-body text-ink">{home.nextStep.sentence}</p>
-                  <Link
-                    to="/catalog/skills/$slug"
-                    params={{ slug: home.nextStep.skill.slug }}
-                    className="text-meta text-primary-ink hover:underline"
-                  >
-                    What {home.nextStep.skill.name.toLowerCase()} looks like
-                  </Link>
-                </div>
-              </Card>
-            </section>
+    <Page width="reading">
+      <div className="grid content-start gap-10">
+        <header className="grid gap-2">
+          <h1 className="font-serif text-display font-medium text-ink">
+            {greeting()}, {home.firstName}.
+          </h1>
+          <p className="text-body text-ink-2">
+            {waiting === 0
+              ? 'Here is where things stand.'
+              : `${waiting === 1 ? 'One thing is' : `${waiting} things are`} waiting on you.`}
+          </p>
+          {session.relations.canObserve ? (
+            <Button variant="primary" asChild className="mt-2 justify-self-start">
+              <Link to="/observations/new">
+                <EyeIcon /> I saw this
+              </Link>
+            </Button>
           ) : null}
+        </header>
 
-          <section className="grid gap-1" aria-labelledby="recently">
-            <SectionLabel id="recently">Recently</SectionLabel>
-            {home.recently.length > 0 ? (
-              <ul className="divide-y divide-line">
-                {home.recently.map((item) => (
-                  <FeedEntry key={`${item.kind}-${item.href}-${item.at}`} item={item} />
-                ))}
-              </ul>
-            ) : (
-              <p className="py-3 text-ui text-ink-3">
-                When someone signs an observation of your work, their words appear here.
-              </p>
-            )}
-          </section>
-        </div>
-        <PlanRail home={home} firstRun={firstRun} />
+        {firstRun ? (
+          <FirstRunStep leader={home.leader} coaches={home.coaches} />
+        ) : (
+          <>
+            <WaitingOnYou home={home} onRequest={setRequesting} />
+            <YourPlan home={home} />
+          </>
+        )}
+
+        <section className="grid gap-1" aria-labelledby="recently">
+          <SectionLabel id="recently">Recently</SectionLabel>
+          {home.recently.length > 0 ? (
+            <ul className="divide-y divide-line">
+              {home.recently.map((item) => (
+                <FeedEntry key={`${item.kind}-${item.href}-${item.at}`} item={item} />
+              ))}
+            </ul>
+          ) : (
+            <p className="py-3 text-ui text-ink-3">
+              When someone signs an observation of your work, their words appear here.
+            </p>
+          )}
+        </section>
       </div>
       <RequestObservationDialog interactionId={requesting} onClose={() => setRequesting(null)} />
     </Page>
