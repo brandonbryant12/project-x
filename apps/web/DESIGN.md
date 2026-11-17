@@ -2,8 +2,11 @@
 
 This page is the design contract for the web app. Navigation (who sees what)
 is `src/components/shell/nav.ts`; Home is `src/features/home/home-screen.tsx`
-with three sections: "Waiting on you", "Your plan" and "Recently". If this page
-and the code disagree, fix one of them in the same change.
+with three sections: "Waiting on you", "Your plan" and "Recently". "Your plan"
+leads with **Try next time** (the latest signed "What next", in the
+observer's words, with who and when), then one quiet progress line toward the
+next badge, then the plan card. If this page and the code disagree, fix one
+of them in the same change.
 
 ## Feel
 
@@ -60,6 +63,9 @@ tables are sans.
   - `StatusPill`: labels and tones come from
     `src/lib/lifecycle-presentation.ts`.
   - `DueLabel`: shows dates, not countdowns.
+  - `CreditFacts`: one credit's role, points and, when it matters, where the
+    value came from ("Primary · 12 points · value set for this work"). Labels
+    come from `CREDIT_ROLE_LABELS` and `CREDIT_SOURCE_NOTES`.
   - Also: `PersonAvatar`, `PersonChip`, `CriteriaChecklist`, `CoverageDots`,
     `LevelPicker`, `IndicatorRow`, `AssistantNote` and `AssistantPreRead`.
 
@@ -82,7 +88,17 @@ tables are sans.
   - It only offers chips the human accepts.
   - Call `support.advisorySeen` when a check is shown.
 - **No leaderboards, ranks, streaks or totals of people.** Team views show
-  coverage only.
+  coverage only. Points appear only as one person's progress and as the value
+  of their own credits, never summed across people.
+- **Capabilities that are not lifecycle events** (edit plan, add work, edit
+  work, set value, record or confirm the closing review) come from explicit
+  flags on the view (`canEdit`, `canAddWork`, `canSetValue`, …), never from
+  the client's own reading of roles.
+- **Roles are the observer's.** The sign screen and "I saw this" offer a
+  Primary / Secondary choice per rated skill to the observer only; the
+  subject sees roles but never the control. The sign screen says in one quiet
+  line what signing adds ("Signing adds …", or "Feedback only: signing adds
+  nothing to the record.").
 - **Avoid "AI slop":** gradient blobs, emoji, decorative icon-in-circle tiles,
   stat-card dashboards, centered heroes, and uniform card grids where a list
   reads better.
@@ -90,11 +106,28 @@ tables are sans.
 ## Copy
 
 Plain, adult, second person. Name people, not roles. No exclamation marks and
-no "Great job!". Prefer "record" to "points". The assistant says "appears to"
+no "Great job!". Say "points" for the value of a credit, never as a score
+or reward; say "Primary" and "Secondary" for roles, and "Observed before
+roles" for credit signed before roles existed. The assistant says "appears to"
 and never "I". Use plain words, not internal terms: "Log work I did", "I saw
 this", "My plan", "People I coach", "times observed", "How this was earned"
 (the [glossary](../../CONTEXT.md) maps them). The product name comes from
 `src/lib/brand.ts`.
+
+## Program screens
+
+Program owners and tenant admins see a **Program** group in the navigation:
+Adoption, **Credit rules** (`/program/credit-rules`), **Skill catalog**
+(`/program/skills`) and **Activity templates** (`/program/templates`). They
+are forms over the stored values, dense and plain:
+
+- Every field says, in a hint beside it, what the calculation actually does
+  with it (`src/features/program/credit-rules.ts` keeps the copy next to the
+  arithmetic).
+- A save asks for a reason where the server requires one and shows the change
+  history with each field before and after.
+- A broken stored policy is shown with its problems, not hidden behind
+  defaults; the working defaults are shown for comparison only.
 
 ## Accessibility
 

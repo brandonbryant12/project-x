@@ -4,7 +4,12 @@ A development program for a financial-services firm. Skills that matter to
 the business are named in a shared catalog. People develop them through real
 work, such as client meetings, book reviews and team conversations. Credit
 comes **only** when a coach or leader who saw the work signs an observation.
-There is no self-report, no points, and the AI never grants credit.
+Each signed credit carries points: more for the skill the work was mainly
+about (primary), fewer for the skills used along the way (secondary), at
+values the firm's program owners set and can change. A badge needs a points
+total from several pieces of work, more than one observer, first-hand
+evidence and time. There is no self-report, nothing is redeemable or ranked,
+and the AI never grants credit.
 
 Start at the [docs map](docs/README.md). The essentials:
 
@@ -31,7 +36,7 @@ Sign in as any seeded persona from the sign-in page:
 | Leo     | Leader with an observation waiting                     |
 | Sam     | Coach with a plan to agree                             |
 | Aisha   | Returned observation and a reflection held for privacy |
-| Rhea    | Admin: audit trail and AI usage                        |
+| Rhea    | Admin: audit trail, AI usage, credit rules and catalog |
 | Nina    | Compliance reviewer                                    |
 
 ## Stack

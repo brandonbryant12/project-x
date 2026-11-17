@@ -1,6 +1,6 @@
 # ADR 0008: The Gemini Decisions API is advisory: it may hold or nudge, never clear
 
-- Status: Accepted
+- Status: Accepted (amended)
 - Date: 2026-11-16
 
 ## Context
@@ -118,3 +118,43 @@ evidence from `screening` to `available`. In effect the AI was clearing text.
 - Trade-off: suspected PII that only the model would catch can be visible for
   the seconds before the check completes. The local screen is the fail-closed
   layer.
+
+## Amendment (2026-11-17): the local screen guards the provider boundary, and a sweep recovers missed screens
+
+The only assistant check that runs is `privacy-screen` on a coachee's
+reflection. Three changes make it safe to switch on, whoever calls it:
+
+- **The local screen runs again at the provider boundary.** `runCheck`
+  (`apps/server/src/features/shared/advisory/runner.ts`) runs the
+  deterministic local screen on the exact text it is about to send. Text the
+  local screen holds is never sent: the check is recorded as `skipped` with
+  provider `local` and a rationale. If that reflection is still `available`
+  (for example, a local rule was added after it was written), it is held by
+  the local rule, with reason code `privacy_local`, through the evidence
+  lifecycle and with an audit event. This covers every caller, present and
+  future.
+- **A sweep screens reflections whose screen was missed.** The screen still
+  runs after commit, in process, so a stopped server could skip it. The
+  screening sweep (`apps/server/src/scheduler/screening.ts`, every five
+  minutes, only while assistant checks are enabled) screens an `available`
+  reflection when its current version came from its author (not a release or
+  a resolution), was written between two days and five minutes ago, has no
+  completed or skipped check, has had no attempt in the last 15 minutes, and
+  has had fewer than three attempts. The five-minute grace leaves the first
+  go to the after-commit screen. **The two-day look-back means switching the
+  assistant on never sends reflections older than that to the provider.**
+  After the third failed attempt the reflection stays as it is, with its
+  failed checks on record. A failure is still never a pass and never a hold.
+  Two replicas can occasionally screen the same version twice; a hold applies
+  only to the version screened.
+- **`afterCommit` is a real commit hook.** Called inside a transaction, the
+  work now waits for `COMMIT` and is dropped if the transaction rolls back;
+  it never joins the transaction (`apps/server/src/platform/background-context.ts`).
+
+This changes one principle from the Context section: an unknown outcome (a
+timeout or lost connection) is no longer only recorded and left. The runner
+still never retries a check in place, but the sweep may start a new check on
+the same version, at most three attempts in all, 15 minutes apart. A retried
+call may be billed twice. The tests are
+`apps/server/src/journeys/assistant-screen-boundary.scenario.test.ts` and
+`apps/server/src/platform/background-context.test.ts`.

@@ -1,6 +1,6 @@
 # ADR 0005: Every lifecycle is an explicit XState v5 machine, enforced on the server with pure transitions
 
-- Status: Accepted
+- Status: Accepted (amended)
 - Date: 2026-11-16
 
 ## Context
@@ -68,3 +68,39 @@ of truth for the entity's states, events and transition guards.**
 - `immutable once terminal` holds by construction: terminal states are
   `type: 'final'` and accept no events, except `VOID` on `signed`, which is
   modelled explicitly.
+
+## Amendment (2026-11-17): plan revision, draft expiry, catalog versions and facts beside a machine
+
+The machines changed in four places; the generated
+[lifecycles](../architecture/lifecycles.md) page shows them.
+
+- **Plan `REVISE`** goes from `proposed` or `active` back to `draft`, sent by
+  the owner or a plan agreer, so an agreed plan can be changed and agreed
+  again. It is guarded by the fact `reviewConfirmed`: once a closing review is
+  confirmed, the plan cannot be revised. The use case clears the agreement,
+  the endorsement and any closing review that is recorded but not confirmed,
+  and audits what it cleared (`planEvent` in
+  `apps/server/src/features/development/use-cases.ts`). `REVISE` from
+  `paused` is not allowed (open question 38).
+- **Plan `EXPIRE` from `draft`.** The expiry sweep now expires every
+  unfinished plan past its period plus the grace days, drafts included, so a
+  plan revised late can never block the owner's next one. A recorded closing
+  review no longer exempts a plan from expiry.
+- **Observation `RESUBMIT` is guarded** by the fact `reflectionHeld`: a
+  returned request is resent only once the requester's reflection is no longer
+  held for privacy, so held text never goes to an observer. The requester may
+  still withdraw it, and signing is never blocked by the reflection.
+- **Catalog item `PUBLISH` on a published item** publishes its draft as the
+  next immutable skill version, guarded by a complete draft (ADR 0023).
+
+**A fact recorded beside an entity is not a lifecycle.** The closing review of
+a plan (an outcome per focus skill, a summary, who recorded it and who
+confirmed it) is stored on `plan` and `plan_skill` with its own audit events,
+`REVIEW_RECORDED`, `REVIEW_CONFIRMED` and `REVIEW_CLEARED`. It has no machine:
+the owner may record it while the plan is `active`, `paused`, `completed` or
+`expired` and may record it again until an agreer confirms it, after which it
+is fixed. Capabilities that are not lifecycle events (edit the plan, add work,
+edit work, set a value, record or confirm the review) reach the UI as explicit
+flags on the view, computed by the same functions the use cases refuse with
+(`apps/server/src/features/development/permissions.ts`). The `actions` array
+still carries only lifecycle events.
