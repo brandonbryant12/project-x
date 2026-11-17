@@ -12,6 +12,7 @@ import { assert, layer } from '@effect/vitest';
 import { and, eq } from 'drizzle-orm';
 import { Effect, Option, Ref } from 'effect';
 import { TestClock } from 'effect/testing';
+import { resolveEvidence } from '../features/admin/use-cases.ts';
 import { logInteraction, reviseEvidence } from '../features/development/use-cases.ts';
 import { screenEvidenceWithAssistant } from '../features/shared/advisory/evidence-screening.ts';
 import { privacyScreen } from '../features/shared/advisory/question-sets.ts';
@@ -34,11 +35,12 @@ import { ScenarioLayer, TestSession, atScenarioTime, signInAs } from '../test/ha
  * now hold is held by them. Protects the recovery of missed screens: a
  * reflection whose after-commit screen never ran is screened by the sweep,
  * once per version, within a bounded look-back, a bounded number of times,
- * and not at all while the assistant is off. A failure is never a pass.
+ * and not at all while the assistant is off. A failure is never a pass. A
+ * reflection a person released is never sent back to the assistant (I43).
  */
 const MINUTE = 60_000;
 
-const spy = (answer: 'clean' | 'fail') =>
+const spy = (answer: 'clean' | 'fail' | 'hold') =>
   Effect.gen(function* () {
     const seen = yield* Ref.make<ReadonlyArray<string>>([]);
     const service: DecisionsService = {
@@ -55,7 +57,11 @@ const spy = (answer: 'clean' | 'fail') =>
           const answers: Record<string, DecisionAnswer> = Object.fromEntries(
             Object.keys(request.questions).map((key) => [
               key,
-              { kind: 'binary', probability: 0.01, confidence: 0.9 } satisfies DecisionAnswer,
+              {
+                kind: 'binary',
+                probability: answer === 'hold' ? 0.99 : 0.01,
+                confidence: 0.9,
+              } satisfies DecisionAnswer,
             ]),
           );
           return {
@@ -285,6 +291,42 @@ layer(ScenarioLayer, { timeout: 60_000 })('assistant screen boundary', (it) => {
       yield* sweepWith(provider.service);
       assert.strictEqual(yield* provider.sentWith('Marker-five'), 0);
       assert.lengthOf(yield* checksOn(evidenceId), 0);
+    }),
+  );
+
+  it.effect('I43: the sweep never sends a reflection a person released', () =>
+    Effect.gen(function* () {
+      yield* atScenarioTime;
+      // The assistant holds a reflection the local screen let through.
+      const holding = yield* spy('hold');
+      const { evidenceId, interactionId } = yield* logMissingItsScreen(
+        'Marker-six: talked through the household’s worries about the move.',
+      );
+      yield* TestClock.adjust(SCREEN_GRACE_MS + MINUTE);
+      yield* sweepWith(holding.service);
+      assert.strictEqual((yield* evidenceOf(interactionId)).status, 'held');
+
+      // A tenant admin reads it and releases it: a person decided.
+      yield* signInAs('Rhea Castillo');
+      const admin = Option.getOrThrow(yield* Ref.get(yield* TestSession)) as Actor;
+      yield* resolveEvidence(evidenceId, {
+        event: 'RELEASE',
+        reason: 'Checked: nothing in it identifies a client.',
+      }).pipe(Effect.provideService(CurrentActor, admin));
+      const released = yield* evidenceOf(interactionId);
+      assert.strictEqual(released.status, 'available');
+
+      // Available, recent and unchecked at its new version, yet never sent again.
+      const provider = yield* spy('clean');
+      for (let sweep = 0; sweep < 2; sweep++) {
+        yield* TestClock.adjust(SCREEN_GRACE_MS + RETRY_AFTER_MS);
+        yield* sweepWith(provider.service);
+      }
+      assert.strictEqual(yield* provider.sentWith('Marker-six'), 0);
+      assert.isFalse(
+        (yield* checksOn(evidenceId)).some((c) => c.subjectVersion === released.version),
+      );
+      assert.strictEqual((yield* evidenceOf(interactionId)).status, 'available');
     }),
   );
 });
