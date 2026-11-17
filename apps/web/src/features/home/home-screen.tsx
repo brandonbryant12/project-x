@@ -300,7 +300,7 @@ export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
               : `${waiting === 1 ? 'One thing is' : `${waiting} things are`} waiting on you.`}
           </p>
           {observer && !firstRun ? (
-            <Button variant="primary" asChild className="mt-2 justify-self-start">
+            <Button variant="primary" asChild className="mt-2 justify-self-start md:hidden">
               <Link to="/observations/new">
                 <EyeIcon /> I saw this
               </Link>
