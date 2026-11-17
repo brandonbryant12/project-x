@@ -108,6 +108,14 @@ export const SkillsScreen = ({ skills }: { readonly skills: ReadonlyArray<SkillC
   );
 };
 
+/** This skill's own values, where they differ from the credit rules. */
+const VALUE_LABEL: Record<SkillDetail['valueDifferences'][number]['key'], string> = {
+  primaryPoints: 'Points when it is the work’s main skill',
+  secondaryPoints: 'Points when it is a secondary skill',
+  badgePoints: 'Points a badge needs',
+  minPrimaryPoints: 'Points a badge needs from primary work',
+};
+
 const TemplateRow = ({ template }: { readonly template: TemplateCard }) => (
   <li className="grid gap-2 px-4 py-4 md:px-5">
     <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -118,11 +126,15 @@ const TemplateRow = ({ template }: { readonly template: TemplateCard }) => (
       </span>
     </div>
     <p className="text-ui text-ink-2">{template.description}</p>
-    <div className="flex flex-wrap items-center gap-1.5">
-      {template.suggestedSkills.map((s) => (
-        <SkillChip key={s.id} name={s.name} />
+    <ul className="flex flex-wrap items-center gap-1.5" aria-label="Skills this work builds">
+      {template.skills.map((s) => (
+        <li key={s.skill.id}>
+          <SkillChip
+            name={`${s.skill.name} · ${s.role}${s.points === null ? '' : ` · ${s.points} points`}`}
+          />
+        </li>
       ))}
-    </div>
+    </ul>
     {template.observationTip ? (
       <p className="text-meta text-ink-3">
         <span className="font-medium text-ink-2">For the observer: </span>
@@ -203,6 +215,19 @@ export const SkillScreen = ({ skill }: { readonly skill: SkillDetail }) => {
           </section>
         </div>
         <aside className="grid content-start gap-10">
+          {skill.valueDifferences.length > 0 ? (
+            <section className="grid gap-3" aria-labelledby="values">
+              <SectionLabel id="values">What it is worth</SectionLabel>
+              <ul className="grid gap-1.5">
+                {skill.valueDifferences.map((v) => (
+                  <li key={v.key} className="text-ui text-ink-2">
+                    {VALUE_LABEL[v.key]}: <span className="font-medium text-ink">{v.value}</span>{' '}
+                    <span className="text-meta text-ink-3">(usually {v.tenantValue})</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           {skill.myProgress && skill.myProgress.criteria.length > 0 ? (
             <section className="grid gap-3" aria-labelledby="standing">
               <SectionLabel id="standing">Your standing</SectionLabel>

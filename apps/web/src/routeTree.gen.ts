@@ -22,11 +22,16 @@ import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
 import { Route as AppObservationsIdRouteImport } from './routes/_app/observations/$id'
 import { Route as AppObservationsNewRouteImport } from './routes/_app/observations/new'
 import { Route as AppPeopleIndexRouteImport } from './routes/_app/people/index'
+import { Route as AppProgramCreditRulesRouteImport } from './routes/_app/program/credit-rules'
 import { Route as AppTeamIndexRouteImport } from './routes/_app/team/index'
 import { Route as AppTeamPersonIdRouteImport } from './routes/_app/team/$personId'
 import { Route as AppCatalogSkillsIndexRouteImport } from './routes/_app/catalog/skills.index'
 import { Route as AppCatalogSkillsSlugRouteImport } from './routes/_app/catalog/skills.$slug'
 import { Route as AppPeopleIdIndexRouteImport } from './routes/_app/people/$id/index'
+import { Route as AppProgramSkillsIndexRouteImport } from './routes/_app/program/skills.index'
+import { Route as AppProgramSkillsSlugRouteImport } from './routes/_app/program/skills.$slug'
+import { Route as AppProgramTemplatesIndexRouteImport } from './routes/_app/program/templates.index'
+import { Route as AppProgramTemplatesIdRouteImport } from './routes/_app/program/templates.$id'
 import { Route as AppPeopleIdBadgesBadgeIdRouteImport } from './routes/_app/people/$id/badges.$badgeId'
 
 const AppRoute = AppRouteImport.update({
@@ -93,6 +98,11 @@ const AppPeopleIndexRoute = AppPeopleIndexRouteImport.update({
   path: '/people/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProgramCreditRulesRoute = AppProgramCreditRulesRouteImport.update({
+  id: '/program/credit-rules',
+  path: '/program/credit-rules',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTeamIndexRoute = AppTeamIndexRouteImport.update({
   id: '/team/',
   path: '/team/',
@@ -118,6 +128,27 @@ const AppPeopleIdIndexRoute = AppPeopleIdIndexRouteImport.update({
   path: '/people/$id/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProgramSkillsIndexRoute = AppProgramSkillsIndexRouteImport.update({
+  id: '/program/skills/',
+  path: '/program/skills/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProgramSkillsSlugRoute = AppProgramSkillsSlugRouteImport.update({
+  id: '/program/skills/$slug',
+  path: '/program/skills/$slug',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProgramTemplatesIndexRoute =
+  AppProgramTemplatesIndexRouteImport.update({
+    id: '/program/templates/',
+    path: '/program/templates/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppProgramTemplatesIdRoute = AppProgramTemplatesIdRouteImport.update({
+  id: '/program/templates/$id',
+  path: '/program/templates/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPeopleIdBadgesBadgeIdRoute =
   AppPeopleIdBadgesBadgeIdRouteImport.update({
     id: '/people/$id/badges/$badgeId',
@@ -137,12 +168,17 @@ export interface FileRoutesByFullPath {
   '/admin/audit': typeof AppAdminAuditRoute
   '/observations/$id': typeof AppObservationsIdRoute
   '/observations/new': typeof AppObservationsNewRoute
+  '/program/credit-rules': typeof AppProgramCreditRulesRoute
   '/team/$personId': typeof AppTeamPersonIdRoute
   '/people/': typeof AppPeopleIndexRoute
   '/team/': typeof AppTeamIndexRoute
   '/catalog/skills/$slug': typeof AppCatalogSkillsSlugRoute
+  '/program/skills/$slug': typeof AppProgramSkillsSlugRoute
+  '/program/templates/$id': typeof AppProgramTemplatesIdRoute
   '/catalog/skills/': typeof AppCatalogSkillsIndexRoute
   '/people/$id/': typeof AppPeopleIdIndexRoute
+  '/program/skills/': typeof AppProgramSkillsIndexRoute
+  '/program/templates/': typeof AppProgramTemplatesIndexRoute
   '/people/$id/badges/$badgeId': typeof AppPeopleIdBadgesBadgeIdRoute
 }
 export interface FileRoutesByTo {
@@ -157,12 +193,17 @@ export interface FileRoutesByTo {
   '/admin/audit': typeof AppAdminAuditRoute
   '/observations/$id': typeof AppObservationsIdRoute
   '/observations/new': typeof AppObservationsNewRoute
+  '/program/credit-rules': typeof AppProgramCreditRulesRoute
   '/team/$personId': typeof AppTeamPersonIdRoute
   '/people': typeof AppPeopleIndexRoute
   '/team': typeof AppTeamIndexRoute
   '/catalog/skills/$slug': typeof AppCatalogSkillsSlugRoute
+  '/program/skills/$slug': typeof AppProgramSkillsSlugRoute
+  '/program/templates/$id': typeof AppProgramTemplatesIdRoute
   '/catalog/skills': typeof AppCatalogSkillsIndexRoute
   '/people/$id': typeof AppPeopleIdIndexRoute
+  '/program/skills': typeof AppProgramSkillsIndexRoute
+  '/program/templates': typeof AppProgramTemplatesIndexRoute
   '/people/$id/badges/$badgeId': typeof AppPeopleIdBadgesBadgeIdRoute
 }
 export interface FileRoutesById {
@@ -179,12 +220,17 @@ export interface FileRoutesById {
   '/_app/admin/audit': typeof AppAdminAuditRoute
   '/_app/observations/$id': typeof AppObservationsIdRoute
   '/_app/observations/new': typeof AppObservationsNewRoute
+  '/_app/program/credit-rules': typeof AppProgramCreditRulesRoute
   '/_app/team/$personId': typeof AppTeamPersonIdRoute
   '/_app/people/': typeof AppPeopleIndexRoute
   '/_app/team/': typeof AppTeamIndexRoute
   '/_app/catalog/skills/$slug': typeof AppCatalogSkillsSlugRoute
+  '/_app/program/skills/$slug': typeof AppProgramSkillsSlugRoute
+  '/_app/program/templates/$id': typeof AppProgramTemplatesIdRoute
   '/_app/catalog/skills/': typeof AppCatalogSkillsIndexRoute
   '/_app/people/$id/': typeof AppPeopleIdIndexRoute
+  '/_app/program/skills/': typeof AppProgramSkillsIndexRoute
+  '/_app/program/templates/': typeof AppProgramTemplatesIndexRoute
   '/_app/people/$id/badges/$badgeId': typeof AppPeopleIdBadgesBadgeIdRoute
 }
 export interface FileRouteTypes {
@@ -201,12 +247,17 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/observations/$id'
     | '/observations/new'
+    | '/program/credit-rules'
     | '/team/$personId'
     | '/people/'
     | '/team/'
     | '/catalog/skills/$slug'
+    | '/program/skills/$slug'
+    | '/program/templates/$id'
     | '/catalog/skills/'
     | '/people/$id/'
+    | '/program/skills/'
+    | '/program/templates/'
     | '/people/$id/badges/$badgeId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -221,12 +272,17 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/observations/$id'
     | '/observations/new'
+    | '/program/credit-rules'
     | '/team/$personId'
     | '/people'
     | '/team'
     | '/catalog/skills/$slug'
+    | '/program/skills/$slug'
+    | '/program/templates/$id'
     | '/catalog/skills'
     | '/people/$id'
+    | '/program/skills'
+    | '/program/templates'
     | '/people/$id/badges/$badgeId'
   id:
     | '__root__'
@@ -242,12 +298,17 @@ export interface FileRouteTypes {
     | '/_app/admin/audit'
     | '/_app/observations/$id'
     | '/_app/observations/new'
+    | '/_app/program/credit-rules'
     | '/_app/team/$personId'
     | '/_app/people/'
     | '/_app/team/'
     | '/_app/catalog/skills/$slug'
+    | '/_app/program/skills/$slug'
+    | '/_app/program/templates/$id'
     | '/_app/catalog/skills/'
     | '/_app/people/$id/'
+    | '/_app/program/skills/'
+    | '/_app/program/templates/'
     | '/_app/people/$id/badges/$badgeId'
   fileRoutesById: FileRoutesById
 }
@@ -349,6 +410,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPeopleIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/program/credit-rules': {
+      id: '/_app/program/credit-rules'
+      path: '/program/credit-rules'
+      fullPath: '/program/credit-rules'
+      preLoaderRoute: typeof AppProgramCreditRulesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/team/': {
       id: '/_app/team/'
       path: '/team'
@@ -384,6 +452,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPeopleIdIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/program/skills/': {
+      id: '/_app/program/skills/'
+      path: '/program/skills'
+      fullPath: '/program/skills/'
+      preLoaderRoute: typeof AppProgramSkillsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/program/skills/$slug': {
+      id: '/_app/program/skills/$slug'
+      path: '/program/skills/$slug'
+      fullPath: '/program/skills/$slug'
+      preLoaderRoute: typeof AppProgramSkillsSlugRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/program/templates/': {
+      id: '/_app/program/templates/'
+      path: '/program/templates'
+      fullPath: '/program/templates/'
+      preLoaderRoute: typeof AppProgramTemplatesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/program/templates/$id': {
+      id: '/_app/program/templates/$id'
+      path: '/program/templates/$id'
+      fullPath: '/program/templates/$id'
+      preLoaderRoute: typeof AppProgramTemplatesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/people/$id/badges/$badgeId': {
       id: '/_app/people/$id/badges/$badgeId'
       path: '/people/$id/badges/$badgeId'
@@ -405,12 +501,17 @@ interface AppRouteChildren {
   AppAdminAuditRoute: typeof AppAdminAuditRoute
   AppObservationsIdRoute: typeof AppObservationsIdRoute
   AppObservationsNewRoute: typeof AppObservationsNewRoute
+  AppProgramCreditRulesRoute: typeof AppProgramCreditRulesRoute
   AppTeamPersonIdRoute: typeof AppTeamPersonIdRoute
   AppPeopleIndexRoute: typeof AppPeopleIndexRoute
   AppTeamIndexRoute: typeof AppTeamIndexRoute
   AppCatalogSkillsSlugRoute: typeof AppCatalogSkillsSlugRoute
+  AppProgramSkillsSlugRoute: typeof AppProgramSkillsSlugRoute
+  AppProgramTemplatesIdRoute: typeof AppProgramTemplatesIdRoute
   AppCatalogSkillsIndexRoute: typeof AppCatalogSkillsIndexRoute
   AppPeopleIdIndexRoute: typeof AppPeopleIdIndexRoute
+  AppProgramSkillsIndexRoute: typeof AppProgramSkillsIndexRoute
+  AppProgramTemplatesIndexRoute: typeof AppProgramTemplatesIndexRoute
   AppPeopleIdBadgesBadgeIdRoute: typeof AppPeopleIdBadgesBadgeIdRoute
 }
 
@@ -425,12 +526,17 @@ const AppRouteChildren: AppRouteChildren = {
   AppAdminAuditRoute: AppAdminAuditRoute,
   AppObservationsIdRoute: AppObservationsIdRoute,
   AppObservationsNewRoute: AppObservationsNewRoute,
+  AppProgramCreditRulesRoute: AppProgramCreditRulesRoute,
   AppTeamPersonIdRoute: AppTeamPersonIdRoute,
   AppPeopleIndexRoute: AppPeopleIndexRoute,
   AppTeamIndexRoute: AppTeamIndexRoute,
   AppCatalogSkillsSlugRoute: AppCatalogSkillsSlugRoute,
+  AppProgramSkillsSlugRoute: AppProgramSkillsSlugRoute,
+  AppProgramTemplatesIdRoute: AppProgramTemplatesIdRoute,
   AppCatalogSkillsIndexRoute: AppCatalogSkillsIndexRoute,
   AppPeopleIdIndexRoute: AppPeopleIdIndexRoute,
+  AppProgramSkillsIndexRoute: AppProgramSkillsIndexRoute,
+  AppProgramTemplatesIndexRoute: AppProgramTemplatesIndexRoute,
   AppPeopleIdBadgesBadgeIdRoute: AppPeopleIdBadgesBadgeIdRoute,
 }
 

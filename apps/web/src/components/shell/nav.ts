@@ -1,11 +1,14 @@
 import type { SessionView } from '@repo/api';
 import {
   ChartNoAxesColumnIcon,
+  ClipboardListIcon,
   CompassIcon,
   HandshakeIcon,
   HomeIcon,
   InboxIcon,
   type LucideIcon,
+  LibraryBigIcon,
+  ScaleIcon,
   ScanSearchIcon,
   ScrollTextIcon,
   SproutIcon,
@@ -64,7 +67,27 @@ export const navFor = (session: SessionView): ReadonlyArray<NavGroup> => {
   if (admin || grants.includes('program_owner')) {
     groups.push({
       label: 'Program',
-      items: [{ key: 'adoption', label: 'Adoption', to: '/adoption', icon: ChartNoAxesColumnIcon }],
+      items: [
+        { key: 'adoption', label: 'Adoption', to: '/adoption', icon: ChartNoAxesColumnIcon },
+        {
+          key: 'credit-rules',
+          label: 'Credit rules',
+          to: '/program/credit-rules',
+          icon: ScaleIcon,
+        },
+        {
+          key: 'program-skills',
+          label: 'Skill catalog',
+          to: '/program/skills',
+          icon: LibraryBigIcon,
+        },
+        {
+          key: 'program-templates',
+          label: 'Activity templates',
+          to: '/program/templates',
+          icon: ClipboardListIcon,
+        },
+      ],
     });
   }
   if (admin || grants.includes('compliance_reviewer')) {
