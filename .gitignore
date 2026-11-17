@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.turbo/
+.cache/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+test-results/
+playwright-report/
+apps/web/screenshots/
+apps/web/src/routeTree.gen.ts
+.DS_Store

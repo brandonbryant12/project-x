@@ -1,0 +1,66 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "import", "react", "unicorn", "oxc", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "ignorePatterns": ["**/dist/**", "**/routeTree.gen.ts", "packages/db/drizzle/**"],
+  "rules": {
+    "no-console": "error",
+    "eqeqeq": ["error", "smart"],
+    "no-nested-ternary": "error",
+    "max-depth": ["error", 4],
+    "typescript/consistent-type-imports": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-non-null-assertion": "error",
+    "import/no-duplicates": "error",
+    "import/no-cycle": "error",
+    "react/rules-of-hooks": "error",
+    "react/jsx-key": "error",
+    "unicorn/no-array-for-each": "off",
+    "unicorn/no-null": "off",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "process",
+            "importNames": ["env"],
+            "message": "Read configuration through the app's Config module."
+          }
+        ]
+      }
+    ],
+    "max-lines-per-function": [
+      "warn",
+      {
+        "max": 150,
+        "skipBlankLines": true,
+        "skipComments": true
+      }
+    ],
+    "no-underscore-dangle": "off"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/test/**", "**/e2e/**"],
+      "rules": {
+        "typescript/no-non-null-assertion": "off",
+        "max-lines-per-function": "off"
+      }
+    },
+    {
+      "files": [
+        "apps/server/src/scripts/**",
+        "apps/web/scripts/**",
+        "packages/db/scripts/**",
+        "packages/*/scripts/**"
+      ],
+      "rules": {
+        "no-console": "off",
+        "max-lines-per-function": "off"
+      }
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+# Local and CI infrastructure. `pnpm db:up` starts Postgres only.
+#   docker compose --profile otel up -d       # + Aspire dashboard to view traces/logs locally
+#   docker compose --profile datadog up -d    # + Datadog Agent with OTLP receiver (needs DD_API_KEY)
+#   docker compose --profile app up -d --build # the production image (API + SPA in one process)
+name: app
+
+x-defaults:
+  database-url: &database_url 'postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@postgres:5432/${POSTGRES_DB:-app}'
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    ports:
+      - '${POSTGRES_BIND_IP:-127.0.0.1}:${POSTGRES_PORT:-5442}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  aspire:
+    profiles: [otel]
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.4
+    environment:
+      DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: 'true'
+    ports:
+      - '127.0.0.1:18888:18888'
+      - '127.0.0.1:4318:18890'
+
+  # Local mail catcher for NOTIFY_TRANSPORT=smtp (SMTP on 1025, inbox on 8025).
+  mailpit:
+    profiles: [mail]
+    image: axllent/mailpit:v1.27
+    ports:
+      - '127.0.0.1:1025:1025'
+      - '127.0.0.1:8025:8025'
+
+  datadog-agent:
+    profiles: [datadog]
+    image: gcr.io/datadoghq/agent:7
+    environment:
+      DD_API_KEY: ${DD_API_KEY:-}
+      DD_SITE: ${DD_SITE:-datadoghq.com}
+      DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT: 0.0.0.0:4318
+      DD_OTLP_CONFIG_LOGS_ENABLED: 'true'
+      DD_APM_NON_LOCAL_TRAFFIC: 'true'
+      DD_LOGS_ENABLED: 'true'
+    ports:
+      - '127.0.0.1:4318:4318'
+
+  app:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: *database_url
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:4400}
+      AUTH_MODE: ${AUTH_MODE:-entra}
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+      ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
+      ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET:-}
+      AUTH_FLOW_SECRET: ${AUTH_FLOW_SECRET:-}
+      DECISIONS_MODE: ${DECISIONS_MODE:-disabled}
+      LOG_FORMAT: json
+      WEB_DIST_DIR: /app/web
+    ports:
+      - '${APP_BIND_IP:-127.0.0.1}:4400:4400'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=67108864
+
+volumes:
+  postgres-data:

@@ -1,0 +1,42 @@
+{
+  "name": "@repo/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles/globals.css"
+  },
+  "scripts": {
+    "typecheck": "tsc7 -p ."
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "catalog:",
+    "@fontsource-variable/geist-mono": "catalog:",
+    "@fontsource-variable/newsreader": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "cmdk": "catalog:",
+    "lucide-react": "catalog:",
+    "radix-ui": "catalog:",
+    "sonner": "catalog:",
+    "tailwind-merge": "catalog:",
+    "tw-animate-css": "catalog:",
+    "vaul": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/tsconfig": "workspace:*",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tailwindcss": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  }
+}

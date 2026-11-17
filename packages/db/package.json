@@ -1,0 +1,32 @@
+{
+  "name": "@repo/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc7 -p .",
+    "test": "vitest run",
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx scripts/migrate.ts",
+    "studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@effect/sql-pg": "catalog:",
+    "@effect/sql-pglite": "catalog:",
+    "@electric-sql/pglite": "catalog:",
+    "@repo/domain": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@repo/tsconfig": "workspace:*",
+    "drizzle-kit": "catalog:",
+    "tsx": "catalog:",
+    "vitest": "catalog:"
+  }
+}

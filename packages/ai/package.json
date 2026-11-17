@@ -1,0 +1,21 @@
+{
+  "name": "@repo/ai",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc7 -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@repo/tsconfig": "workspace:*",
+    "vitest": "catalog:"
+  }
+}

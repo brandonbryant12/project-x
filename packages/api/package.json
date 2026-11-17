@@ -1,0 +1,22 @@
+{
+  "name": "@repo/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc7 -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@repo/domain": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/tsconfig": "workspace:*",
+    "vitest": "catalog:"
+  }
+}

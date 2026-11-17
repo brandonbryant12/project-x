@@ -1,0 +1,23 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../.oxlintrc.json"],
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/exhaustive-deps": "error",
+    "no-underscore-dangle": [
+      "warn",
+      {
+        "allow": ["_tag"]
+      }
+    ],
+    "import/no-unassigned-import": "off"
+  },
+  "overrides": [
+    {
+      "files": ["e2e/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
+}

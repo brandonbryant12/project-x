@@ -1,0 +1,38 @@
+import { setup } from 'xstate';
+import { defineLifecycle } from './lifecycle.ts';
+
+/**
+ * AdvisoryCheck: one Decisions API evaluation (ADR 0008). It may hold or nudge;
+ * nothing downstream treats `completed` as clearance. `skipped` means Decisions
+ * is disabled or the input was empty; `failed` covers provider errors and
+ * unknown outcomes, which are never retried automatically.
+ */
+export type AdvisoryCheckEvent =
+  | { readonly type: 'COMPLETE' }
+  | { readonly type: 'FAIL' }
+  | { readonly type: 'SKIP' };
+
+const advisoryCheckMachine = setup({
+  types: { context: {} as Record<string, never>, events: {} as AdvisoryCheckEvent },
+}).createMachine({
+  id: 'advisoryCheck',
+  initial: 'pending',
+  context: {},
+  states: {
+    pending: { on: { COMPLETE: 'completed', FAIL: 'failed', SKIP: 'skipped' } },
+    completed: { type: 'final' },
+    failed: { type: 'final' },
+    skipped: { type: 'final' },
+  },
+});
+
+export const AdvisoryCheckLifecycle = defineLifecycle({
+  name: 'advisoryCheck',
+  machine: advisoryCheckMachine,
+  states: ['pending', 'completed', 'failed', 'skipped'],
+  events: ['COMPLETE', 'FAIL', 'SKIP'],
+  initialStates: ['pending'],
+  terminalStates: ['completed', 'failed', 'skipped'],
+});
+
+export type AdvisoryCheckStatus = (typeof AdvisoryCheckLifecycle.states)[number];

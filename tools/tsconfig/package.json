@@ -1,0 +1,12 @@
+{
+  "name": "@repo/tsconfig",
+  "version": "0.0.0",
+  "private": true,
+  "bin": {
+    "tsc7": "./tsc7.mjs"
+  },
+  "type": "module",
+  "dependencies": {
+    "typescript-7": "catalog:"
+  }
+}

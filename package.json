@@ -1,0 +1,43 @@
+{
+  "name": "monorepo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev --ui=stream",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:pg": "node scripts/test-pg.mjs",
+    "lint": "node scripts/check-node.mjs && oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt --check",
+    "format:fix": "oxfmt",
+    "knip": "knip --no-progress",
+    "check": "node scripts/check-node.mjs && pnpm format && pnpm lint:strict && pnpm typecheck && pnpm test && pnpm knip && pnpm docs:check",
+    "fix": "pnpm format:fix && pnpm lint:fix",
+    "db:up": "docker compose up -d postgres",
+    "db:generate": "pnpm --filter @repo/db generate",
+    "db:migrate": "pnpm --filter @repo/db migrate",
+    "db:seed": "pnpm --filter @repo/server seed",
+    "db:reset": "pnpm --filter @repo/server db:reset",
+    "screenshots": "pnpm --filter @repo/web screenshots",
+    "e2e": "pnpm --filter @repo/web e2e",
+    "docs:lifecycles": "pnpm --filter @repo/domain docs:lifecycles",
+    "lint:strict": "oxlint --max-warnings=0",
+    "preinstall": "node scripts/check-node.mjs",
+    "docs:check": "node scripts/docs-check.mjs"
+  },
+  "devDependencies": {
+    "@effect/language-service": "catalog:",
+    "@types/node": "catalog:",
+    "knip": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "packageManager": "pnpm@12.21.0"
+}

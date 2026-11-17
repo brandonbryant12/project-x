@@ -1,0 +1,78 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+@import '@fontsource-variable/newsreader/opsz.css';
+@import '@fontsource-variable/newsreader/opsz-italic.css';
+@import './tokens.css';
+
+@source '../';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  /*
+   * Grid items may shrink below their content's min-content width, so a
+   * truncated line or a nowrap chip never widens the page. Without this, an
+   * implicit grid column grows to its longest unbreakable line and the page
+   * scrolls sideways on a phone (asserted at 360-1280px by the screenshot spec).
+   */
+  .grid > * {
+    min-width: 0;
+  }
+  ::selection {
+    background: var(--color-primary-soft);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 120ms !important;
+      transition-duration: 120ms !important;
+    }
+  }
+}
+
+/*
+ * Phones zoom the page into any field set below 16px. Unlayered on purpose so
+ * it outranks the text-* utilities on touch screens only; narrative fields are
+ * already larger.
+ */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio']),
+  select,
+  textarea:not(.narrative) {
+    font-size: 16px;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility narrative {
+  font-family: var(--font-serif);
+  font-size: var(--text-narrative);
+  line-height: var(--text-narrative--line-height);
+  font-optical-sizing: auto;
+}

@@ -1,0 +1,13 @@
+# Keep the build context small and platform-neutral: dependencies are
+# installed inside the image, never copied from the host.
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+**/*.log
+.git
+.env
+**/.env
+apps/web/screenshots
+apps/web/test-results
+apps/web/playwright-report

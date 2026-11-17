@@ -1,0 +1,40 @@
+{
+  "name": "@repo/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc7 -p .",
+    "test": "vitest run",
+    "screenshots": "playwright test --config playwright.screenshots.config.ts",
+    "e2e": "playwright test",
+    "e2e:timing": "playwright test --config playwright.timing.config.ts"
+  },
+  "dependencies": {
+    "@repo/api": "workspace:*",
+    "@repo/domain": "workspace:*",
+    "@repo/ui": "workspace:*",
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-router": "catalog:",
+    "effect": "catalog:",
+    "lucide-react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@repo/tsconfig": "workspace:*",
+    "@tailwindcss/vite": "catalog:",
+    "@tanstack/router-plugin": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "jsdom": "catalog:",
+    "tailwindcss": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}
