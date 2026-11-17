@@ -10,12 +10,16 @@ import {
   logInteraction,
   planEvent,
   reviseEvidence,
+  setActivityValue,
+  updateActivity,
   updatePlan,
 } from './use-cases.ts';
+import { confirmPlanReview, recordPlanReview } from './plan-review.ts';
 import {
   buildDevelopmentView,
   buildInteractionView,
   buildPlanView,
+  buildWorkTemplates,
   canViewDevelopmentOf,
 } from './views.ts';
 
@@ -43,6 +47,12 @@ export const DevelopmentHandlers = HttpApiBuilder.group(Api, 'development', (han
         return yield* buildDevelopmentView(actor, actor.personId);
       }).pipe(apiErrorsOnly),
     )
+    .handle('workTemplates', () =>
+      Effect.gen(function* () {
+        const actor = yield* CurrentActor;
+        return yield* buildWorkTemplates(actor.tenantId);
+      }).pipe(apiErrorsOnly),
+    )
     .handle('of', ({ params }) =>
       Effect.gen(function* () {
         const actor = yield* CurrentActor;
@@ -63,6 +73,22 @@ export const DevelopmentHandlers = HttpApiBuilder.group(Api, 'development', (han
     )
     .handle('addActivity', ({ params, payload }) =>
       addActivity(params.id, payload).pipe(Effect.andThen(planView(params.id)), apiErrorsOnly),
+    )
+    .handle('recordPlanReview', ({ params, payload }) =>
+      recordPlanReview(params.id, payload).pipe(Effect.andThen(planView(params.id)), apiErrorsOnly),
+    )
+    .handle('confirmPlanReview', ({ params }) =>
+      confirmPlanReview(params.id).pipe(Effect.andThen(planView(params.id)), apiErrorsOnly),
+    )
+    .handle('updateActivity', ({ params, payload }) =>
+      updateActivity(params.id, payload).pipe(Effect.flatMap(planView), apiErrorsOnly),
+    )
+    .handle('setActivityValue', ({ params, payload }) =>
+      Effect.gen(function* () {
+        const actor = yield* CurrentActor;
+        const { planId, ownerId } = yield* setActivityValue(params.id, payload);
+        return (yield* canViewDevelopmentOf(actor, ownerId)) ? yield* planView(planId) : null;
+      }).pipe(apiErrorsOnly),
     )
     .handle('activityEvent', ({ params, payload }) =>
       Effect.gen(function* () {
