@@ -415,6 +415,11 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
           .orderBy(schema.auditEvent.seq);
         assert.deepStrictEqual(audits.at(-1)?.data.before, { points: 12, setById: ids.elena });
         assert.deepStrictEqual(audits.at(-1)?.data.after, { points: 14, setById: ids.sam });
+        // The specific reason code survives the attached note.
+        assert.deepStrictEqual(
+          [audits.at(-1)?.reasonCode, audits.at(-1)?.noteId !== null],
+          ['value_override', true],
+        );
 
         // The coachee sees the value and who set it, with no control.
         const seen = work(yield* planAs('Maya Chen'), 'Lead the goals conversation').skills.find(

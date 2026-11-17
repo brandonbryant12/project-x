@@ -1,5 +1,4 @@
 import { ObservationId } from '@repo/domain';
-import { Schema } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import { Authenticated } from '../auth.ts';
 import { Conflict, Forbidden, InvalidTransition, NotFound, Unprocessable } from '../errors.ts';
@@ -8,7 +7,7 @@ import {
   ObservationDraftInput,
   ObservationTransitionInput,
   ObservationView,
-  ObserveTarget,
+  ObserveTargets,
   RequestObservationInput,
   StartObservationInput,
 } from '../models/index.ts';
@@ -18,9 +17,7 @@ const lifecycleErrors = [NotFound, Forbidden, InvalidTransition, Unprocessable, 
 export class ObservationsGroup extends HttpApiGroup.make('observations')
   .add(
     HttpApiEndpoint.get('inbox', '/observations/inbox', { success: InboxView }),
-    HttpApiEndpoint.get('targets', '/observations/targets', {
-      success: Schema.Array(ObserveTarget),
-    }),
+    HttpApiEndpoint.get('targets', '/observations/targets', { success: ObserveTargets }),
     HttpApiEndpoint.get('get', '/observations/:id', {
       params: { id: ObservationId },
       success: ObservationView,

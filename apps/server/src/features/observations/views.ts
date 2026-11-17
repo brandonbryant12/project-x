@@ -5,15 +5,24 @@ import type {
   ObservationEventType,
   ObservationView,
   ObserveTarget,
+  ObserveTargets,
+  WorkSkill,
 } from '@repo/api';
 import {
+  EvidenceLifecycle,
   LEVEL_NAMES,
   MIN_NARRATIVE_LENGTH,
+  OBSERVE_WINDOW_DAYS,
+  OPEN_OBSERVATION_STATES,
   ObservationLifecycle,
   canReadNarrative,
   developmentAccess,
+  isEvidenceHeld,
+  resolveCreditValue,
+  type ActivityId,
   type EvidenceStatus,
   type InteractionKind,
+  type IsoDate,
   type Level,
   type ObservationId,
   type ObservationMode,
@@ -23,19 +32,21 @@ import {
   type PointsSource,
   type QuestionSetId,
   type SkillId,
+  type SkillRole,
   type CreditRole,
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
-import { and, desc, eq, inArray, ne } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte, ne } from 'drizzle-orm';
 import { Effect } from 'effect';
-import { today } from '../../platform/time.ts';
+import { addDaysIso, today } from '../../platform/time.ts';
 import type { Interpretation } from '../shared/advisory/question-sets.ts';
-import { loadDefinitions, loadActivitySkills, loadPlanSkills } from '../shared/catalog-reads.ts';
+import { loadActivitySkillRows, loadDefinitions, loadPlanSkills } from '../shared/catalog-reads.ts';
 import { observableBy } from '../shared/directory.ts';
 import { recordAudit } from '../shared/audit.ts';
 import { latestNotes } from '../shared/notes.ts';
 import { loadPeople, personFrom } from '../shared/people.ts';
+import { tenantCreditPolicy } from '../shared/recognition.ts';
 import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { loadSkills, refsFor, toSkillRef } from '../shared/skills.ts';
 import { currentPlanOf } from '../shared/plans.ts';
@@ -248,6 +259,7 @@ const ratingViews = (
   { ratings, ticks, skills, definitions }: ObservationParts,
   draftHidden: boolean,
   roleChoosable: boolean,
+  valuesOf: (skillId: SkillId) => Readonly<Record<SkillRole, number>> | null,
 ): ObservationView['ratings'] =>
   ratings.flatMap((r) => {
     const skill = skills.get(r.skillId);
@@ -264,9 +276,42 @@ const ratingViews = (
         credit: r.credit,
         role: r.role as CreditRole,
         roleChoosable,
+        values: valuesOf(r.skillId),
       },
     ];
   });
+
+/**
+ * For the observer of unsigned work: the tenant's skill limit and what each
+ * rated skill would add in each role, resolved as signing resolves it. A
+ * preview only; signing resolves again inside its transaction.
+ */
+const draftValues = Effect.fn('observations.draftValues')(function* (
+  actor: Actor,
+  parts: ObservationParts,
+) {
+  const policy = yield* tenantCreditPolicy(actor.tenantId);
+  const listed =
+    (yield* loadActivitySkillRows(actor.tenantId, [parts.interaction.activityId])).get(
+      parts.interaction.activityId,
+    ) ?? [];
+  const valuesOf = (skillId: SkillId): Readonly<Record<SkillRole, number>> => {
+    const row = listed.find((s) => s.skillId === skillId);
+    const skill = parts.skills.get(skillId);
+    const activity = row
+      ? {
+          role: row.role as SkillRole,
+          pointsOverride: row.pointsOverride,
+          templatePoints: row.templatePoints,
+        }
+      : null;
+    return {
+      primary: resolveCreditValue({ role: 'primary', policy, activity, skill }).points,
+      secondary: resolveCreditValue({ role: 'secondary', policy, activity, skill }).points,
+    };
+  };
+  return { maxSkills: policy.maxSkillsPerObservation, valuesOf };
+});
 
 /** What signing produced: credits, badges earned here, and earlier credits for the same skills. */
 const outcomeViews = ({
@@ -337,6 +382,9 @@ export const buildObservationView = Effect.fn('observations.view')(function* (
   const { interaction, activity, evidence, notes, skillIds, skills, facts, people } = parts;
   const on = yield* today;
   const isObserver = row.observerId === actor.personId;
+  // Only the observer of unsigned work may change ratings and roles (design §4).
+  const roleChoosable = isObserver && (row.status === 'requested' || row.status === 'drafting');
+  const drafting = roleChoosable ? yield* draftValues(actor, parts) : null;
   // An unsigned draft is the observer's alone; nobody else sees its levels or words yet.
   const draftHidden = row.signedAt === null && !isObserver;
   const byRelationship = canReadNarrative(facts, {
@@ -369,11 +417,13 @@ export const buildObservationView = Effect.fn('observations.view')(function* (
   const viewerRole = viewerRoleOf(actor, row);
   // Actions say what the state allows. SIGN appears while drafting even if the
   // draft is incomplete; its minimums are checked on submit with a clear message.
+  const evidenceStatus = evidence?.status as EvidenceStatus | undefined;
   const ratingFacts = {
     ratingsComplete: true,
     narrativeLength: MIN_NARRATIVE_LENGTH,
     privacyHold: false,
     acknowledged: row.acknowledgedAt !== null,
+    reflectionHeld: isEvidenceHeld(evidenceStatus),
   };
   const candidates = permittedEvents(actor, row)
     .filter((e) => e !== 'SAVE_DRAFT')
@@ -407,7 +457,8 @@ export const buildObservationView = Effect.fn('observations.view')(function* (
     ratings: ratingViews(
       parts,
       draftHidden,
-      isObserver && (row.status === 'requested' || row.status === 'drafting'),
+      roleChoosable,
+      (skillId) => drafting?.valuesOf(skillId) ?? null,
     ),
     narrativeSaw: narrativeVisible ? (row.narrativeSaw ?? '') : '',
     narrativeNext: narrativeVisible ? (row.narrativeNext ?? '') : '',
@@ -423,6 +474,14 @@ export const buildObservationView = Effect.fn('observations.view')(function* (
     ...outcomeViews(parts),
     advisory: viewerRole === 'subject' ? [] : checks.map(toAdvisoryView),
     actions: ObservationLifecycle.allowed(row.status as ObservationStatus, ratingFacts, candidates),
+    // The returned loop: the requester revises their own reflection, then resends.
+    canReviseEvidence:
+      row.status === 'returned' &&
+      isAuthor &&
+      row.requestedById === actor.personId &&
+      evidenceStatus !== undefined &&
+      EvidenceLifecycle.next(evidenceStatus, {}, { type: 'REVISE' }) !== null,
+    maxSkills: drafting?.maxSkills ?? null,
   } satisfies ObservationView;
 });
 
@@ -539,10 +598,68 @@ export const buildInbox = Effect.fn('observations.inbox')(function* (actor: Acto
   };
 });
 
-/** People the actor can observe today, with what they are working on. */
+/** An observer's own observation that is still open or stands signed: they observe that work once. */
+export const LIVE_OR_SIGNED = [...OPEN_OBSERVATION_STATES, 'signed', 'under_review'];
+
+/** A work's skills in order with their default roles, primary first. */
+const workSkillsOf = (
+  rows: ReadonlyArray<{ readonly skillId: SkillId; readonly role: string }>,
+  skills: ReadonlyMap<SkillId, Parameters<typeof toSkillRef>[0]>,
+): Array<WorkSkill> =>
+  rows
+    .toSorted((a, b) => Number(b.role === 'primary') - Number(a.role === 'primary'))
+    .flatMap((r) => {
+      const skill = skills.get(r.skillId);
+      return skill ? [{ skill: toSkillRef(skill), role: r.role as SkillRole }] : [];
+    });
+
+/**
+ * The subject's work inside the "I saw this" window that the actor has not
+ * already observed (no open or signed observation of theirs on it), newest
+ * first. "I saw this" attaches to one of these instead of recording it again.
+ */
+const attachableWork = Effect.fn('observations.attachableWork')(function* (
+  actor: Actor,
+  subjectId: PersonId,
+  on: IsoDate,
+) {
+  const db = yield* Db;
+  const interactions = yield* db
+    .select()
+    .from(schema.interaction)
+    .where(
+      and(
+        eq(schema.interaction.tenantId, actor.tenantId),
+        eq(schema.interaction.ownerId, subjectId),
+        gte(schema.interaction.occurredOn, addDaysIso(on, -OBSERVE_WINDOW_DAYS)),
+        lte(schema.interaction.occurredOn, on),
+      ),
+    )
+    .orderBy(desc(schema.interaction.occurredOn), desc(schema.interaction.createdAt));
+  if (interactions.length === 0) return [];
+  const mine = yield* db
+    .select({ interactionId: schema.observation.interactionId })
+    .from(schema.observation)
+    .where(
+      and(
+        eq(schema.observation.tenantId, actor.tenantId),
+        eq(schema.observation.observerId, actor.personId),
+        inArray(
+          schema.observation.interactionId,
+          interactions.map((i) => i.id),
+        ),
+        inArray(schema.observation.status, LIVE_OR_SIGNED),
+      ),
+    );
+  const observed = new Set(mine.map((o) => o.interactionId));
+  return interactions.filter((i) => !observed.has(i.id));
+});
+
+/** People the actor can observe today, with what they are working on and the work they logged. */
 export const buildTargets = Effect.fn('observations.targets')(function* (actor: Actor) {
   const facts = yield* loadRelationshipFacts(actor.tenantId);
-  const targets = observableBy(facts, actor.personId, yield* today);
+  const on = yield* today;
+  const targets = observableBy(facts, actor.personId, on);
   const db = yield* Db;
   const people = yield* loadPeople(
     actor.tenantId,
@@ -550,13 +667,15 @@ export const buildTargets = Effect.fn('observations.targets')(function* (actor: 
   );
   const result: Array<ObserveTarget> = [];
   for (const target of targets) {
-    const plan = yield* currentPlanOf(actor.tenantId, target.subjectId as PersonId);
+    const subjectId = target.subjectId as PersonId;
+    const plan = yield* currentPlanOf(actor.tenantId, subjectId);
     const activities = plan
       ? yield* db
           .select()
           .from(schema.activity)
           .where(
             and(
+              eq(schema.activity.tenantId, actor.tenantId),
               eq(schema.activity.planId, plan.id),
               // Ad-hoc activities hold one captured piece of work; offering them again duplicated chips.
               eq(schema.activity.origin, 'planned'),
@@ -564,24 +683,46 @@ export const buildTargets = Effect.fn('observations.targets')(function* (actor: 
             ),
           )
       : [];
+    const work = yield* attachableWork(actor, subjectId, on);
+    const workActivities = work.length
+      ? yield* db
+          .select({ id: schema.activity.id, title: schema.activity.title })
+          .from(schema.activity)
+          .where(
+            and(
+              eq(schema.activity.tenantId, actor.tenantId),
+              inArray(
+                schema.activity.id,
+                work.map((w) => w.activityId),
+              ),
+            ),
+          )
+      : [];
     const focus = plan
       ? ((yield* loadPlanSkills(actor.tenantId, [plan.id])).get(plan.id) ?? [])
       : [];
-    const activitySkills = yield* loadActivitySkills(
-      actor.tenantId,
-      activities.map((a) => a.id),
-    );
+    const activitySkills = yield* loadActivitySkillRows(actor.tenantId, [
+      ...new Set<ActivityId>([...activities.map((a) => a.id), ...work.map((w) => w.activityId)]),
+    ]);
     const skills = yield* loadSkills(actor.tenantId, [
       ...focus.map((f) => f.skillId),
-      ...[...activitySkills.values()].flat(),
+      ...[...activitySkills.values()].flat().map((r) => r.skillId),
     ]);
     result.push({
-      person: personFrom(people, target.subjectId),
+      person: personFrom(people, subjectId),
       basis: target.basis,
       activities: activities.map((a) => ({
         id: a.id,
         title: a.title,
-        targetSkills: refsFor(skills, activitySkills.get(a.id) ?? []),
+        skills: workSkillsOf(activitySkills.get(a.id) ?? [], skills),
+      })),
+      work: work.map((w) => ({
+        id: w.id,
+        occurredOn: w.occurredOn,
+        kind: w.kind as InteractionKind,
+        title: workActivities.find((a) => a.id === w.activityId)?.title ?? 'Work',
+        activityId: w.activityId,
+        skills: workSkillsOf(activitySkills.get(w.activityId) ?? [], skills),
       })),
       focusSkills: refsFor(
         skills,
@@ -589,5 +730,8 @@ export const buildTargets = Effect.fn('observations.targets')(function* (actor: 
       ),
     });
   }
-  return result.toSorted((a, b) => a.person.displayName.localeCompare(b.person.displayName));
+  return {
+    people: result.toSorted((a, b) => a.person.displayName.localeCompare(b.person.displayName)),
+    maxSkills: (yield* tenantCreditPolicy(actor.tenantId)).maxSkillsPerObservation,
+  } satisfies ObserveTargets;
 });

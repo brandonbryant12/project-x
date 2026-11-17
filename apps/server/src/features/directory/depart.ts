@@ -264,6 +264,7 @@ const releaseWaiting = Effect.fn('directory.depart.waiting')(function* (leaving:
         narrativeLength: 0,
         privacyHold: false,
         acknowledged: false,
+        reflectionHeld: false,
       },
       event: { type: 'EXPIRE' },
       permitted: departurePolicy(actor),

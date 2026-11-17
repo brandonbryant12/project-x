@@ -6,6 +6,7 @@ import {
   creditPolicyVersion,
   criteriaFromSnapshot,
   evaluateBadge,
+  isEvidenceHeld,
   type BadgeLevel,
   type ObservationId,
   type ObservationStatus,
@@ -14,7 +15,7 @@ import {
 import { Db, schema, transactionally } from '@repo/db';
 import { and, eq } from 'drizzle-orm';
 import { Effect } from 'effect';
-import { now } from '../../../platform/time.ts';
+import { BusinessTimeZone, businessDateIn, now } from '../../../platform/time.ts';
 import { recordAudit } from '../../shared/audit.ts';
 import { notify } from '../../shared/notify.ts';
 import { decide, requireUpdated } from '../../shared/mutation.ts';
@@ -26,7 +27,7 @@ import {
   toCreditFact,
 } from '../../shared/recognition.ts';
 import { permittedEvents } from '../views.ts';
-import { loadVisible } from './shared.ts';
+import { latestEvidenceStatus, loadVisible } from './shared.ts';
 
 const NOTE_REQUIRED = new Set(['RETURN', 'DECLINE', 'REQUEST_REVIEW', 'VOID']);
 const NOTE_KIND = {
@@ -35,9 +36,17 @@ const NOTE_KIND = {
   REQUEST_REVIEW: 'review',
   VOID: 'void',
   UPHOLD: 'uphold',
+  // Resending may carry a new note to the observer; it replaces the request's note.
+  RESUBMIT: 'request',
 } as const;
+/** The same limit as a request's note. */
+const REQUEST_NOTE_MAX = 280;
 
-/** Every non-signing transition. Notes are the human "why" recorded on the audit trail. */
+/**
+ * Every non-signing transition. Notes are the human "why" recorded on the
+ * audit trail. A returned request is resent only once the requester's
+ * reflection is no longer held by the privacy screen (lifecycle guard).
+ */
 export const transitionObservation = Effect.fn('useCase.transitionObservation')(function* (
   id: ObservationId,
   input: ObservationTransitionInput,
@@ -54,7 +63,18 @@ export const transitionObservation = Effect.fn('useCase.transitionObservation')(
       }),
     );
   }
+  if (input.event === 'RESUBMIT' && note && note.length > REQUEST_NOTE_MAX) {
+    return yield* Effect.fail(
+      new Unprocessable({
+        message: `Keep the note to ${REQUEST_NOTE_MAX} characters.`,
+        field: 'note',
+      }),
+    );
+  }
   const from = row.status as ObservationStatus;
+  const reflectionHeld = isEvidenceHeld(
+    yield* latestEvidenceStatus(actor.tenantId, row.interactionId),
+  );
   const to = yield* decide({
     lifecycle: ObservationLifecycle,
     from,
@@ -63,9 +83,15 @@ export const transitionObservation = Effect.fn('useCase.transitionObservation')(
       narrativeLength: 0,
       privacyHold: false,
       acknowledged: row.acknowledgedAt !== null,
+      reflectionHeld,
     },
     event: { type: input.event },
     permitted: permittedEvents(actor, row).includes(input.event),
+    ...(input.event === 'RESUBMIT' &&
+      reflectionHeld && {
+        explain:
+          'Your reflection is held for a privacy check. Revise it so it clears, then resend.',
+      }),
   });
   const at = yield* now;
   yield* transactionally(
@@ -98,6 +124,18 @@ export const transitionObservation = Effect.fn('useCase.transitionObservation')(
           entityType: 'observation',
           entityId: row.id,
           actorId: actor.personId,
+          occurrence: `v${row.version + 1}`,
+        });
+      }
+      if (input.event === 'RESUBMIT') {
+        // The request waits on the observer again.
+        yield* notify(actor.tenantId, {
+          recipientId: row.observerId,
+          kind: 'observation_requested',
+          entityType: 'observation',
+          entityId: row.id,
+          actorId: actor.personId,
+          dueOn: businessDateIn(row.dueAt, yield* BusinessTimeZone),
           occurrence: `v${row.version + 1}`,
         });
       }

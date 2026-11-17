@@ -1,5 +1,5 @@
 import type { ObservationView, RatingInput } from '@repo/api';
-import type { Level, ObservationMode, SkillId, SkillIndicatorId } from '@repo/domain';
+import type { Level, ObservationMode, SkillId, SkillIndicatorId, SkillRole } from '@repo/domain';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { call, queryOptions } from '@/lib/api.ts';
@@ -9,6 +9,8 @@ export interface DraftRating {
   readonly level: Level | null;
   readonly indicatorIds: ReadonlyArray<SkillIndicatorId>;
   readonly credit: boolean;
+  /** The observer owns it (design §4): at most one skill is primary. */
+  readonly role: SkillRole;
 }
 
 export interface Draft {
@@ -35,6 +37,8 @@ const fromView = (view: ObservationView): Draft => ({
     level: r.level,
     indicatorIds: r.indicatorIds,
     credit: r.credit,
+    // `unclassified` exists only on ratings signed before roles; never on a draft.
+    role: r.role === 'primary' ? 'primary' : 'secondary',
   })),
   narrativeSaw: view.narrativeSaw,
   narrativeNext: view.narrativeNext,
@@ -57,10 +61,48 @@ export const toPayload = (
     level: r.level,
     indicatorIds: [...r.indicatorIds],
     credit: r.credit,
+    role: r.role,
   })),
   narrativeSaw: draft.narrativeSaw,
   narrativeNext: draft.narrativeNext,
 });
+
+/** Gives one skill a role; making it primary makes any other primary secondary. */
+export const withRole = (
+  ratings: ReadonlyArray<DraftRating>,
+  skillId: SkillId,
+  role: SkillRole,
+): ReadonlyArray<DraftRating> =>
+  ratings.map((r) => {
+    if (r.skillId === skillId) return { ...r, role };
+    return role === 'primary' && r.role === 'primary' ? { ...r, role: 'secondary' } : r;
+  });
+
+const listed = (names: ReadonlyArray<string>) =>
+  names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+
+/**
+ * The one quiet line about what signing adds, from the server's values for
+ * each rated skill in its role. Feedback-only skills add nothing. Null while a
+ * value is unknown (a skill added since the last save).
+ */
+export const signingAdds = (
+  ratings: ReadonlyArray<DraftRating>,
+  valueOf: (skillId: SkillId) => Readonly<Record<SkillRole, number>> | null,
+  nameOf: (skillId: SkillId) => string,
+): string | null => {
+  const credited = ratings.filter((r) => r.credit);
+  if (credited.length === 0) return 'Feedback only: signing adds nothing to the record.';
+  const parts: Array<string> = [];
+  for (const r of credited) {
+    const values = valueOf(r.skillId);
+    if (!values) return null;
+    const points = values[r.role];
+    const unit = parts.length === 0 ? ` ${points === 1 ? 'point' : 'points'}` : '';
+    parts.push(`${points}${unit} to ${nameOf(r.skillId)}`);
+  }
+  return `Signing adds ${listed(parts)}.`;
+};
 
 /** What still blocks signing, in plain words (minimums from the domain). */
 export const missingToSign = (draft: Draft): string | null => {

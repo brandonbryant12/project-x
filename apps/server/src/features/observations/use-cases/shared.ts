@@ -2,6 +2,8 @@ import { CurrentActor, Forbidden, NotFound, Unprocessable } from '@repo/api';
 import {
   checkObserverEligibility,
   INELIGIBLE_REASON_TEXT,
+  type EvidenceStatus,
+  type InteractionId,
   type IsoDate,
   type ObservationId,
   type PersonId,
@@ -10,7 +12,7 @@ import {
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { addDays, now } from '../../../platform/time.ts';
 import { loadRelationshipFacts } from '../../shared/relationships.ts';
@@ -74,4 +76,21 @@ export const loadVisible = Effect.fn('observations.loadVisible')(function* (id: 
     return yield* Effect.fail(new NotFound({ entity: 'observation', id }));
   }
   return row;
+});
+
+/** The status of the latest reflection on a piece of work, if it has one. */
+export const latestEvidenceStatus = Effect.fn('observations.evidenceStatus')(function* (
+  tenantId: TenantId,
+  interactionId: InteractionId,
+) {
+  const db = yield* Db;
+  const [row] = yield* db
+    .select({ status: schema.evidence.status })
+    .from(schema.evidence)
+    .where(
+      and(eq(schema.evidence.tenantId, tenantId), eq(schema.evidence.interactionId, interactionId)),
+    )
+    .orderBy(desc(schema.evidence.createdAt))
+    .limit(1);
+  return row ? (row.status as EvidenceStatus) : null;
 });

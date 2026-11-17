@@ -89,12 +89,6 @@ export const initialCreditPolicy = (): CreditPolicy => ({
   version: 1,
 });
 
-/**
- * The screens' fallback for how many skills one observation rates, until they
- * read the tenant's policy. The server always uses `maxSkillsPerObservation`.
- */
-export const MAX_SKILLS_PER_OBSERVATION = DEFAULT_CREDIT_POLICY.maxSkillsPerObservation;
-
 export type CreditPolicyField =
   | 'creditPolicy'
   | Exclude<keyof CreditPolicy, 'activityOverrides'>

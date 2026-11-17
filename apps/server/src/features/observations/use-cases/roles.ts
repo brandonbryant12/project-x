@@ -79,7 +79,7 @@ export const rolesFor = (
     ? Effect.succeed(resolved.roles)
     : Effect.fail(
         new Unprocessable({
-          message: 'Only one skill can be the main skill of this work.',
+          message: 'Only one skill can be the primary skill of this work.',
           field: 'ratings',
         }),
       );

@@ -17,7 +17,7 @@ import {
   LEVEL_NAMES,
   OPEN_OBSERVATION_STATES,
   PlanLifecycle,
-  canReadNarrative,
+  isEvidenceHeld,
   resolveCreditValue,
   coachesOf,
   developmentAccess,
@@ -43,7 +43,7 @@ import {
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
-import { and, desc, eq, inArray, isNotNull, ne, notInArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, notInArray } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { today } from '../../platform/time.ts';
 import { loadPeople, personFrom } from '../shared/people.ts';
@@ -57,6 +57,7 @@ import {
 } from '../shared/catalog-reads.ts';
 import { currentPlanOf, planAgreers } from '../shared/plans.ts';
 import { loadSkills, toSkillRef } from '../shared/skills.ts';
+import { latestTryNextTime } from '../shared/try-next-time.ts';
 import {
   editWorkRefusal,
   planCapabilities,
@@ -159,49 +160,12 @@ const interactionSummaries = Effect.fn('development.interactions')(function* (
       })),
       canRequestObservation:
         interaction.ownerId === viewerId &&
-        ev?.status !== 'held' &&
+        !isEvidenceHeld(ev?.status as EvidenceStatus | undefined) &&
         eligible.some((e) => !live.has(e.personId)),
       canReviseEvidence: ev?.authorId === viewerId && ev.status === 'held',
     });
   }
   return result;
-});
-
-/** "Try next time": the latest signed "What next", for those who may read narratives (I13). */
-const latestTryNext = Effect.fn('development.tryNext')(function* (
-  actor: Actor,
-  facts: RelationshipFacts,
-  ownerId: PersonId,
-  on: IsoDate,
-) {
-  const db = yield* Db;
-  const [row] = yield* db
-    .select({
-      id: schema.observation.id,
-      observerId: schema.observation.observerId,
-      narrativeNext: schema.observation.narrativeNext,
-      signedAt: schema.observation.signedAt,
-    })
-    .from(schema.observation)
-    .where(
-      and(
-        eq(schema.observation.tenantId, actor.tenantId),
-        eq(schema.observation.subjectId, ownerId),
-        inArray(schema.observation.status, ['signed', 'under_review']),
-        isNotNull(schema.observation.narrativeNext),
-        ne(schema.observation.narrativeNext, ''),
-      ),
-    )
-    .orderBy(desc(schema.observation.signedAt))
-    .limit(1);
-  if (!row?.narrativeNext || !row.signedAt) return null;
-  const readable = canReadNarrative(facts, {
-    viewerId: actor.personId,
-    subjectId: ownerId,
-    observerId: row.observerId,
-    on,
-  });
-  return readable ? { ...row, narrativeNext: row.narrativeNext, signedAt: row.signedAt } : null;
 });
 
 /** Focus skills with their target, how far observation has reached and the review's outcome. */
@@ -336,7 +300,7 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
   );
   const coachId = coachesOf(facts, plan.ownerId, on)[0];
   const leaderId = leaderOf(facts, plan.ownerId, on);
-  const tryNext = yield* latestTryNext(actor, facts, plan.ownerId, on);
+  const tryNext = yield* latestTryNextTime(actor, facts, plan.ownerId, on);
   const people = yield* loadPeople(actor.tenantId, [
     plan.ownerId,
     ...(tryNext ? [tryNext.observerId] : []),
@@ -413,10 +377,10 @@ export const buildPlanView = Effect.fn('development.planView')(function* (
     review: reviewView(plan, people),
     tryNextTime: tryNext
       ? {
-          sentence: tryNext.narrativeNext,
+          sentence: tryNext.sentence,
           observer: personFrom(people, tryNext.observerId),
           signedAt: tryNext.signedAt.toISOString(),
-          observationId: tryNext.id,
+          observationId: tryNext.observationId,
         }
       : null,
     activities: activityViews,
@@ -620,6 +584,14 @@ export const buildInteractionView = Effect.fn('development.interactionView')(fun
     ...eligible.map((e) => e.personId),
   ]);
   const isAuthor = evidence?.authorId === actor.personId;
+  const listed = (yield* loadActivitySkillRows(actor.tenantId, [interaction.activityId])).get(
+    interaction.activityId,
+  );
+  const listedSkills = yield* loadSkills(
+    actor.tenantId,
+    (listed ?? []).map((r) => r.skillId),
+  );
+  const policy = yield* tenantCreditPolicy(actor.tenantId);
   return {
     id: interaction.id,
     activityId: interaction.activityId,
@@ -648,5 +620,13 @@ export const buildInteractionView = Effect.fn('development.interactionView')(fun
           [...OPEN_OBSERVATION_STATES, 'signed'].includes(o.status as never),
       ),
     })),
+    // Primary first: the defaults a request starts from.
+    skills: (listed ?? [])
+      .toSorted((a, b) => Number(b.role === 'primary') - Number(a.role === 'primary'))
+      .flatMap((r) => {
+        const skill = listedSkills.get(r.skillId);
+        return skill ? [{ skill: toSkillRef(skill), role: r.role as SkillRole }] : [];
+      }),
+    maxSkills: policy.maxSkillsPerObservation,
   } satisfies InteractionView;
 });

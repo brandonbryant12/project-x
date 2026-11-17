@@ -59,8 +59,16 @@ export const RatingView = Schema.Struct({
    * `unclassified` only on ratings signed before roles existed.
    */
   role: CreditRole,
-  /** True only for the observer of unsigned work that lists no skills: they pick the primary one. */
+  /**
+   * True only for the observer of unsigned work: the observer owns the roles
+   * (the work's roles are defaults) and may mark at most one skill primary.
+   */
   roleChoosable: Schema.Boolean,
+  /**
+   * What a credit for this skill would add if signed now, in each role, resolved
+   * as signing resolves it. Only for the observer of unsigned work; else null.
+   */
+  values: Schema.NullOr(Schema.Struct({ primary: Schema.Number, secondary: Schema.Number })),
 });
 export type RatingView = typeof RatingView.Type;
 
@@ -138,6 +146,10 @@ export const ObservationView = Schema.Struct({
   ),
   advisory: Schema.Array(AdvisoryView),
   actions: Schema.Array(ObservationEventType),
+  /** The viewer wrote the reflection and may revise it here (a request sent back to them). */
+  canReviseEvidence: Schema.Boolean,
+  /** The tenant's limit on rated skills, for the observer of unsigned work; else null. */
+  maxSkills: Schema.NullOr(Schema.Number),
 });
 export type ObservationView = typeof ObservationView.Type;
 
@@ -179,9 +191,15 @@ export const RequestObservationInput = Schema.Struct({
 });
 export type RequestObservationInput = typeof RequestObservationInput.Type;
 
-/** "I saw this": observer-initiated. Creates the interaction and a draft. */
+/**
+ * "I saw this": observer-initiated. Creates the interaction and a draft, or,
+ * with `interactionId`, attaches the draft to work the subject already logged
+ * (its date and kind then come from that work), so one piece of work is never
+ * recorded twice.
+ */
 export const StartObservationInput = Schema.Struct({
   subjectId: PersonId,
+  interactionId: Schema.optional(Schema.NullOr(InteractionId)),
   activityId: Schema.NullOr(ActivityId),
   title: Schema.NullOr(Schema.String),
   occurredOn: IsoDate,
@@ -197,8 +215,8 @@ export const RatingInput = Schema.Struct({
   indicatorIds: Schema.Array(SkillIndicatorId),
   credit: Schema.Boolean,
   /**
-   * The observer's choice of role, honoured only for work that lists no skills;
-   * otherwise the work decides. Omitted: the first rated skill is primary.
+   * The observer's choice of role (the observer owns the roles; at most one
+   * primary). Omitted: the role stored on the rating, else the work's default.
    */
   role: Schema.optional(SkillRole),
 });
@@ -231,12 +249,38 @@ export const ObservationTransitionInput = Schema.Struct({
 });
 export type ObservationTransitionInput = typeof ObservationTransitionInput.Type;
 
+/** A skill of a piece of work with its default role for observations of it. */
+export const WorkSkill = Schema.Struct({ skill: SkillRef, role: SkillRole });
+export type WorkSkill = typeof WorkSkill.Type;
+
 export const ObserveTarget = Schema.Struct({
   person: PersonSummary,
   basis: ObserverBasis,
   activities: Schema.Array(
-    Schema.Struct({ id: ActivityId, title: Schema.String, targetSkills: Schema.Array(SkillRef) }),
+    Schema.Struct({ id: ActivityId, title: Schema.String, skills: Schema.Array(WorkSkill) }),
+  ),
+  /**
+   * Work this person already logged inside the "I saw this" window that the
+   * viewer has not observed: "I saw this" attaches to it instead of recording
+   * the same work twice. Title and kind only, never the reflection.
+   */
+  work: Schema.Array(
+    Schema.Struct({
+      id: InteractionId,
+      occurredOn: IsoDate,
+      kind: InteractionKind,
+      title: Schema.String,
+      activityId: ActivityId,
+      skills: Schema.Array(WorkSkill),
+    }),
   ),
   focusSkills: Schema.Array(SkillRef),
 });
 export type ObserveTarget = typeof ObserveTarget.Type;
+
+/** Who the viewer can observe today, and the tenant's limit on rated skills. */
+export const ObserveTargets = Schema.Struct({
+  people: Schema.Array(ObserveTarget),
+  maxSkills: Schema.Number,
+});
+export type ObserveTargets = typeof ObserveTargets.Type;
