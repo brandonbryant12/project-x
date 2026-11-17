@@ -20,7 +20,7 @@ import { personFk } from './directory.ts';
  * Invariant I20: there is no free-text column. A message is rendered from the
  * closed `kind`, typed parameters (names looked up by id, a date, a count) and
  * a deep link, so narratives, levels, reflections, hold reasons and client
- * references cannot reach email or Teams.
+ * references cannot reach email.
  */
 export const notification = pgTable(
   'notification',
@@ -38,7 +38,7 @@ export const notification = pgTable(
     /** Idempotency: one row per (kind, entity, recipient[, period]). */
     dedupeKey: text('dedupe_key').notNull(),
     status: text('status').notNull().default('pending'),
-    /** Resolved from preferences at dispatch time. */
+    /** The transport that sent it (`email`, or `log` in development); set at dispatch. */
     channel: text('channel'),
     attempts: integer('attempts').notNull().default(0),
     sendAfter: instant('send_after').notNull().defaultNow(),
@@ -51,7 +51,7 @@ export const notification = pgTable(
     oneOf('notification_kind_check', t.kind, NOTIFICATION_KINDS),
     oneOf('notification_entity_type_check', t.entityType, NOTIFICATION_ENTITY_TYPES),
     oneOf('notification_status_check', t.status, NOTIFICATION_STATUSES),
-    oneOfOrNull('notification_channel_check', t.channel, ['email', 'teams', 'log']),
+    oneOfOrNull('notification_channel_check', t.channel, ['email', 'log']),
     check(
       'notification_entity_shape',
       sql`(${t.entityType} = 'digest') = (${t.entityId} is null) and (${t.entityId} is null or ${t.entityId} ~ '^[a-z]{3}_[0-9a-z]+$')`,

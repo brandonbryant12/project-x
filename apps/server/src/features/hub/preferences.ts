@@ -23,7 +23,6 @@ export const preferencesOf = Effect.fn('preferences.of')(function* (
     ? ({
         channel: row.channel,
         weeklyDigest: row.weeklyDigest,
-        observeCapacity: row.observeCapacity,
       } as NotificationPreferences)
     : DEFAULT_PREFERENCES;
 });

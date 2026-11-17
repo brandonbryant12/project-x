@@ -146,10 +146,11 @@ export type NotificationKind = typeof NotificationKind.Type;
 
 export const NOTIFICATION_ENTITY_TYPES = ['observation', 'plan', 'engagement', 'digest'] as const;
 export const NOTIFICATION_STATUSES = ['pending', 'sent', 'skipped', 'failed'] as const;
-export const NOTIFICATION_CHANNELS = ['email', 'teams', 'off'] as const;
+/** A person's choice; `off` skips delivery. Teams is not offered (email only for the pilot). */
+export const NOTIFICATION_CHANNELS = ['email', 'off'] as const;
 export const NotificationChannel = Schema.Literals(NOTIFICATION_CHANNELS);
 export type NotificationChannel = typeof NotificationChannel.Type;
-/** How many people an observer is happy to observe in a week (who-to-observe). */
+/** How many people who-to-observe suggests in a week. Fixed; no longer a preference. */
 export const DEFAULT_OBSERVE_CAPACITY = 2;
 
 /**

@@ -87,7 +87,7 @@ tenant ─┬─ business_function
         ├─ person ─┬─ reporting_line (manager → report, dated)
         │          ├─ role_grant (coach | tenant_admin | compliance_reviewer | program_owner, dated)
         │          ├─ person_position (job family, title, function, dated)
-        │          ├─ notification_preference (channel, weekly digest, observe capacity)
+        │          ├─ notification_preference (email or off, weekly digest)
         │          └─ session
         ├─ skill ── skill_version ─┬─ skill_level
         │                          └─ skill_indicator (lineage_key)

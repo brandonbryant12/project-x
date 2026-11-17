@@ -40,8 +40,6 @@ export const ThisWeek = Schema.Struct({
   toObserve: Schema.Array(ObserveSuggestion),
   /** Leaders: "4 of your 9 reports were observed in the last six weeks." */
   coverageSentence: Schema.NullOr(Schema.String),
-  /** The viewer's self-set capacity. */
-  observeCapacity: Schema.Number,
 });
 export type ThisWeek = typeof ThisWeek.Type;
 
@@ -72,7 +70,6 @@ export const DesignateInput = Schema.Struct({
 export const NotificationPreferences = Schema.Struct({
   channel: NotificationChannel,
   weeklyDigest: Schema.Boolean,
-  observeCapacity: Schema.Number.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 10 }))),
 });
 export type NotificationPreferences = typeof NotificationPreferences.Type;
 

@@ -18,7 +18,6 @@ import {
   foreignKey,
   boolean,
   index,
-  integer,
   jsonb,
   pgTable,
   text,
@@ -254,13 +253,10 @@ export const notificationPreference = pgTable(
     personId: text('person_id').$type<PersonId>().primaryKey(),
     channel: text('channel').notNull().default('email'),
     weeklyDigest: boolean('weekly_digest').notNull().default(true),
-    /** People they are happy to observe in a week; feeds "who to observe". */
-    observeCapacity: integer('observe_capacity').notNull().default(2),
     updatedAt: updatedAt(),
   },
   (t) => [
     personFk('notification_preference_person_fk', t.tenantId, t.personId),
     oneOf('notification_preference_channel_check', t.channel, NOTIFICATION_CHANNELS),
-    check('notification_preference_capacity', sql`${t.observeCapacity} between 0 and 10`),
   ],
 );

@@ -7,11 +7,10 @@ import { createTransport } from 'nodemailer';
  * names, dates, counts and a link.
  *
  * Built: `log` (development), `smtp` (email through the firm's relay) and
- * `memory` (tests). Planned: the Teams activity feed, once IT grants the Graph
- * permission; until then a Teams preference is delivered by email.
+ * `memory` (tests). Email is the only channel.
  */
 export interface OutgoingMessage {
-  readonly channel: 'email' | 'teams' | 'log';
+  readonly channel: 'email' | 'log';
   readonly to: { readonly personId: string; readonly email: string };
   readonly subject: string;
   readonly lines: ReadonlyArray<string>;

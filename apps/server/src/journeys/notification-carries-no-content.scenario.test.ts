@@ -159,7 +159,7 @@ layer(ScenarioLayer.pipe(Layer.provideMerge(NotifierMemory)), { timeout: 60_000 
         const db = yield* Db;
         yield* signInAs('Maya Chen');
         yield* api.hub.updatePreferences({
-          payload: { channel: 'off', weeklyDigest: false, observeCapacity: 2 },
+          payload: { channel: 'off', weeklyDigest: false },
         });
         const me = (yield* api.hub.preferences()).channel;
         assert.strictEqual(me, 'off');

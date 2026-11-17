@@ -1,7 +1,6 @@
 import type { NotificationPreferences } from '@repo/api';
 import type { NotificationChannel } from '@repo/domain';
-import { Button, Card, cn, toast } from '@repo/ui';
-import { MinusIcon, PlusIcon } from 'lucide-react';
+import { Card, cn, toast } from '@repo/ui';
 import { useState } from 'react';
 import { Page, PageHeader } from '@/components/page.tsx';
 import { useApiMutation } from '@/lib/api.ts';
@@ -13,7 +12,6 @@ const CHANNELS: ReadonlyArray<{
   readonly hint: (email: string) => string;
 }> = [
   { value: 'email', label: 'Email', hint: (email) => `To ${email}.` },
-  { value: 'teams', label: 'Teams', hint: () => 'In your Teams activity feed.' },
   {
     value: 'off',
     label: 'Off',
@@ -114,47 +112,9 @@ export const PreferencesScreen = ({ saved }: { readonly saved: NotificationPrefe
             Send me the weekly digest
           </label>
           {prefs.channel === 'off' ? (
-            <p className="text-meta text-ink-3">Choose email or Teams to receive it.</p>
+            <p className="text-meta text-ink-3">Choose email to receive it.</p>
           ) : null}
         </Section>
-        {session.relations.canObserve ? (
-          <Section
-            title="People to observe each week"
-            description="Home suggests up to this many people a week, each with a reason. It is your own pace, never a target anyone else sees."
-          >
-            <div className="flex items-center gap-3">
-              <Button
-                variant="secondary"
-                size="icon"
-                className="size-11 md:size-9"
-                aria-label="Fewer"
-                disabled={prefs.observeCapacity <= 0}
-                onClick={() => change({ observeCapacity: prefs.observeCapacity - 1 })}
-              >
-                <MinusIcon />
-              </Button>
-              <output
-                aria-live="polite"
-                className="w-8 text-center text-h2 font-semibold text-ink tabular"
-              >
-                {prefs.observeCapacity}
-              </output>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="size-11 md:size-9"
-                aria-label="More"
-                disabled={prefs.observeCapacity >= 10}
-                onClick={() => change({ observeCapacity: prefs.observeCapacity + 1 })}
-              >
-                <PlusIcon />
-              </Button>
-              <span className="text-ui text-ink-2">
-                {prefs.observeCapacity === 1 ? 'person' : 'people'} a week
-              </span>
-            </div>
-          </Section>
-        ) : null}
       </Card>
     </Page>
   );

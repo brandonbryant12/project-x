@@ -1,6 +1,7 @@
 import type { Actor, FeedItem, PersonSummary, ThisWeek, TodayItem } from '@repo/api';
 import {
   CURRENT_PLAN_STATES,
+  DEFAULT_OBSERVE_CAPACITY,
   LEVEL_NAMES,
   coacheesOf,
   directReportsOf,
@@ -17,7 +18,6 @@ import { Effect } from 'effect';
 import { BusinessTimeZone, addDaysIso, businessDateIn } from '../../platform/time.ts';
 import { coverageSentence } from '../shared/notification-templates.ts';
 import { mondayOf } from '../shared/weeks.ts';
-import { DEFAULT_PREFERENCES } from '../shared/notify.ts';
 import { firstName, loadPeople, personFrom } from '../shared/people.ts';
 import { loadSkills, toSkillRef } from '../shared/skills.ts';
 
@@ -39,7 +39,7 @@ const loadBriefRows = Effect.fn('support.brief.rows')(function* (
   const db = yield* Db;
   const me = actor.personId;
   const tenant = eq(schema.activity.tenantId, actor.tenantId);
-  const [plannedForMe, myDue, openRequests, pref] = yield* Effect.all([
+  const [plannedForMe, myDue, openRequests] = yield* Effect.all([
     db
       .select()
       .from(schema.activity)
@@ -74,10 +74,6 @@ const loadBriefRows = Effect.fn('support.brief.rows')(function* (
           inArray(schema.observation.status, ['requested', 'drafting']),
         ),
       ),
-    db
-      .select()
-      .from(schema.notificationPreference)
-      .where(eq(schema.notificationPreference.personId, me)),
   ]);
 
   // Focus skills of the people the viewer supports, and when each was last observed.
@@ -116,7 +112,7 @@ const loadBriefRows = Effect.fn('support.brief.rows')(function* (
           ),
         )
     : [];
-  return { plannedForMe, myDue, openRequests, pref, plans, observedRows };
+  return { plannedForMe, myDue, openRequests, plans, observedRows };
 });
 
 /** "Today": planned observations for today, and the viewer's own due work. */
@@ -182,7 +178,7 @@ export const buildBrief = Effect.fn('support.brief')(function* (
   const supportedIds = [...new Set([...reports, ...coacheesOf(facts, me, on), ...designated])];
 
   const rows = yield* loadBriefRows(actor, on, weekEnd, supportedIds);
-  const { plannedForMe, openRequests, pref, plans, observedRows } = rows;
+  const { plannedForMe, openRequests, plans, observedRows } = rows;
   const skills = yield* loadSkills(
     actor.tenantId,
     plans.map((p) => p.skillId),
@@ -199,11 +195,10 @@ export const buildBrief = Effect.fn('support.brief')(function* (
       .toSorted()
       .at(-1) ?? null;
 
-  const capacity = pref[0]?.observeCapacity ?? DEFAULT_PREFERENCES.observeCapacity;
   const suggestions = whoToObserve({
     viewerId: me,
     today: on,
-    capacity,
+    capacity: DEFAULT_OBSERVE_CAPACITY,
     supported: supportedIds.map((personId) => ({
       personId,
       firstName: firstName(personFrom(people, personId).displayName),
@@ -235,7 +230,6 @@ export const buildBrief = Effect.fn('support.brief')(function* (
       href: `/people/${s.personId}`,
     })),
     coverageSentence: coverageSentenceFor(reports, observedRows, on),
-    observeCapacity: capacity,
   };
   return { today: todayItems(rows, people, on), thisWeek };
 });
