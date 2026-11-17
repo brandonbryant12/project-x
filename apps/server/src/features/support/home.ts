@@ -24,6 +24,7 @@ import { loadRelationshipFacts } from '../shared/relationships.ts';
 import { loadSkills, refsFor, toSkillRef } from '../shared/skills.ts';
 import { currentPlanOf, planAgreers } from '../shared/plans.ts';
 import { MIN_CELL, planCoverage } from '../shared/program.ts';
+import { latestTryNextTime } from '../shared/try-next-time.ts';
 import { readReceipts, worthObserving } from './brief.ts';
 
 /** One recognition moment per person and skill: the highest level earned (independent review). */
@@ -234,7 +235,7 @@ const needsYouQueue = Effect.fn('support.home.queue')(function* (
   return toQueue(rows, people, facts, actor.personId, on);
 });
 
-/** The next step (first unmet benchmark) and a summary of the current plan. */
+/** The progress line (first focus skill with an unmet criterion) and a summary of the current plan. */
 const planSummary = Effect.fn('support.home.plan')(function* (actor: Actor) {
   const db = yield* Db;
   const me = actor.personId;
@@ -372,8 +373,8 @@ const recentFeed = Effect.fn('support.home.feed')(function* (
 });
 
 /**
- * Home: what is waiting on this person across every relationship, their plan
- * with its next step, and what happened recently.
+ * Home: what is waiting on this person across every relationship, what to
+ * practise next time and their plan, and what happened recently.
  */
 export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
   const db = yield* Db;
@@ -381,6 +382,7 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
   const facts = yield* loadRelationshipFacts(actor.tenantId);
   const me = actor.personId;
   const queue = yield* needsYouQueue(actor, facts, on);
+  const tryNext = yield* latestTryNextTime(actor, facts, me, on);
   const { nextStep, plan } = yield* planSummary(actor);
   const recently = yield* recentFeed(actor, facts, on);
   const toObserve = yield* worthObserving(actor, facts, on);
@@ -389,7 +391,11 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
     : null;
   const coachIds = coachesOf(facts, me, on);
   const leaderId = leaderOf(facts, me, on);
-  const support = yield* loadPeople(actor.tenantId, [...coachIds, ...(leaderId ? [leaderId] : [])]);
+  const support = yield* loadPeople(actor.tenantId, [
+    ...coachIds,
+    ...(leaderId ? [leaderId] : []),
+    ...(tryNext ? [tryNext.observerId] : []),
+  ]);
   const [me$] = yield* db
     .select({ name: schema.person.displayName })
     .from(schema.person)
@@ -398,6 +404,14 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
     firstName: firstName(me$?.name ?? actor.displayName),
     needsYou: queue.slice(0, 5),
     needsYouTotal: queue.length,
+    tryNextTime: tryNext
+      ? {
+          sentence: tryNext.sentence,
+          observer: personFrom(support, tryNext.observerId),
+          signedAt: tryNext.signedAt.toISOString(),
+          observationId: tryNext.observationId,
+        }
+      : null,
     nextStep,
     recently: recently.slice(0, 6),
     plan,
