@@ -484,9 +484,10 @@ const ValuesForm = ({ skill }: { readonly skill: ProgramSkillDetail }) => {
                       : 'Credit rules'
                   }
                   onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                  aria-describedby={`value-${f.key}-hint`}
                   className="tabular"
                 />
-                <FieldHint>{f.hint}</FieldHint>
+                <FieldHint id={`value-${f.key}-hint`}>{f.hint}</FieldHint>
               </Field>
             ))}
           </div>
@@ -497,9 +498,12 @@ const ValuesForm = ({ skill }: { readonly skill: ProgramSkillDetail }) => {
               value={reason}
               maxLength={1000}
               onChange={(e) => setReason(e.target.value)}
+              aria-describedby="values-reason-hint"
               className="min-h-16"
             />
-            <FieldHint>At least 10 characters. Kept with the change in the record.</FieldHint>
+            <FieldHint id="values-reason-hint">
+              At least 10 characters. Kept with the change in the record.
+            </FieldHint>
           </Field>
           {error ? (
             <p role="alert" className="text-ui text-danger-ink">

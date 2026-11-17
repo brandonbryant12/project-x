@@ -53,7 +53,7 @@ export class RequestFailed extends Error {
   }
 }
 
-const isApiError = (e: unknown): e is ApiError =>
+export const isApiError = (e: unknown): e is ApiError =>
   typeof e === 'object' &&
   e !== null &&
   '_tag' in e &&

@@ -21,7 +21,7 @@ import {
 } from '@repo/domain';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
-import { call, queryOptions } from '@/lib/api.ts';
+import { call, isApiError, queryOptions } from '@/lib/api.ts';
 import { daysAgoIso, todayIso } from '@/lib/format.ts';
 import { missingToSign, toPayload, type Draft, type DraftRating } from './use-observation-draft.ts';
 
@@ -138,7 +138,8 @@ const chooseRoleIn = (draft: Draft, skillId: SkillId, role: SkillRole) => {
 const useCaptureWrites = (
   startInput: () => StartObservationInput | null,
   draft: Draft,
-  onStarted: (subjectId: string) => void,
+  onStarted: () => void,
+  onAttachRefused: () => void,
 ) => {
   const qc = useQueryClient();
   const started = useRef<{ id: ObservationId; version: number } | null>(null);
@@ -147,9 +148,22 @@ const useCaptureWrites = (
     if (started.current) return started.current;
     const payload = startInput();
     if (!payload) throw new Error('No one chosen');
-    const view = await call('observations', 'start', { payload });
+    const view = await call('observations', 'start', { payload }).catch(async (error: unknown) => {
+      // The logged work is no longer offered (observed meanwhile, or out of reach):
+      // drop the stale choice and show the current list, then report the refusal.
+      if (
+        payload.interactionId &&
+        isApiError(error) &&
+        ['Conflict', 'NotFound'].includes(error._tag)
+      ) {
+        onAttachRefused();
+        await qc.invalidateQueries({ queryKey: ['observations', 'targets'] });
+      }
+      throw error;
+    });
     started.current = { id: view.id, version: view.version };
-    onStarted(payload.subjectId);
+    rememberRecent(payload.subjectId);
+    onStarted();
     return started.current;
   };
 
@@ -329,10 +343,8 @@ export const useQuickCapture = (
           }
         : null,
     effective,
-    (subjectId) => {
-      setLocked(true);
-      rememberRecent(subjectId);
-    },
+    () => setLocked(true),
+    () => setWorkId(null),
   );
 
   return {

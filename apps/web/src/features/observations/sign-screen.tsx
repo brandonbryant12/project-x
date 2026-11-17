@@ -281,6 +281,12 @@ const RatingsEditor = ({
           }
         />
       ))}
+      {canChooseRoles && !draft.ratings.some((r) => r.credit && r.role === 'primary') ? (
+        <p role="status" className="text-meta text-ink-3">
+          No credited skill is primary, so each counts as secondary work. Make one primary if the
+          work was mainly about it.
+        </p>
+      ) : null}
       {draft.ratings.length < maxSkills ? (
         <AddSkill
           exclude={draft.ratings.map((r) => r.skillId)}

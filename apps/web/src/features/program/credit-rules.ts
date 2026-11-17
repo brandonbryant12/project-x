@@ -139,9 +139,18 @@ const number = (field: PolicyField, text: string) => {
   return spec(field)?.percent ? n / 100 : n;
 };
 
-/** The complete policy the form describes; empty or invalid inputs stay invalid (never defaulted). */
-export const policyFrom = (form: PolicyForm): CreditPolicyValues => {
-  const v = (field: PolicyField) => number(field, form.values[field]);
+/**
+ * The complete policy the form describes; empty or invalid inputs stay invalid
+ * (never defaulted). A field still showing the stored value keeps that exact
+ * value, so a share shown rounded (33.3%) is never saved as a change.
+ */
+export const policyFrom = (form: PolicyForm, stored: StoredCreditPolicy): CreditPolicyValues => {
+  const v = (field: PolicyField) => {
+    const kept = valueOf(stored, field);
+    return kept !== null && form.values[field] === display(field, kept)
+      ? kept
+      : number(field, form.values[field]);
+  };
   return {
     primaryPoints: v('primaryPoints'),
     secondaryPoints: v('secondaryPoints'),
@@ -170,10 +179,13 @@ const pct = (share: number) => `${Math.round(share * 1000) / 10}%`;
 /**
  * Plain-language consequences of the values that are below the working
  * defaults (or otherwise surprising), stated before a save is confirmed.
+ * Switching individual values off is a change from what is stored now, so
+ * that line compares with the stored policy, not the defaults.
  */
 export const consequences = (
   p: CreditPolicyValues,
   d: CreditPolicyValues,
+  stored: StoredCreditPolicy,
 ): ReadonlyArray<string> => {
   const out: Array<string> = [];
   if (p.minInteractions < d.minInteractions || p.minObservers < d.minObservers) {
@@ -216,7 +228,7 @@ export const consequences = (
       `Observers could rate at most ${plural(p.maxSkillsPerObservation, 'skill', 'skills')} on one observation.`,
     );
   }
-  if (!p.activityOverrides.enabled && d.activityOverrides.enabled) {
+  if (!p.activityOverrides.enabled && stored.activityOverrides.enabled !== false) {
     out.push(
       'Values already given to activities stop applying: work signed from now on uses the template, skill or tenant value instead.',
     );

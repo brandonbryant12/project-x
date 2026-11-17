@@ -59,6 +59,32 @@ const DefaultNote = ({
 const problemText = (spec: FieldSpec, message: string | undefined) =>
   message && spec.percent ? 'Use a percentage from 0 to 100.' : message;
 
+const OverridesSwitch = ({
+  checked,
+  onChange,
+  problem,
+}: {
+  readonly checked: boolean;
+  readonly onChange: (on: boolean) => void;
+  readonly problem: string | undefined;
+}) => (
+  <div className="flex items-start gap-3 py-4">
+    <Checkbox
+      id="policy-overrides"
+      checked={checked}
+      onCheckedChange={(c) => onChange(c === true)}
+      aria-describedby="policy-overrides-hint"
+      className="mt-0.5"
+    />
+    <div className="grid gap-1">
+      <Label htmlFor="policy-overrides">An activity may have its own value</Label>
+      <FieldHint id="policy-overrides-hint">
+        {problem ?? 'When off, values already given to activities stop applying.'}
+      </FieldHint>
+    </div>
+  </div>
+);
+
 const NumberRow = ({
   spec,
   value,
@@ -153,7 +179,7 @@ const ConfirmSave = ({
     },
   });
   const changes = differences(view.stored, proposed);
-  const effects = consequences(proposed, view.defaults);
+  const effects = consequences(proposed, view.defaults, view.stored);
   const ready = reason.trim().length >= MIN_REASON;
   return (
     <ResponsiveDialog
@@ -222,17 +248,23 @@ const ConfirmSave = ({
           <div role="alert" className="grid gap-2">
             <p className="text-ui text-danger-ink">{error}</p>
             {stale ? (
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-fit"
-                onClick={() => {
-                  void qc.invalidateQueries({ queryKey: ['program', 'creditPolicy'] });
-                  onClose();
-                }}
-              >
-                Load the latest version
-              </Button>
+              <>
+                <p className="text-ui text-ink-2">
+                  Loading the latest version replaces the values you entered here. Note them first
+                  if you want to enter them again.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-fit"
+                  onClick={() => {
+                    void qc.invalidateQueries({ queryKey: ['program', 'creditPolicy'] });
+                    onClose();
+                  }}
+                >
+                  Discard my values and load the latest
+                </Button>
+              </>
             ) : null}
           </div>
         ) : null}
@@ -264,7 +296,7 @@ export const CreditRulesScreen = ({ view }: { readonly view: CreditPolicyAdminVi
     setLoadedVersion(view.version);
     setForm(formFrom(view.stored));
   }
-  const proposed = policyFrom(form);
+  const proposed = policyFrom(form, view.stored);
   const problems = problemsOf(proposed);
   const valid = problems.size === 0;
   const dirty = JSON.stringify(form) !== JSON.stringify(formFrom(view.stored));
@@ -281,7 +313,7 @@ export const CreditRulesScreen = ({ view }: { readonly view: CreditPolicyAdminVi
     />
   );
   const last = view.history[0];
-  const effects = valid ? consequences(proposed, view.defaults) : [];
+  const effects = valid ? consequences(proposed, view.defaults, view.stored) : [];
   return (
     <Page width="reading">
       <PageHeader
@@ -337,21 +369,11 @@ export const CreditRulesScreen = ({ view }: { readonly view: CreditPolicyAdminVi
           title="Individual activities"
           description="A coach who agreed the plan, or a program owner, may give one planned activity its own value before its work is observed."
         >
-          <div className="flex items-start gap-3 py-4">
-            <Checkbox
-              id="policy-overrides"
-              checked={form.overridesEnabled === true}
-              onCheckedChange={(c) => setForm((f) => ({ ...f, overridesEnabled: c === true }))}
-              className="mt-0.5"
-            />
-            <div className="grid gap-1">
-              <Label htmlFor="policy-overrides">An activity may have its own value</Label>
-              <FieldHint>
-                {problems.get('activityOverrides.enabled')?.message ??
-                  'When off, values already given to activities stop applying.'}
-              </FieldHint>
-            </div>
-          </div>
+          <OverridesSwitch
+            checked={form.overridesEnabled === true}
+            onChange={(on) => setForm((f) => ({ ...f, overridesEnabled: on }))}
+            problem={problems.get('activityOverrides.enabled')?.message}
+          />
           {OVERRIDE_RANGE.map(row)}
         </Group>
 
