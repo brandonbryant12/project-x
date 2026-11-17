@@ -8,6 +8,7 @@ import type {
   InteractionView,
   PlanView,
   PersonSummary,
+  WorkTemplate,
 } from '@repo/api';
 import {
   ActivityLifecycle,
@@ -448,6 +449,63 @@ const loadTemplates = Effect.fn('development.templates')(function* (
       ),
     );
   return new Map<string, string>(rows.map((r) => [r.id, r.name]));
+});
+
+/**
+ * Published templates with their own published skills, roles and values, for
+ * planning work. Adding work copies these; signing never reads the template.
+ */
+export const buildWorkTemplates = Effect.fn('development.workTemplates')(function* (
+  tenantId: TenantId,
+) {
+  const db = yield* Db;
+  const templates = yield* db
+    .select()
+    .from(schema.activityTemplate)
+    .where(
+      and(
+        eq(schema.activityTemplate.tenantId, tenantId),
+        eq(schema.activityTemplate.status, 'published'),
+      ),
+    )
+    .orderBy(schema.activityTemplate.name);
+  const rows = templates.length
+    ? yield* db
+        .select({ link: schema.activityTemplateSkill, skill: schema.skill })
+        .from(schema.activityTemplateSkill)
+        .innerJoin(
+          schema.skill,
+          and(
+            eq(schema.skill.tenantId, schema.activityTemplateSkill.tenantId),
+            eq(schema.skill.id, schema.activityTemplateSkill.skillId),
+          ),
+        )
+        .where(
+          and(
+            eq(schema.activityTemplateSkill.tenantId, tenantId),
+            inArray(
+              schema.activityTemplateSkill.templateId,
+              templates.map((t) => t.id),
+            ),
+            eq(schema.skill.status, 'published'),
+          ),
+        )
+        .orderBy(schema.activityTemplateSkill.position)
+    : [];
+  return templates.map((t): WorkTemplate => ({
+    id: t.id,
+    name: t.name,
+    description: t.description,
+    kind: t.kind as InteractionKind,
+    observationTip: t.observationTip,
+    skills: rows
+      .filter((r) => r.link.templateId === t.id)
+      .map((r) => ({
+        skill: toSkillRef(r.skill),
+        role: r.link.role as SkillRole,
+        points: r.link.points,
+      })),
+  }));
 });
 
 export const buildDevelopmentView = Effect.fn('development.view')(function* (

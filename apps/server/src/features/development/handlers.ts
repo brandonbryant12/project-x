@@ -19,6 +19,7 @@ import {
   buildDevelopmentView,
   buildInteractionView,
   buildPlanView,
+  buildWorkTemplates,
   canViewDevelopmentOf,
 } from './views.ts';
 
@@ -44,6 +45,12 @@ export const DevelopmentHandlers = HttpApiBuilder.group(Api, 'development', (han
       Effect.gen(function* () {
         const actor = yield* CurrentActor;
         return yield* buildDevelopmentView(actor, actor.personId);
+      }).pipe(apiErrorsOnly),
+    )
+    .handle('workTemplates', () =>
+      Effect.gen(function* () {
+        const actor = yield* CurrentActor;
+        return yield* buildWorkTemplates(actor.tenantId);
       }).pipe(apiErrorsOnly),
     )
     .handle('of', ({ params }) =>

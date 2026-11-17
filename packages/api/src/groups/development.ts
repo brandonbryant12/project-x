@@ -16,6 +16,7 @@ import {
   SetActivityValueInput,
   UpdateActivityInput,
   UpdatePlanInput,
+  WorkTemplate,
 } from '../models/index.ts';
 
 const lifecycleErrors = [NotFound, Forbidden, InvalidTransition, Unprocessable, Conflict] as const;
@@ -23,6 +24,9 @@ const lifecycleErrors = [NotFound, Forbidden, InvalidTransition, Unprocessable, 
 export class DevelopmentGroup extends HttpApiGroup.make('development')
   .add(
     HttpApiEndpoint.get('mine', '/development', { success: DevelopmentView }),
+    HttpApiEndpoint.get('workTemplates', '/development/templates', {
+      success: Schema.Array(WorkTemplate),
+    }),
     HttpApiEndpoint.get('of', '/people/:id/development', {
       params: { id: PersonId },
       success: DevelopmentView,

@@ -196,6 +196,21 @@ layer(ScenarioLayer, { timeout: 120_000 })('work roles and values', (it) => {
           'Unprocessable',
         ]);
 
+        // Planning is offered only published templates, with their roles and values.
+        const offered = yield* api.development.workTemplates();
+        assert.isFalse(
+          offered.some((t) => [template('book-review'), template('joint-meeting')].includes(t.id)),
+        );
+        assert.deepStrictEqual(
+          offered
+            .find((t) => t.id === template('annual-review'))
+            ?.skills.map((k) => [k.skill.slug, k.role, k.points]),
+          [
+            ['goals-based-planning', 'primary', 12],
+            ['relationship-deepening', 'secondary', 5],
+          ],
+        );
+
         // The coach adds work from the template: a changed role drops the template's
         // value, a skill the template does not list gets none, its own skill keeps it.
         const added = yield* add({

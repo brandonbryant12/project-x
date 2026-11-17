@@ -181,6 +181,22 @@ export type DevelopmentView = typeof DevelopmentView.Type;
 const Title = Schema.String.pipe(Schema.check(Schema.isMinLength(3), Schema.isMaxLength(120)));
 const Description = Schema.String.pipe(Schema.check(Schema.isMaxLength(600)));
 
+/**
+ * A published template as planning needs it: its own skills with their roles
+ * and values, which adding work copies (never re-read afterwards).
+ */
+export const WorkTemplate = Schema.Struct({
+  id: ActivityTemplateId,
+  name: Schema.String,
+  description: Schema.String,
+  kind: InteractionKind,
+  observationTip: Schema.NullOr(Schema.String),
+  skills: Schema.Array(
+    Schema.Struct({ skill: SkillRef, role: SkillRole, points: Schema.NullOr(Schema.Number) }),
+  ),
+});
+export type WorkTemplate = typeof WorkTemplate.Type;
+
 /** A skill of a piece of work with its role; at most one primary (checked on the server). */
 export const ActivitySkillInput = Schema.Struct({ skillId: SkillId, role: SkillRole });
 const ActivitySkills = Schema.Array(ActivitySkillInput).pipe(
