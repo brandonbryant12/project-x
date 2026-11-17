@@ -98,9 +98,9 @@ role. **This mode refuses to start under `NODE_ENV=production`** (enforced in
 | App role value       | Grants in the app                                                                                                                                                         |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Coach`              | May form coaching engagements and observe coachees                                                                                                                        |
-| `TenantAdmin`        | Releases privacy holds; sees AI usage, the audit trail, and levels but not narratives                                                                                     |
+| `TenantAdmin` | Releases privacy holds; sees AI usage, the audit trail, and levels but not narratives; runs the directory import and departures; may also see the adoption view and administer the credit rules and catalog |
 | `ComplianceReviewer` | Resolves escalated evidence; the only role that voids or upholds observations; may read narratives outside a relationship, and each read is audited; sees the audit trail |
-| `ProgramOwner`       | Sees the adoption view: aggregates only, no names (ADR 0021).                                                                                                             |
+| `ProgramOwner` | Sees the adoption view: aggregates only, no names (ADR 0021). Administers the credit rules, the skill catalog and the activity templates (ADR 0023). May set an individual value on one piece of planned work (API only). |
 
 3. On the **enterprise application**, assign each app role to the AD
    **groups** that should hold it, for example `GRP-Coaching-Coaches` → `Coach`.
@@ -172,10 +172,20 @@ tested as tables:
 | Who may read observation narratives about S?     | S, the observer who wrote it, S's coaches, S's **direct** leader. The wider chain sees levels only. A draft is visible only to its observer until signed.                                                                   | `canReadNarrative`                                 |
 | Who may designate an observer for S?             | S's direct leader or an engaged coach, for at most 90 days; never S, never someone who reports to S; no overlapping pair in either direction (ADR 0020). Hidden in the web app unless `FEATURE_DESIGNATED_OBSERVERS` is on. | `checkDesignation`                                 |
 | Who agrees S's plan?                             | S's coach, or S's leader if S has no coach. The leader chain may endorse but not block.                                                                                                                                     | `planAgreers` (server)                             |
+| Who may edit S's plan? | Only S, while the plan is not closed (completed, canceled or expired). Focus skills only while it is a draft. | `editPlanRefusal` |
+| Who may revise S's agreed plan? | S or an agreer, from proposed or active, until a closing review is confirmed | `planEvent` (server) |
+| Who may add work to S's plan, or edit planned work? | S or an agreer, while the plan is open; edits only to planned work that is planned or underway | `addWorkRefusal`, `editWorkRefusal` |
+| Who may set an individual value on S's work? | An agreer or a program owner, never S whatever grants S holds; the tenant must allow it; only planned, open work with no open or signed observation | `setValueRefusal` |
+| Who records and confirms S's closing review? | S records it (active, paused, completed or expired plan); an agreer confirms it, after which it is fixed | `recordReviewRefusal`, `confirmReviewRefusal` |
+| Who may propose coaching between C and E? | C or E, in either direction, when C holds the coach grant, is not E's direct leader, and the pair has no live engagement either way | `checkEngagementProposal` |
+| Who sets the roles on an observation? | Only its observer, until signing; at most one primary | `resolveRatingRoles`, `writeDraft` (server) |
+| Who may change the credit rules, skills and templates? | Program owners and tenant admins; each change is audited with before and after | `requireProgramAdmin` (server) |
 | Who may send a lifecycle event?                  | A per-entity policy table (observer, subject, requester, admin), intersected with the XState machine                                                                                                                        | `permittedEvents`, `engagementPolicy`, `planEvent` |
 
-**Visible to everyone in the tenant:** the skill catalog, activity templates,
-the directory, and earned badges ("who can I learn from").
+**Visible to everyone in the tenant:** the published skill catalog (with any
+values a skill sets for itself), published activity templates (with their
+roles and values), the directory, and earned badges ("who can I learn
+from"). A person's points are part of their progress and follow its rule.
 
 **How it is enforced:**
 
@@ -203,8 +213,9 @@ the directory, and earned badges ("who can I learn from").
 
 ## 7. Audit
 
-Every sign-in, lifecycle transition, grant change on sign-in, privacy decision
-and read of the audit trail or AI-usage report writes an `audit_event`. Each
+Every sign-in, lifecycle transition, grant change on sign-in, privacy decision,
+read of the audit trail or AI-usage report, credit-rule change, catalog change,
+individual value, plan edit and closing review writes an `audit_event`. Each
 event records:
 
 - the actor (null for system actions);
