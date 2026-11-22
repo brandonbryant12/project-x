@@ -134,6 +134,18 @@ layer(ScenarioLayer, { timeout: 60_000 })('simplified coaching flows', (it) => {
       const home = yield* api.support.home();
       assert.isAtLeast(home.progress.length, 1);
       assert.isAtLeast(home.eligibleObservers.length, 1);
+
+      // Skill catalog exposes core/common tiers, firm signals, tags, and rare combos.
+      const insights = yield* api.catalog.insights();
+      assert.isAbove(insights.totalPeople, 0);
+      assert.isAtLeast(insights.rareCombos.length, 1);
+      assert.isAtLeast(insights.tags.length, 1);
+      assert.isAtLeast(insights.lackingSkillIds.length, 1);
+      const catalogCards = yield* api.catalog.skills({ query: {} });
+      assert.isTrue(catalogCards.some((s) => s.tier === 'core'));
+      assert.isTrue(catalogCards.some((s) => s.tier === 'common'));
+      const detail = yield* api.catalog.skill({ params: { slug: focusSkill.slug } });
+      assert.isAtLeast(detail.rarePairings.length, 1);
     }),
   );
 });

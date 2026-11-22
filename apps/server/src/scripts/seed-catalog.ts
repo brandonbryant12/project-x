@@ -27,7 +27,7 @@ export const SEED_SKILLS: ReadonlyArray<SeedSkill> = [
     summary:
       'Uncovers what a client actually wants their money to do, before talking about products.',
     outcome: 'Client trust',
-    tags: ['meetings', 'new clients'],
+    tags: ['core', 'client-facing', 'meetings', 'new-clients'],
     levels: [
       {
         summary: 'Follows a discovery checklist with support.',
@@ -71,7 +71,7 @@ export const SEED_SKILLS: ReadonlyArray<SeedSkill> = [
     domain: 'planning_advice',
     summary: 'Turns a client’s goals into a plan they understand and act on.',
     outcome: 'Plan adoption',
-    tags: ['planning'],
+    tags: ['core', 'planning', 'client-facing'],
     levels: [
       {
         summary: 'Builds a plan from a template with review.',
@@ -115,7 +115,7 @@ export const SEED_SKILLS: ReadonlyArray<SeedSkill> = [
     domain: 'behavioral_coaching',
     summary: 'Helps clients stay the course when markets or emotions push them off it.',
     outcome: 'Client retention through volatility',
-    tags: ['volatility', 'retention'],
+    tags: ['common', 'volatility', 'retention', 'client-facing'],
     levels: [
       {
         summary: 'Reassures with facts from a script.',
@@ -156,7 +156,7 @@ export const SEED_SKILLS: ReadonlyArray<SeedSkill> = [
     domain: 'communication',
     summary: 'Makes complex financial ideas clear without jargon or condescension.',
     outcome: 'Client understanding',
-    tags: ['communication'],
+    tags: ['core', 'communication', 'client-facing'],
     levels: [
       {
         summary: 'Explains accurately using prepared material.',
@@ -197,7 +197,7 @@ export const SEED_SKILLS: ReadonlyArray<SeedSkill> = [
     domain: 'trust_integrity',
     summary: 'Is open about fees, conflicts and limits, so clients never feel surprised.',
     outcome: 'Client trust',
-    tags: ['fees', 'conflicts'],
+    tags: ['core', 'trust', 'fees', 'conflicts'],
     levels: [
       {
         summary: 'Discloses what is required, when prompted.',
@@ -238,7 +238,7 @@ export const SEED_SKILLS: ReadonlyArray<SeedSkill> = [
     domain: 'relationship_growth',
     summary: 'Grows relationships across the household and across generations.',
     outcome: 'Retained and growing books',
-    tags: ['households', 'next generation'],
+    tags: ['common', 'households', 'next-generation', 'growth'],
     levels: [
       {
         summary: 'Keeps contact regular and accurate.',
@@ -279,7 +279,7 @@ export const SEED_SKILLS: ReadonlyArray<SeedSkill> = [
     domain: 'relationship_growth',
     summary: 'Runs a disciplined review of the book: who needs attention, and why.',
     outcome: 'Retained and growing books',
-    tags: ['book reviews'],
+    tags: ['common', 'book-reviews', 'practice-management'],
     levels: [
       {
         summary: 'Prepares the book data for review.',
@@ -320,7 +320,7 @@ export const SEED_SKILLS: ReadonlyArray<SeedSkill> = [
     domain: 'leadership',
     summary: 'Develops people through observation and specific feedback, not just targets.',
     outcome: 'Team capability',
-    tags: ['leadership', 'coaching'],
+    tags: ['common', 'leadership', 'coaching'],
     levels: [
       {
         summary: 'Holds regular one-to-ones.',

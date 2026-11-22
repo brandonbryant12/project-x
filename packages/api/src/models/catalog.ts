@@ -1,7 +1,10 @@
 import {
   ActivityTemplateId,
   InteractionKind,
+  SkillId,
   SkillLevelDefinition,
+  SkillSignal,
+  SkillTier,
   SkillVersionId,
 } from '@repo/domain';
 import { Schema } from 'effect';
@@ -11,12 +14,41 @@ export const SkillCard = Schema.Struct({
   ...SkillRef.fields,
   summary: Schema.String,
   outcome: Schema.String,
+  tier: SkillTier,
   tags: Schema.Array(Schema.String),
   holderCount: Schema.Number,
+  activeFocusCount: Schema.Number,
+  signal: SkillSignal,
   inMyPlan: Schema.Boolean,
   myHighestLevel: Schema.NullOr(Schema.Number),
+  myCurrent: Schema.Number,
+  myRequired: Schema.Number,
 });
 export type SkillCard = typeof SkillCard.Type;
+
+export const SkillCombo = Schema.Struct({
+  skills: Schema.Tuple([SkillRef, SkillRef]),
+  jointHolders: Schema.Number,
+  matchesViewer: Schema.Boolean,
+  viewerHeldSkillId: Schema.NullOr(SkillId),
+  rationale: Schema.String,
+});
+export type SkillCombo = typeof SkillCombo.Type;
+
+export const TagSummary = Schema.Struct({
+  tag: Schema.String,
+  count: Schema.Number,
+});
+export type TagSummary = typeof TagSummary.Type;
+
+export const CatalogInsights = Schema.Struct({
+  totalPeople: Schema.Number,
+  popularSkillIds: Schema.Array(SkillId),
+  lackingSkillIds: Schema.Array(SkillId),
+  rareCombos: Schema.Array(SkillCombo),
+  tags: Schema.Array(TagSummary),
+});
+export type CatalogInsights = typeof CatalogInsights.Type;
 
 export const TemplateCard = Schema.Struct({
   id: ActivityTemplateId,
@@ -44,5 +76,6 @@ export const SkillDetail = Schema.Struct({
   holders: Schema.Array(BadgeHolder),
   templates: Schema.Array(TemplateCard),
   myProgress: Schema.NullOr(ProgressView),
+  rarePairings: Schema.Array(SkillCombo),
 });
 export type SkillDetail = typeof SkillDetail.Type;

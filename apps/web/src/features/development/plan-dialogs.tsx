@@ -7,9 +7,11 @@ import {
   type ObservationMode,
   type PersonId,
   type SkillId,
+  type SkillTier,
 } from '@repo/domain';
 import {
   Button,
+  CatalystArc,
   cn,
   Collapsible,
   CollapsibleContent,
@@ -18,6 +20,7 @@ import {
   FieldHint,
   Input,
   Label,
+  MasteryRing,
   NativeSelect,
   Pill,
   Skeleton,
@@ -25,9 +28,10 @@ import {
   toast,
 } from '@repo/ui';
 import { useQuery } from '@tanstack/react-query';
-import { CheckIcon, ChevronDownIcon } from 'lucide-react';
-import { useState } from 'react';
+import { CheckIcon, ChevronDownIcon, SearchIcon } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 import { ResponsiveDialog } from '@/components/responsive-dialog.tsx';
+import { findMatchingRareCombo, SIGNAL_META } from '@/features/catalog/catalog-visuals.tsx';
 import { queryOptions, useApiMutation } from '@/lib/api.ts';
 import { domainLabel, levelName, todayIso } from '@/lib/format.ts';
 
@@ -42,6 +46,8 @@ const LEVEL_HINTS: Record<number, string> = {
   3: 'Consistent execution on your own',
   4: 'Modeling and coaching peers on this skill',
 };
+
+type PickerFilter = 'all' | SkillTier | 'lacking' | 'popular';
 
 const autoTitle = (
   selected: ReadonlyArray<{ skillId: SkillId }>,
@@ -75,6 +81,7 @@ const SkillPickerCard = ({
   readonly onLevel: (level: Level) => void;
 }) => {
   const selected = targetLevel !== null;
+  const sig = SIGNAL_META[skill.signal];
   return (
     <div className={cn('rounded-card border transition-colors', skillCardTone(selected, maxed))}>
       <button
@@ -84,26 +91,35 @@ const SkillPickerCard = ({
         onClick={onToggle}
         className="flex w-full cursor-pointer items-start gap-3 p-3 text-left disabled:cursor-not-allowed"
       >
-        <span
-          className={cn(
-            'mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border transition-colors',
-            selected
-              ? 'border-primary bg-primary text-primary-fg'
-              : 'border-line-strong bg-surface',
-          )}
-        >
-          {selected ? <CheckIcon className="size-3" /> : null}
-        </span>
-        <span className="grid min-w-0 flex-1 gap-0.5">
-          <span className="flex flex-wrap items-center gap-2">
+        <div className="relative mt-0.5 shrink-0">
+          <MasteryRing
+            level={skill.myHighestLevel ?? 0}
+            current={skill.myCurrent}
+            required={skill.myRequired}
+            size="sm"
+          />
+          {selected ? (
+            <span className="absolute -right-1 -bottom-1 grid size-4 place-items-center rounded-full bg-primary text-primary-fg ring-2 ring-surface">
+              <CheckIcon className="size-2.5" />
+            </span>
+          ) : null}
+        </div>
+        <span className="grid min-w-0 flex-1 gap-1">
+          <span className="flex flex-wrap items-center gap-1.5">
             <span className="text-ui font-semibold text-ink">{skill.name}</span>
-            <Pill tone="outline">{domainLabel(skill.domain)}</Pill>
+            <Pill tone={skill.tier === 'core' ? 'primary' : 'outline'}>
+              {skill.tier === 'core' ? 'Core' : 'Common'}
+            </Pill>
+            {skill.signal !== 'balanced' ? <Pill tone={sig.tone}>{sig.label}</Pill> : null}
           </span>
           <span className="text-meta text-ink-2">{skill.summary}</span>
+          <span className="text-meta text-ink-3">
+            {domainLabel(skill.domain)} · {skill.holderCount} held · {skill.activeFocusCount} active
+          </span>
         </span>
       </button>
       {selected ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-primary/15 px-3 py-2.5 pl-11">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-primary/15 px-3 py-2.5 pl-12">
           <span className="text-meta text-ink-2">{LEVEL_HINTS[targetLevel]}</span>
           <NativeSelect
             aria-label={`Target level for ${skill.name}`}
@@ -128,40 +144,311 @@ const submitLabel = (pending: boolean, editing: boolean) => {
   return editing ? 'Save focus skills' : 'Start growing';
 };
 
+const buildInitialFocus = (
+  existingPlan: PlanView | null,
+  initialSkillIds?: ReadonlyArray<SkillId>,
+): ReadonlyArray<{ skillId: SkillId; targetLevel: Level }> => {
+  if (initialSkillIds && initialSkillIds.length > 0) {
+    const base = existingPlan
+      ? existingPlan.focusSkills.map((f) => ({
+          skillId: f.skill.id,
+          targetLevel: f.targetLevel as Level,
+        }))
+      : [];
+    const seen = new Set(initialSkillIds);
+    const merged: Array<{ skillId: SkillId; targetLevel: Level }> = initialSkillIds.map((id) => ({
+      skillId: id,
+      targetLevel: (base.find((b) => b.skillId === id)?.targetLevel ?? 3) as Level,
+    }));
+    for (const item of base) {
+      if (!seen.has(item.skillId) && merged.length < 3) {
+        merged.push(item);
+      }
+    }
+    return merged.slice(0, 3);
+  }
+  return existingPlan
+    ? existingPlan.focusSkills.map((f) => ({
+        skillId: f.skill.id,
+        targetLevel: f.targetLevel as Level,
+      }))
+    : [];
+};
+
+const matchesFilter = (s: SkillCard, filter: PickerFilter, tag: string | null, q: string) => {
+  if (filter === 'core' && s.tier !== 'core') return false;
+  if (filter === 'common' && s.tier !== 'common') return false;
+  if (filter === 'lacking' && s.signal !== 'scarce') return false;
+  if (filter === 'popular' && s.signal !== 'popular') return false;
+  if (tag && !s.tags.includes(tag)) return false;
+  if (q.trim().length > 0) {
+    const hay = `${s.name} ${s.summary} ${s.tags.join(' ')}`.toLowerCase();
+    if (!hay.includes(q.trim().toLowerCase())) return false;
+  }
+  return true;
+};
+
+const PickerControls = ({
+  q,
+  onQ,
+  filter,
+  onFilter,
+  selectedTag,
+  onTag,
+  tags,
+  corePresetIds,
+  topComboIds,
+  gapPresetIds,
+  onPreset,
+}: {
+  readonly q: string;
+  readonly onQ: (v: string) => void;
+  readonly filter: PickerFilter;
+  readonly onFilter: (f: PickerFilter) => void;
+  readonly selectedTag: string | null;
+  readonly onTag: (tag: string | null) => void;
+  readonly tags: ReadonlyArray<{ readonly tag: string }>;
+  readonly corePresetIds: ReadonlyArray<SkillId>;
+  readonly topComboIds: ReadonlyArray<SkillId>;
+  readonly gapPresetIds: ReadonlyArray<SkillId>;
+  readonly onPreset: (ids: ReadonlyArray<SkillId>) => void;
+}) => (
+  <div className="grid gap-3">
+    {corePresetIds.length > 0 || topComboIds.length > 0 || gapPresetIds.length > 0 ? (
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="font-mono text-[10.5px] tracking-wider text-ink-3 uppercase">
+          Quick build:
+        </span>
+        {corePresetIds.length > 0 ? (
+          <Button type="button" size="sm" variant="soft" onClick={() => onPreset(corePresetIds)}>
+            Core essentials
+          </Button>
+        ) : null}
+        {topComboIds.length > 0 ? (
+          <Button type="button" size="sm" variant="secondary" onClick={() => onPreset(topComboIds)}>
+            Rare combo
+          </Button>
+        ) : null}
+        {gapPresetIds.length > 0 ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => onPreset(gapPresetIds)}
+          >
+            Fill firm gaps
+          </Button>
+        ) : null}
+      </div>
+    ) : null}
+
+    <div className="grid gap-2">
+      <label className="relative block">
+        <SearchIcon
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-ink-3"
+        />
+        <Input
+          aria-label="Filter catalog skills"
+          placeholder="Search skills or tags…"
+          value={q}
+          onChange={(e) => onQ(e.target.value)}
+          className="h-9 pl-8 text-ui"
+        />
+      </label>
+      <div className="flex flex-wrap gap-1.5">
+        {(
+          [
+            ['all', 'All'],
+            ['core', 'Core'],
+            ['common', 'Common'],
+            ['lacking', 'Lacking'],
+            ['popular', 'Popular'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={filter === key}
+            onClick={() => onFilter(key)}
+            className={cn(
+              'h-7 cursor-pointer rounded-full border px-2.5 text-meta font-medium transition-colors',
+              filter === key
+                ? 'border-primary bg-primary-soft text-primary-ink'
+                : 'border-line text-ink-2 hover:bg-sunken',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+        {tags.slice(0, 5).map((t) => (
+          <button
+            key={t.tag}
+            type="button"
+            aria-pressed={selectedTag === t.tag}
+            onClick={() => onTag(selectedTag === t.tag ? null : t.tag)}
+            className={cn(
+              'h-7 cursor-pointer rounded-full border px-2.5 text-meta transition-colors',
+              selectedTag === t.tag
+                ? 'border-brass bg-brass-soft text-brass-ink'
+                : 'border-line text-ink-3 hover:bg-sunken hover:text-ink',
+            )}
+          >
+            #{t.tag}
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const CustomPlanFields = ({
+  open,
+  onOpenChange,
+  title,
+  onTitle,
+  intent,
+  onIntent,
+  placeholder,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (o: boolean) => void;
+  readonly title: string;
+  readonly onTitle: (v: string) => void;
+  readonly intent: string;
+  readonly onIntent: (v: string) => void;
+  readonly placeholder: string;
+}) => (
+  <Collapsible open={open} onOpenChange={onOpenChange}>
+    <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-meta font-medium text-ink-2 hover:text-ink">
+      <ChevronDownIcon className={cn('size-3.5 transition-transform', open && 'rotate-180')} />
+      Customize goal title & personal note (optional)
+    </CollapsibleTrigger>
+    <CollapsibleContent className="mt-3 grid gap-3 rounded-card bg-sunken/70 p-3.5">
+      <Field>
+        <Label htmlFor="plan-title">Goal title</Label>
+        <Input
+          id="plan-title"
+          value={title}
+          onChange={(e) => onTitle(e.target.value)}
+          placeholder={placeholder}
+        />
+      </Field>
+      <Field>
+        <Label htmlFor="plan-intent">Why this matters to your practice</Label>
+        <Textarea
+          id="plan-intent"
+          rows={2}
+          value={intent}
+          onChange={(e) => onIntent(e.target.value)}
+          placeholder="e.g. I want my first client meetings to uncover real goals before talking products."
+        />
+      </Field>
+    </CollapsibleContent>
+  </Collapsible>
+);
+
+const PickerSkillList = ({
+  loading,
+  skills,
+  focus,
+  onToggle,
+  onLevel,
+}: {
+  readonly loading: boolean;
+  readonly skills: ReadonlyArray<SkillCard>;
+  readonly focus: ReadonlyArray<{ readonly skillId: SkillId; readonly targetLevel: Level }>;
+  readonly onToggle: (id: SkillId) => void;
+  readonly onLevel: (id: SkillId, level: Level) => void;
+}) =>
+  loading ? (
+    <div className="grid gap-2">
+      <Skeleton className="h-16" />
+      <Skeleton className="h-16" />
+      <Skeleton className="h-16" />
+    </div>
+  ) : (
+    <div className="grid max-h-[300px] gap-2 overflow-y-auto pr-1">
+      {skills.map((s) => {
+        const chosen = focus.find((f) => f.skillId === s.id);
+        return (
+          <SkillPickerCard
+            key={s.id}
+            skill={s}
+            targetLevel={chosen?.targetLevel ?? null}
+            maxed={!chosen && focus.length >= 3}
+            onToggle={() => onToggle(s.id)}
+            onLevel={(l) => onLevel(s.id, l)}
+          />
+        );
+      })}
+      {skills.length === 0 ? (
+        <p className="py-6 text-center text-ui text-ink-3">No skills match those filters.</p>
+      ) : null}
+    </div>
+  );
+
+const buildPresets = (
+  skills: ReadonlyArray<SkillCard>,
+  insights:
+    | {
+        readonly rareCombos: ReadonlyArray<{
+          readonly skills: readonly [{ id: SkillId }, { id: SkillId }];
+        }>;
+        readonly lackingSkillIds: ReadonlyArray<SkillId>;
+      }
+    | undefined,
+) => {
+  const corePresetIds = skills
+    .filter((s) => s.tier === 'core' && (s.myHighestLevel ?? 0) < 3)
+    .slice(0, 3)
+    .map((s) => s.id);
+  const topCombo = insights?.rareCombos[0];
+  const topComboIds = topCombo ? [topCombo.skills[0].id, topCombo.skills[1].id] : [];
+  const gapPresetIds = (insights?.lackingSkillIds ?? []).slice(0, 2);
+  return { corePresetIds, topComboIds, gapPresetIds };
+};
+
 /**
- * Pick 1–3 focus skills with clear descriptions and level explanations.
- * Works for BOTH starting fresh (instant-active!) and updating an active plan.
+ * Catalog-powered focus skill builder: supports Core/Common filters, tags,
+ * 1-click strategy presets (Core essentials, Rare combo, Fill firm gaps), and
+ * live rare-combo synergy feedback.
  */
 export const FocusSkillsDialog = ({
   open,
   onClose,
   existingPlan = null,
+  initialSkillIds,
 }: {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly existingPlan?: PlanView | null;
+  readonly initialSkillIds?: ReadonlyArray<SkillId> | undefined;
 }) => {
   const skillsQuery = useQuery({
     ...queryOptions('catalog', 'skills', { query: {} }),
     enabled: open,
   });
+  const insightsQuery = useQuery({
+    ...queryOptions('catalog', 'insights', undefined),
+    enabled: open,
+  });
   const skills = skillsQuery.data ?? [];
+  const insights = insightsQuery.data;
 
   const [focus, setFocus] = useState<ReadonlyArray<{ skillId: SkillId; targetLevel: Level }>>(() =>
-    existingPlan
-      ? existingPlan.focusSkills.map((f) => ({
-          skillId: f.skill.id,
-          targetLevel: f.targetLevel as Level,
-        }))
-      : [],
+    buildInitialFocus(existingPlan, initialSkillIds),
   );
+  const [filter, setFilter] = useState<PickerFilter>('all');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [q, setQ] = useState('');
   const [title, setTitle] = useState(existingPlan?.title ?? '');
   const [intent, setIntent] = useState(existingPlan?.intent ?? '');
   const [showCustom, setShowCustom] = useState(false);
 
   const create = useApiMutation('development', 'createPlan', {
     onSuccess: () => {
-      toast.success('Focus skills saved — you’re ready to request feedback.');
+      toast.success('Focus skills saved — you’re ready to close your mastery rings.');
       onClose();
     },
   });
@@ -183,97 +470,96 @@ export const FocusSkillsDialog = ({
   const setLevel = (skillId: SkillId, targetLevel: Level) =>
     setFocus((all) => all.map((x) => (x.skillId === skillId ? { ...x, targetLevel } : x)));
 
+  const applyPreset = (ids: ReadonlyArray<SkillId>) =>
+    setFocus(ids.slice(0, 3).map((skillId) => ({ skillId, targetLevel: 3 as Level })));
+
+  const { corePresetIds, topComboIds, gapPresetIds } = buildPresets(skills, insights);
+
+  const visible = skills.filter((s) => matchesFilter(s, filter, selectedTag, q));
+  const matchedCombo = findMatchingRareCombo(
+    focus.map((f) => f.skillId),
+    insights,
+  );
   const pending = create.isPending || update.isPending;
   const valid = focus.length >= 1 && focus.length <= 3;
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!valid) return;
+    const finalTitle = title.trim() || autoTitle(focus, skills);
+    if (existingPlan) {
+      update.mutate({
+        params: { id: existingPlan.id },
+        payload: { title: finalTitle, intent: intent.trim(), focusSkills: [...focus] },
+      });
+      return;
+    }
+    create.mutate({
+      payload: {
+        title: finalTitle,
+        intent: intent.trim(),
+        periodStart: todayIso() as never,
+        periodEnd: plusMonths(6) as never,
+        focusSkills: [...focus],
+        startActive: true,
+      },
+    });
+  };
 
   return (
     <ResponsiveDialog
       open={open}
       onOpenChange={(o) => !o && onClose()}
-      title={existingPlan ? 'Edit focus skills' : 'Pick 1–3 focus skills'}
-      description="Choose the skills you want feedback on right now. You can change these anytime."
+      title={existingPlan ? 'Edit focus skills' : 'Build your skill focus'}
+      description="Pick 1–3 skills to level up. Filter by Core, Common, tags, or apply a smart combo."
     >
-      <form
-        className="grid gap-5"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!valid) return;
-          const finalTitle = title.trim() || autoTitle(focus, skills);
-          if (existingPlan) {
-            update.mutate({
-              params: { id: existingPlan.id },
-              payload: { title: finalTitle, intent: intent.trim(), focusSkills: [...focus] },
-            });
-          } else {
-            create.mutate({
-              payload: {
-                title: finalTitle,
-                intent: intent.trim(),
-                periodStart: todayIso() as never,
-                periodEnd: plusMonths(6) as never,
-                focusSkills: [...focus],
-                startActive: true,
-              },
-            });
-          }
-        }}
-      >
-        {skillsQuery.isPending ? (
-          <div className="grid gap-2">
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-          </div>
-        ) : (
-          <div className="grid max-h-[340px] gap-2 overflow-y-auto pr-1">
-            {skills.map((s) => {
-              const chosen = focus.find((f) => f.skillId === s.id);
-              return (
-                <SkillPickerCard
-                  key={s.id}
-                  skill={s}
-                  targetLevel={chosen?.targetLevel ?? null}
-                  maxed={!chosen && focus.length >= 3}
-                  onToggle={() => toggle(s.id)}
-                  onLevel={(l) => setLevel(s.id, l)}
-                />
-              );
-            })}
-          </div>
-        )}
+      <form className="grid gap-4" onSubmit={submit}>
+        <PickerControls
+          q={q}
+          onQ={setQ}
+          filter={filter}
+          onFilter={setFilter}
+          selectedTag={selectedTag}
+          onTag={setSelectedTag}
+          tags={insights?.tags ?? []}
+          corePresetIds={corePresetIds}
+          topComboIds={topComboIds}
+          gapPresetIds={gapPresetIds}
+          onPreset={applyPreset}
+        />
 
-        <Collapsible open={showCustom} onOpenChange={setShowCustom}>
-          <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-meta font-medium text-ink-2 hover:text-ink">
-            <ChevronDownIcon
-              className={cn('size-3.5 transition-transform', showCustom && 'rotate-180')}
-            />
-            Customize goal title & personal note (optional)
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-3 grid gap-3 rounded-card bg-sunken/70 p-3.5">
-            <Field>
-              <Label htmlFor="plan-title">Goal title</Label>
-              <Input
-                id="plan-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={autoTitle(focus, skills)}
-              />
-            </Field>
-            <Field>
-              <Label htmlFor="plan-intent">Why this matters to your practice</Label>
-              <Textarea
-                id="plan-intent"
-                rows={2}
-                value={intent}
-                onChange={(e) => setIntent(e.target.value)}
-                placeholder="e.g. I want my first client meetings to uncover real goals before talking products."
-              />
-            </Field>
-          </CollapsibleContent>
-        </Collapsible>
+        <PickerSkillList
+          loading={skillsQuery.isPending}
+          skills={visible}
+          focus={focus}
+          onToggle={toggle}
+          onLevel={setLevel}
+        />
+
+        {matchedCombo ? (
+          <div className="flex items-start gap-2 rounded-card border border-brass/50 bg-brass-soft/50 px-3 py-2 text-meta text-brass-ink">
+            <CatalystArc size={14} className="mt-0.5" />
+            <span>
+              <strong className="font-semibold">Rare combo selected:</strong>{' '}
+              {matchedCombo.rationale}
+            </span>
+          </div>
+        ) : null}
+
+        <CustomPlanFields
+          open={showCustom}
+          onOpenChange={setShowCustom}
+          title={title}
+          onTitle={setTitle}
+          intent={intent}
+          onIntent={setIntent}
+          placeholder={autoTitle(focus, skills)}
+        />
 
         <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-          <span className="text-meta text-ink-3 tabular">{focus.length} of 3 selected</span>
+          <span className="font-mono text-meta text-ink-3 tabular">
+            {focus.length} of 3 selected
+          </span>
           <div className="flex gap-2">
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel

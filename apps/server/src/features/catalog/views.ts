@@ -1,19 +1,32 @@
-import { CurrentActor, NotFound, type SkillCard, type TemplateCard } from '@repo/api';
 import {
+  CurrentActor,
+  NotFound,
+  type CatalogInsights,
+  type SkillCard,
+  type SkillCombo,
+  type TemplateCard,
+} from '@repo/api';
+import {
+  computeCatalogInsights,
+  extractDisplayTags,
   LEVEL_NAMES,
+  rarePairingsForSkill,
+  skillTierFromTags,
   type InteractionKind,
   type Level,
   type PersonId,
+  type RareComboInsight,
   type SkillDomain,
+  type SkillId,
   type TenantId,
 } from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { and, asc, eq, ilike, or } from 'drizzle-orm';
 import { Effect } from 'effect';
-import { loadPeople, personFrom } from '../shared/people.ts';
-import { progressFor } from '../shared/recognition.ts';
 import { loadDefinitions, loadTemplateSkills } from '../shared/catalog-reads.ts';
+import { loadPeople, personFrom } from '../shared/people.ts';
 import { currentPlanSkillIds } from '../shared/plans.ts';
+import { progressFor } from '../shared/recognition.ts';
 import { loadSkills, refsFor, toSkillRef } from '../shared/skills.ts';
 
 interface SkillsQuery {
@@ -21,18 +34,64 @@ interface SkillsQuery {
   readonly domain?: SkillDomain | undefined;
 }
 
-const badgeStats = Effect.fn('catalog.badgeStats')(function* (tenantId: TenantId) {
+const loadCatalogSignals = Effect.fn('catalog.loadSignals')(function* (tenantId: TenantId) {
   const db = yield* Db;
-  const rows = yield* db
-    .select({
-      skillId: schema.badgeAward.skillId,
-      personId: schema.badgeAward.personId,
-      level: schema.badgeAward.level,
-    })
-    .from(schema.badgeAward)
-    .where(and(eq(schema.badgeAward.tenantId, tenantId), eq(schema.badgeAward.status, 'awarded')));
-  return rows;
+  const [allSkills, badges, activeFocuses, activePeople] = yield* Effect.all([
+    db
+      .select()
+      .from(schema.skill)
+      .where(and(eq(schema.skill.tenantId, tenantId), eq(schema.skill.status, 'published')))
+      .orderBy(asc(schema.skill.name)),
+    db
+      .select({
+        skillId: schema.badgeAward.skillId,
+        personId: schema.badgeAward.personId,
+        level: schema.badgeAward.level,
+      })
+      .from(schema.badgeAward)
+      .where(
+        and(eq(schema.badgeAward.tenantId, tenantId), eq(schema.badgeAward.status, 'awarded')),
+      ),
+    db
+      .select({
+        skillId: schema.planSkill.skillId,
+        personId: schema.plan.ownerId,
+      })
+      .from(schema.planSkill)
+      .innerJoin(
+        schema.plan,
+        and(
+          eq(schema.plan.tenantId, schema.planSkill.tenantId),
+          eq(schema.plan.id, schema.planSkill.planId),
+        ),
+      )
+      .where(and(eq(schema.planSkill.tenantId, tenantId), eq(schema.plan.status, 'active'))),
+    db
+      .select({ id: schema.person.id })
+      .from(schema.person)
+      .where(and(eq(schema.person.tenantId, tenantId), eq(schema.person.status, 'active'))),
+  ]);
+  return { allSkills, badges, activeFocuses, totalPeople: activePeople.length };
 });
+
+const toSkillCombos = (
+  combos: ReadonlyArray<RareComboInsight>,
+  skillMap: ReadonlyMap<SkillId, typeof schema.skill.$inferSelect>,
+): ReadonlyArray<SkillCombo> =>
+  combos.flatMap((c): ReadonlyArray<SkillCombo> => {
+    const a = skillMap.get(c.skillIds[0]);
+    const b = skillMap.get(c.skillIds[1]);
+    if (!a || !b) return [];
+    return [
+      {
+        skills: [toSkillRef(a), toSkillRef(b)],
+        jointHolders: c.jointHolders,
+        matchesViewer: c.matchesViewer,
+        viewerHeldSkillId: c.viewerHeldSkillId,
+        rationale: c.rationale,
+      },
+    ];
+  });
 
 const toTemplateCards = Effect.fn('catalog.templateCards')(function* (
   tenantId: TenantId,
@@ -55,7 +114,7 @@ const toTemplateCards = Effect.fn('catalog.templateCards')(function* (
   }));
 });
 
-/** `GET /catalog/skills`: published skills, with holder counts and the caller's own standing. */
+/** `GET /catalog/skills`: published skills with tier, tags, firm signals, and caller ring standing. */
 export const searchSkills = Effect.fn('catalog.skills')(function* (query: SkillsQuery) {
   const actor = yield* CurrentActor;
   const db = yield* Db;
@@ -69,33 +128,83 @@ export const searchSkills = Effect.fn('catalog.skills')(function* (query: Skills
     const match = or(ilike(schema.skill.name, like), ilike(schema.skill.summary, like));
     if (match) conditions.push(match);
   }
-  const rows = yield* db
-    .select()
-    .from(schema.skill)
-    .where(and(...conditions))
-    .orderBy(asc(schema.skill.name));
-  const [stats, inPlan] = yield* Effect.all([
-    badgeStats(actor.tenantId),
+  const [rows, signals, inPlan] = yield* Effect.all([
+    db
+      .select()
+      .from(schema.skill)
+      .where(and(...conditions))
+      .orderBy(asc(schema.skill.name)),
+    loadCatalogSignals(actor.tenantId),
     currentPlanSkillIds(actor.tenantId, actor.personId),
   ]);
+  const insights = computeCatalogInsights({
+    skills: signals.allSkills.map((s) => ({
+      id: s.id,
+      name: s.name,
+      domain: s.domain as SkillDomain,
+      tags: s.tags,
+    })),
+    badges: signals.badges,
+    activeFocuses: signals.activeFocuses,
+    viewerPersonId: actor.personId,
+  });
+  const progresses = yield* progressFor(
+    actor.tenantId,
+    actor.personId,
+    rows.map((r) => r.id),
+  );
+  const progressBySkill = new Map(progresses.map((p) => [p.skill.id, p]));
+
   return rows.map((row): SkillCard => {
-    const holders = new Set(stats.filter((s) => s.skillId === row.id).map((s) => s.personId));
-    const mine = stats
+    const metric = insights.metrics.get(row.id);
+    const mine = signals.badges
       .filter((s) => s.skillId === row.id && s.personId === actor.personId)
       .map((s) => s.level);
+    const prog = progressBySkill.get(row.id);
+    const primary = prog?.criteria[0];
     return {
       ...toSkillRef(row),
       summary: row.summary,
       outcome: row.outcome,
-      tags: row.tags,
-      holderCount: holders.size,
+      tier: metric?.tier ?? skillTierFromTags(row.tags),
+      tags: metric?.displayTags ?? extractDisplayTags(row.tags),
+      holderCount: metric?.holderCount ?? 0,
+      activeFocusCount: metric?.activeFocusCount ?? 0,
+      signal: metric?.signal ?? 'balanced',
       inMyPlan: inPlan.has(row.id),
       myHighestLevel: mine.length > 0 ? Math.max(...mine) : null,
+      myCurrent: primary?.current ?? 0,
+      myRequired: primary?.required ?? 0,
     };
   });
 });
 
-/** `GET /catalog/skills/:slug`: the current version's levels, holders and templates. */
+/** `GET /catalog/insights`: popular skills, firm gaps, personalized rare combos, and tag facets. */
+export const buildCatalogInsights = Effect.fn('catalog.insights')(function* () {
+  const actor = yield* CurrentActor;
+  const signals = yield* loadCatalogSignals(actor.tenantId);
+  const insights = computeCatalogInsights({
+    skills: signals.allSkills.map((s) => ({
+      id: s.id,
+      name: s.name,
+      domain: s.domain as SkillDomain,
+      tags: s.tags,
+    })),
+    badges: signals.badges,
+    activeFocuses: signals.activeFocuses,
+    viewerPersonId: actor.personId,
+  });
+  const skillMap = new Map(signals.allSkills.map((s) => [s.id, s]));
+  return {
+    totalPeople: signals.totalPeople,
+    popularSkillIds: insights.popularSkillIds,
+    lackingSkillIds: insights.lackingSkillIds,
+    rareCombos: toSkillCombos(insights.rareCombos, skillMap),
+    tags: insights.tagCounts,
+  } satisfies CatalogInsights;
+});
+
+/** `GET /catalog/skills/:slug`: current version's levels, holders, templates, standing, and rare pairings. */
 export const buildSkillDetail = Effect.fn('catalog.skill')(function* (slug: string) {
   const actor = yield* CurrentActor;
   const db = yield* Db;
@@ -111,37 +220,70 @@ export const buildSkillDetail = Effect.fn('catalog.skill')(function* (slug: stri
     .from(schema.skillVersion)
     .where(eq(schema.skillVersion.id, row.currentVersionId));
   if (!version) return yield* Effect.die('invariant: current skill version missing');
-  const definitions = yield* loadDefinitions(actor.tenantId, [version.id]);
-  const stats = (yield* badgeStats(actor.tenantId)).filter((s) => s.skillId === row.id);
+  const [definitions, signals, templates, inPlan, [progress]] = yield* Effect.all([
+    loadDefinitions(actor.tenantId, [version.id]),
+    loadCatalogSignals(actor.tenantId),
+    db
+      .select({ template: schema.activityTemplate })
+      .from(schema.activityTemplate)
+      .innerJoin(
+        schema.activityTemplateSkill,
+        eq(schema.activityTemplateSkill.templateId, schema.activityTemplate.id),
+      )
+      .where(
+        and(
+          eq(schema.activityTemplate.tenantId, actor.tenantId),
+          eq(schema.activityTemplate.status, 'published'),
+          eq(schema.activityTemplateSkill.skillId, row.id),
+        ),
+      )
+      .pipe(Effect.map((rs) => rs.map((r) => r.template))),
+    currentPlanSkillIds(actor.tenantId, actor.personId),
+    progressFor(actor.tenantId, actor.personId, [row.id]),
+  ]);
+
+  const skillInputs = signals.allSkills.map((s) => ({
+    id: s.id,
+    name: s.name,
+    domain: s.domain as SkillDomain,
+    tags: s.tags,
+  }));
+  const insights = computeCatalogInsights({
+    skills: skillInputs,
+    badges: signals.badges,
+    activeFocuses: signals.activeFocuses,
+    viewerPersonId: actor.personId,
+  });
+  const pairings = rarePairingsForSkill(row.id, {
+    skills: skillInputs,
+    badges: signals.badges,
+    viewerPersonId: actor.personId,
+  });
+  const skillMap = new Map(signals.allSkills.map((s) => [s.id, s]));
+  const metric = insights.metrics.get(row.id);
+
   const highest = new Map<PersonId, number>();
-  for (const s of stats) highest.set(s.personId, Math.max(highest.get(s.personId) ?? 0, s.level));
+  for (const s of signals.badges) {
+    if (s.skillId !== row.id) continue;
+    highest.set(s.personId, Math.max(highest.get(s.personId) ?? 0, s.level));
+  }
   const people = yield* loadPeople(actor.tenantId, [...highest.keys()]);
-  const templates = yield* db
-    .select({ template: schema.activityTemplate })
-    .from(schema.activityTemplate)
-    .innerJoin(
-      schema.activityTemplateSkill,
-      eq(schema.activityTemplateSkill.templateId, schema.activityTemplate.id),
-    )
-    .where(
-      and(
-        eq(schema.activityTemplate.tenantId, actor.tenantId),
-        eq(schema.activityTemplate.status, 'published'),
-        eq(schema.activityTemplateSkill.skillId, row.id),
-      ),
-    )
-    .pipe(Effect.map((rows) => rows.map((r) => r.template)));
-  const inPlan = yield* currentPlanSkillIds(actor.tenantId, actor.personId);
-  const [progress] = yield* progressFor(actor.tenantId, actor.personId, [row.id]);
   const mine = highest.get(actor.personId) ?? null;
+  const primary = progress?.criteria[0];
+
   return {
     ...toSkillRef(row),
     summary: row.summary,
     outcome: row.outcome,
-    tags: row.tags,
+    tier: metric?.tier ?? skillTierFromTags(row.tags),
+    tags: metric?.displayTags ?? extractDisplayTags(row.tags),
     holderCount: highest.size,
+    activeFocusCount: metric?.activeFocusCount ?? 0,
+    signal: metric?.signal ?? 'balanced',
     inMyPlan: inPlan.has(row.id),
     myHighestLevel: mine,
+    myCurrent: primary?.current ?? 0,
+    myRequired: primary?.required ?? 0,
     versionId: version.id,
     version: version.number,
     levels: definitions.get(version.id)?.levels ?? [],
@@ -154,6 +296,7 @@ export const buildSkillDetail = Effect.fn('catalog.skill')(function* (slug: stri
       })),
     templates: yield* toTemplateCards(actor.tenantId, templates),
     myProgress: progress ?? null,
+    rarePairings: toSkillCombos(pairings, skillMap),
   };
 });
 
