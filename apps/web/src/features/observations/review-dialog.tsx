@@ -72,10 +72,11 @@ export const ReviewAndSignDialog = ({
           <div key="review" className="grid animate-fade-up gap-5">
             <div className="grid gap-1.5 pr-6">
               <DialogTitle className="font-serif text-h1 font-medium">
-                You’re signing that you observed {subjectName} on {formatDate(occurredOn)}.
+                Publish feedback for {subjectName}
               </DialogTitle>
               <DialogDescription>
-                Signing is permanent and posts credit to {first}’s record.
+                From {formatDate(occurredOn)} · {first} will see your note right away and it counts
+                toward their skill progress.
               </DialogDescription>
             </div>
             <ul className="grid gap-2 border-y border-line py-4">
@@ -109,7 +110,7 @@ export const ReviewAndSignDialog = ({
                 Go back
               </Button>
               <Button variant="primary" onClick={() => void sign()} disabled={phase === 'posting'}>
-                {phase === 'posting' ? 'Posting to the record…' : 'Sign observation'}
+                {phase === 'posting' ? 'Publishing…' : 'Publish feedback'}
               </Button>
             </div>
           </div>

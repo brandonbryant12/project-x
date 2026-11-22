@@ -149,24 +149,24 @@ export const NarrativeEditor = ({
 }) => (
   <section className="grid gap-5">
     <Field>
-      <Label htmlFor="narrative-saw">What I saw</Label>
+      <Label htmlFor="narrative-saw">What did {subjectFirstName} do well?</Label>
       <Textarea
         id="narrative-saw"
         rows={4}
         readOnly={readOnly}
         value={saw}
         onChange={(e) => onSaw(e.target.value)}
-        placeholder={`What did ${subjectFirstName} do, and what did it lead to?`}
+        placeholder={`Describe a specific behavior you saw from ${subjectFirstName} and how it landed.`}
         className="narrative min-h-32"
       />
       {saw.trim().length < MIN_SAW ? (
         <FieldHint className="tabular">
-          {MIN_SAW - saw.trim().length} more characters to sign
+          {MIN_SAW - saw.trim().length} more characters to publish
         </FieldHint>
       ) : null}
     </Field>
     <Field>
-      <Label htmlFor="narrative-next">What next</Label>
+      <Label htmlFor="narrative-next">One thing to try next time · optional</Label>
       <Textarea
         id="narrative-next"
         rows={2}
@@ -275,7 +275,7 @@ export const RatingEditor = ({
           checked={!draft.credit}
           onChange={(e) => onChange({ ...draft, credit: !e.target.checked })}
         />
-        Feedback only, not yet. Nothing is credited for this skill.
+        Coaching note only (don’t count toward a skill badge)
       </label>
     </section>
   );

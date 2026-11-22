@@ -422,6 +422,9 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.3.1(react@19.3.1)
+      xstate:
+        specifier: 'catalog:'
+        version: 5.33.4
     devDependencies:
       '@playwright/test':
         specifier: 'catalog:'

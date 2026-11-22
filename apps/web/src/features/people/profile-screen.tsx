@@ -130,14 +130,14 @@ export const ProfileScreen = ({ profile }: { readonly profile: ProfileView }) =>
           {profile.canObserve ? (
             <Button variant="primary" asChild>
               <Link to="/observations/new" search={{ for: profile.person.id }}>
-                I saw this
+                Give feedback
               </Link>
             </Button>
           ) : null}
           {profile.developmentVisible && !self ? (
             <Button variant="secondary" asChild>
               <Link to="/team/$personId" params={{ personId: profile.person.id }}>
-                {first}’s plan
+                {first}’s skills
               </Link>
             </Button>
           ) : null}

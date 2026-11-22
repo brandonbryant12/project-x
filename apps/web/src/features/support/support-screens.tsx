@@ -2,9 +2,9 @@ import type { CoachingView, EngagementView, SupportRow, TeamView } from '@repo/a
 import {
   Button,
   Card,
-  CoverageDots,
   EmptyState,
   PersonChip,
+  Pill,
   SectionLabel,
   SegmentedControl,
   SegmentedItem,
@@ -12,26 +12,21 @@ import {
   toast,
 } from '@repo/ui';
 import { Link, useNavigate } from '@tanstack/react-router';
+import { MessageSquarePlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Page, PageHeader, SkillChip } from '@/components/page.tsx';
 import { useApiMutation } from '@/lib/api.ts';
 import { relativeDays } from '@/lib/format.ts';
-import {
-  ENGAGEMENT_EVENT_LABEL,
-  ENGAGEMENT_STATUS,
-  PLAN_STATUS,
-} from '@/lib/lifecycle-presentation.ts';
+import { ENGAGEMENT_EVENT_LABEL, ENGAGEMENT_STATUS } from '@/lib/lifecycle-presentation.ts';
 
-const coverageDots = (row: SupportRow) =>
-  row.coverage.map((c) => ({
-    key: c.skill.id,
-    filled: c.observedRecently,
-    label: c.lastObservedOn
-      ? `${c.skill.name}: last observed ${relativeDays(c.lastObservedOn)}${c.lastObserver ? ` by ${c.lastObserver}` : ''}`
-      : `${c.skill.name}: not observed yet`,
-  }));
+const observationStatus = (row: SupportRow) => {
+  if (!row.lastObservedOn) return { label: 'Not observed yet', tone: 'warning' as const };
+  const allRecent = row.coverage.length > 0 && row.coverage.every((c) => c.observedRecently);
+  const label = `Observed ${relativeDays(row.lastObservedOn)}`;
+  return { label, tone: allRecent ? ('success' as const) : ('neutral' as const) };
+};
 
-/** Table on desktop, stacked rows on phones. Never sortable by progress (ux-brief §2.8). */
+/** Scannable coaching roster with explicit status pills and 1-click "Give feedback" buttons. */
 const SupportTable = ({
   rows,
   caption,
@@ -48,76 +43,95 @@ const SupportTable = ({
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr className="border-b border-line text-meta text-ink-3">
-            <th className="px-5 py-3 font-medium">Person</th>
-            <th className="px-3 py-3 font-medium">Plan</th>
-            <th className="px-3 py-3 font-medium">Waiting on you</th>
-            <th className="px-3 py-3 font-medium">Last observed</th>
-            <th className="px-5 py-3 font-medium">Observed in the last 6 weeks</th>
+            <th className="px-5 py-3 font-medium">Advisor</th>
+            <th className="px-3 py-3 font-medium">Focus skills</th>
+            <th className="px-3 py-3 font-medium">Coaching status</th>
+            <th className="px-5 py-3 text-right font-medium">Action</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
-          {rows.map((row) => (
-            <tr
-              key={row.person.id}
-              onClick={() => open(row)}
-              className="cursor-pointer align-top transition-colors hover:bg-sunken"
-            >
-              <td className="px-5 py-4">
-                <Link
-                  to="/team/$personId"
-                  params={{ personId: row.person.id }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <PersonChip person={row.person} />
-                </Link>
-              </td>
-              <td className="px-3 py-4">
-                {row.plan ? (
-                  <div className="grid gap-1.5">
-                    <StatusPill {...PLAN_STATUS[row.plan.status]} className="justify-self-start" />
+          {rows.map((row) => {
+            const status = observationStatus(row);
+            return (
+              <tr
+                key={row.person.id}
+                onClick={() => open(row)}
+                className="cursor-pointer align-middle transition-colors hover:bg-sunken/70"
+              >
+                <td className="px-5 py-4">
+                  <Link
+                    to="/team/$personId"
+                    params={{ personId: row.person.id }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <PersonChip person={row.person} />
+                  </Link>
+                </td>
+                <td className="px-3 py-4">
+                  {row.plan && row.plan.focusSkills.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
                       {row.plan.focusSkills.map((s) => (
                         <SkillChip key={s.id} name={s.name} />
                       ))}
                     </div>
+                  ) : (
+                    <span className="text-ui text-ink-3">No focus skills yet</span>
+                  )}
+                </td>
+                <td className="px-3 py-4">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Pill tone={status.tone} dot>
+                      {status.label}
+                    </Pill>
+                    {row.waitingOnYou > 0 ? (
+                      <Pill tone="primary">
+                        {row.waitingOnYou} {row.waitingOnYou === 1 ? 'request' : 'requests'} waiting
+                      </Pill>
+                    ) : null}
                   </div>
-                ) : (
-                  <span className="text-ui text-ink-3">No plan</span>
-                )}
-              </td>
-              <td className="px-3 py-4 text-ui text-ink tabular">
-                {row.waitingOnYou > 0 ? row.waitingOnYou : <span className="text-ink-3">—</span>}
-              </td>
-              <td className="px-3 py-4 text-ui text-ink-2">
-                {row.lastObservedOn ? relativeDays(row.lastObservedOn) : 'Not yet'}
-              </td>
-              <td className="px-5 py-4">
-                <CoverageDots dots={coverageDots(row)} />
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td className="px-5 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="secondary" asChild>
+                    <Link to="/observations/new" search={{ for: row.person.id }}>
+                      <MessageSquarePlusIcon /> Give feedback
+                    </Link>
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+
       <ul className="divide-y divide-line md:hidden">
-        {rows.map((row) => (
-          <li key={row.person.id}>
-            <button
-              type="button"
-              onClick={() => open(row)}
-              className="grid w-full cursor-pointer gap-2 px-4 py-4 text-left"
-            >
-              <span className="flex items-center justify-between gap-3">
-                <PersonChip person={row.person} />
-                <CoverageDots dots={coverageDots(row)} />
-              </span>
-              <span className="text-meta text-ink-3">
-                {row.plan ? PLAN_STATUS[row.plan.status].label : 'No plan'} · last observed{' '}
-                {row.lastObservedOn ? relativeDays(row.lastObservedOn) : 'not yet'}
-                {row.waitingOnYou > 0 ? ` · ${row.waitingOnYou} waiting on you` : ''}
-              </span>
-            </button>
-          </li>
-        ))}
+        {rows.map((row) => {
+          const status = observationStatus(row);
+          return (
+            <li key={row.person.id} className="grid gap-3 px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <Link to="/team/$personId" params={{ personId: row.person.id }}>
+                  <PersonChip person={row.person} />
+                </Link>
+                <Button size="sm" variant="secondary" asChild>
+                  <Link to="/observations/new" search={{ for: row.person.id }}>
+                    Give feedback
+                  </Link>
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Pill tone={status.tone} dot>
+                  {status.label}
+                </Pill>
+                {row.waitingOnYou > 0 ? (
+                  <Pill tone="primary">{row.waitingOnYou} waiting</Pill>
+                ) : null}
+                {row.plan?.focusSkills.map((s) => (
+                  <SkillChip key={s.id} name={s.name} />
+                ))}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </Card>
   );
@@ -131,38 +145,38 @@ export const TeamScreen = ({ team }: { readonly team: TeamView }) => {
     <Page>
       <PageHeader
         title="My team"
-        description="Who was observed lately and what is waiting on you. Never a ranking."
+        description="See what your direct reports are working on and give quick feedback. Never a ranking."
         actions={
-          <Link to="/people" className="text-ui text-primary-ink hover:underline">
-            Find anyone in the firm
-          </Link>
+          <Button variant="primary" asChild>
+            <Link to="/observations/new">
+              <MessageSquarePlusIcon /> Give feedback
+            </Link>
+          </Button>
         }
       />
       {team.rows.length === 0 ? (
-        <EmptyState>Nobody reports to you in the directory.</EmptyState>
+        <EmptyState>Nobody reports to you in the directory yet.</EmptyState>
       ) : (
         <div className="grid gap-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <ul className="grid gap-1 text-body text-ink-2">
+            <div className="flex flex-wrap items-center gap-2">
               {team.waitingOnYou > 0 ? (
-                <li>
-                  <Link to="/inbox" className="text-ink hover:underline">
-                    {team.waitingOnYou === 1 ? '1 thing is' : `${team.waitingOnYou} things are`}{' '}
-                    waiting on you
-                  </Link>
-                </li>
+                <Link to="/inbox">
+                  <Pill tone="primary">
+                    {team.waitingOnYou} {team.waitingOnYou === 1 ? 'request' : 'requests'} waiting
+                    on you
+                  </Pill>
+                </Link>
               ) : null}
               {team.unobservedCount > 0 ? (
-                <li>
-                  {team.unobservedCount === 1
-                    ? '1 person hasn’t'
-                    : `${team.unobservedCount} people haven’t`}{' '}
-                  been observed in 6 weeks
-                </li>
+                <Pill tone="warning">
+                  {team.unobservedCount}{' '}
+                  {team.unobservedCount === 1 ? 'person needs' : 'people need'} observation
+                </Pill>
               ) : (
-                <li>Everyone has been observed in the last 6 weeks.</li>
+                <Pill tone="success">Everyone observed recently</Pill>
               )}
-            </ul>
+            </div>
             <SegmentedControl
               type="single"
               value={sort}
@@ -170,7 +184,7 @@ export const TeamScreen = ({ team }: { readonly team: TeamView }) => {
               aria-label="Sort"
             >
               <SegmentedItem value="name">A–Z</SegmentedItem>
-              <SegmentedItem value="waiting">Waiting on you</SegmentedItem>
+              <SegmentedItem value="waiting">Needs attention</SegmentedItem>
             </SegmentedControl>
           </div>
           <SupportTable rows={rows} caption="Your direct reports" />
@@ -219,13 +233,6 @@ const EngagementCard = ({
             : ''}
         </p>
       ) : null}
-      {engagement.row && engagement.row.coverage.length > 0 ? (
-        <div className="flex items-center gap-3 text-meta text-ink-3">
-          <CoverageDots dots={coverageDots(engagement.row)} />
-          Last observed{' '}
-          {engagement.row.lastObservedOn ? relativeDays(engagement.row.lastObservedOn) : 'not yet'}
-        </div>
-      ) : null}
       {engagement.actions.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {primary.map((a) => (
@@ -267,12 +274,21 @@ export const CoachingScreen = ({ coaching }: { readonly coaching: CoachingView }
     <Page>
       <PageHeader
         title={coaching.isCoach ? 'People I coach' : 'Coaching'}
-        description="Coaching is a relationship between two people. It carries no reporting line."
+        description="Coaching is a peer growth relationship with no reporting authority."
+        actions={
+          coaching.isCoach ? (
+            <Button variant="primary" asChild>
+              <Link to="/observations/new">
+                <MessageSquarePlusIcon /> Give feedback
+              </Link>
+            </Button>
+          ) : undefined
+        }
       />
       <div className="grid gap-10">
         {proposals.length > 0 ? (
           <section className="grid gap-3">
-            <SectionLabel>Proposals</SectionLabel>
+            <SectionLabel>Pending invitations</SectionLabel>
             <div className="grid gap-3 md:grid-cols-2">
               {proposals.map((e) => (
                 <EngagementCard
@@ -286,12 +302,12 @@ export const CoachingScreen = ({ coaching }: { readonly coaching: CoachingView }
         ) : null}
         {coaching.isCoach ? (
           <section className="grid gap-3">
-            <SectionLabel>People you coach</SectionLabel>
+            <SectionLabel>Advisors you coach</SectionLabel>
             {rows.length > 0 ? (
-              <SupportTable rows={rows} caption="People you coach" />
+              <SupportTable rows={rows} caption="Advisors you coach" />
             ) : (
               <EmptyState>
-                You are not coaching anyone yet. Offer coaching from someone’s profile.
+                You are not coaching anyone yet. Offer coaching from someone’s profile in People.
               </EmptyState>
             )}
           </section>
@@ -307,7 +323,7 @@ export const CoachingScreen = ({ coaching }: { readonly coaching: CoachingView }
           ) : (
             <EmptyState>
               You don’t have a coach yet. Find one in{' '}
-              <Link to="/people" className="text-primary-ink hover:underline">
+              <Link to="/people" className="font-medium text-primary-ink hover:underline">
                 People
               </Link>{' '}
               and ask them from their profile.

@@ -3,7 +3,6 @@ import {
   INTERACTION_KINDS,
   LOG_WINDOW_DAYS,
   OBSERVATION_MODES,
-  screenLocally,
   type InteractionKind,
   type ObservationMode,
   type PersonId,
@@ -24,17 +23,27 @@ import {
   Textarea,
   toast,
 } from '@repo/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { Effect } from 'effect';
 import { CheckIcon, ChevronDownIcon } from 'lucide-react';
 import { useState } from 'react';
 import { ResponsiveDialog } from '@/components/responsive-dialog.tsx';
 import { useLogDialog } from '@/components/shell/log-dialog-context.tsx';
-import { queryOptions, useApiMutation } from '@/lib/api.ts';
+import { callEffect, describeError, queryOptions } from '@/lib/api.ts';
+import { pure, useFoldkit } from '@/lib/foldkit.ts';
 import { daysAgoIso, kindLabel, todayIso } from '@/lib/format.ts';
 import { BASIS_LABEL } from '@/lib/lifecycle-presentation.ts';
+import {
+  initialQuickRequestModel,
+  quickRequestOccurredOn,
+  quickRequestPrivacy,
+  submitCommand,
+  updateQuickRequest,
+  type RequestWhen,
+} from './quick-request-tea.ts';
 
-type When = 'today' | 'yesterday' | 'pick';
+type When = RequestWhen;
 
 const MODE_LABELS: Record<ObservationMode, string> = {
   saw_it: 'They were there',
@@ -323,10 +332,13 @@ const ModeAndNoteFields = ({
 );
 
 /**
- * Unified one-step "Ask for feedback" dialog backed by POST /observations/request-quick.
+ * Unified one-step "Ask for feedback" dialog powered by Foldkit/Effect TEA
+ * and POST /observations/request-quick.
  */
 export const QuickRequestDialog = () => {
   const dialog = useLogDialog();
+  const qc = useQueryClient();
+  const [model, dispatch] = useFoldkit(() => pure(initialQuickRequestModel()), updateQuickRequest);
   const observersQuery = useQuery({
     ...queryOptions('observations', 'observers', undefined),
     enabled: dialog.open,
@@ -349,44 +361,50 @@ export const QuickRequestDialog = () => {
     domain: s.domain,
   }));
 
-  const [observerId, setObserverId] = useState<PersonId | null>(null);
-  const [chosenSkills, setChosenSkills] = useState<ReadonlyArray<SkillId> | null>(null);
-  const [kind, setKind] = useState<InteractionKind>('client_meeting');
-  const [title, setTitle] = useState('');
-  const [when, setWhen] = useState<When>('today');
-  const [pickedDate, setPickedDate] = useState(todayIso());
-  const [mode, setMode] = useState<ObservationMode>('saw_it');
-  const [note, setNote] = useState('');
-
-  const activeObserver = observerId ?? observers[0]?.person.id ?? null;
-  const selectedSkills = chosenSkills ?? pickDefaultSkills(dialog.skillId, focusSkills, allSkills);
-  const toggleSkill = (id: SkillId) =>
-    setChosenSkills(
-      selectedSkills.includes(id)
-        ? selectedSkills.filter((x) => x !== id)
-        : [...selectedSkills, id].slice(0, 3),
-    );
+  const activeObserver = model.observerId ?? observers[0]?.person.id ?? null;
+  const selectedSkills =
+    model.chosenSkills ?? pickDefaultSkills(dialog.skillId, focusSkills, allSkills);
   const resetAndClose = () => {
-    setObserverId(null);
-    setChosenSkills(null);
-    setTitle('');
-    setNote('');
-    setWhen('today');
+    dispatch({ _tag: 'Reset' });
     dialog.hide();
   };
-  const submit = useApiMutation('observations', 'requestQuick', {
-    onSuccess: (view) => {
-      toast.success(
-        `Feedback request sent to ${view.observer.displayName.split(' ')[0]}. They’ll see it in their requests.`,
-      );
-      resetAndClose();
-    },
-  });
 
-  const occurredOn = { today: todayIso(), yesterday: daysAgoIso(1), pick: pickedDate }[when];
-  const privacy = note.trim().length > 0 ? screenLocally(note) : { held: false, reasons: [] };
+  const privacy = quickRequestPrivacy(model);
   const canSend =
-    activeObserver !== null && selectedSkills.length > 0 && !privacy.held && !submit.isPending;
+    activeObserver !== null && selectedSkills.length > 0 && !privacy.held && !model.submitting;
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSend || !activeObserver) return;
+    const req = callEffect('observations', 'requestQuick', {
+      payload: {
+        observerId: activeObserver,
+        skillIds: [...selectedSkills],
+        kind: model.kind,
+        title: model.title.trim() || null,
+        occurredOn: quickRequestOccurredOn(model) as never,
+        mode: model.mode,
+        note: model.note.trim() || null,
+      },
+    }).pipe(Effect.tap(() => Effect.promise(() => qc.invalidateQueries())));
+    dispatch({
+      _tag: 'Submit',
+      command: submitCommand(
+        req,
+        (view) => {
+          toast.success(
+            `Feedback request sent to ${view.observer.displayName.split(' ')[0]}. They’ll see it in their requests.`,
+          );
+          dialog.hide();
+        },
+        (err) => {
+          const msg = describeError(err);
+          toast.error(msg);
+          return msg;
+        },
+      ),
+    });
+  };
 
   return (
     <ResponsiveDialog
@@ -405,54 +423,48 @@ export const QuickRequestDialog = () => {
         <NoObserversBody onClose={resetAndClose} />
       ) : null}
       {!observersQuery.isPending && observers.length > 0 ? (
-        <form
-          className="grid gap-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!canSend || !activeObserver) return;
-            submit.mutate({
-              payload: {
-                observerId: activeObserver,
-                skillIds: [...selectedSkills],
-                kind,
-                title: title.trim() || null,
-                occurredOn: occurredOn as never,
-                mode,
-                note: note.trim() || null,
-              },
-            });
-          }}
-        >
-          <ObserverCards observers={observers} activeId={activeObserver} onSelect={setObserverId} />
+        <form className="grid gap-5" onSubmit={onSubmit}>
+          <ObserverCards
+            observers={observers}
+            activeId={activeObserver}
+            onSelect={(observerId) => dispatch({ _tag: 'SelectObserver', observerId })}
+          />
           <SkillSelector
             focusSkills={focusSkills}
             allSkills={allSkills}
             selected={selectedSkills}
-            onToggle={toggleSkill}
+            onToggle={(skillId) =>
+              dispatch({ _tag: 'ToggleSkill', skillId, current: selectedSkills })
+            }
           />
           <WorkContextFields
-            kind={kind}
-            onKind={setKind}
-            title={title}
-            onTitle={setTitle}
-            when={when}
-            onWhen={setWhen}
-            pickedDate={pickedDate}
-            onPickedDate={setPickedDate}
+            kind={model.kind}
+            onKind={(kind) => dispatch({ _tag: 'SetKind', kind })}
+            title={model.title}
+            onTitle={(title) => dispatch({ _tag: 'SetTitle', title })}
+            when={model.when}
+            onWhen={(when) => dispatch({ _tag: 'SetWhen', when })}
+            pickedDate={model.pickedDate}
+            onPickedDate={(date) => dispatch({ _tag: 'SetPickedDate', date })}
           />
           <ModeAndNoteFields
-            mode={mode}
-            onMode={setMode}
-            note={note}
-            onNote={setNote}
+            mode={model.mode}
+            onMode={(mode) => dispatch({ _tag: 'SetMode', mode })}
+            note={model.note}
+            onNote={(note) => dispatch({ _tag: 'SetNote', note })}
             privacy={privacy}
           />
+          {model.error ? (
+            <p role="alert" className="text-ui text-danger-ink">
+              {model.error}
+            </p>
+          ) : null}
           <div className="flex justify-end gap-2 border-t border-line pt-4">
             <Button type="button" variant="ghost" onClick={resetAndClose}>
               Cancel
             </Button>
             <Button type="submit" variant="primary" disabled={!canSend}>
-              {submit.isPending ? 'Sending…' : 'Send feedback request'}
+              {model.submitting ? 'Sending…' : 'Send feedback request'}
             </Button>
           </div>
         </form>

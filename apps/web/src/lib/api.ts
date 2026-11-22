@@ -66,18 +66,34 @@ const isApiError = (e: unknown): e is ApiError =>
     'Unprocessable',
   ].includes(String((e as { _tag: unknown })._tag));
 
+/** Effect-native API call returning a typed Effect (no thrown promises). */
+export const callEffect = <G extends Group, E extends EndpointOf<G>>(
+  group: G,
+  endpoint: E,
+  request: RequestOf<G, E>,
+): Effect.Effect<SuccessOf<G, E>, ApiError | RequestFailed> =>
+  Effect.gen(function* () {
+    const c = yield* Effect.tryPromise({
+      try: () => client(),
+      catch: (cause) => new RequestFailed(cause),
+    });
+    const fn = c[group][endpoint] as (r: unknown) => Effect.Effect<SuccessOf<G, E>, unknown>;
+    return yield* fn(request).pipe(
+      Effect.mapError((error): ApiError | RequestFailed =>
+        isApiError(error) ? error : new RequestFailed(error),
+      ),
+    );
+  });
+
 export const call = async <G extends Group, E extends EndpointOf<G>>(
   group: G,
   endpoint: E,
   request: RequestOf<G, E>,
 ): Promise<SuccessOf<G, E>> => {
-  const c = await client();
-  const fn = c[group][endpoint] as (r: unknown) => Effect.Effect<SuccessOf<G, E>, unknown>;
-  const exit = await Effect.runPromiseExit(fn(request));
+  const exit = await Effect.runPromiseExit(callEffect(group, endpoint, request));
   if (Exit.isSuccess(exit)) return exit.value;
   const failure = Cause.findErrorOption(exit.cause);
-  const error = Option.isSome(failure) ? failure.value : Cause.squash(exit.cause);
-  throw isApiError(error) ? error : new RequestFailed(error);
+  throw Option.isSome(failure) ? failure.value : new RequestFailed(Cause.squash(exit.cause));
 };
 
 export const queryOptions = <G extends Group, E extends EndpointOf<G>>(

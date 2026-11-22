@@ -91,7 +91,7 @@ const EditorHeader = ({
       </Button>
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-h2 font-semibold text-ink">
-          Observation for {view.subject.displayName}
+          Feedback for {view.subject.displayName}
         </h1>
         <p className="truncate text-meta text-ink-3">{view.interaction.activityTitle}</p>
       </div>
@@ -217,7 +217,7 @@ const SignBar = ({
         </Button>
       ) : null}
       <Button variant="primary" disabled={!canReview} onClick={onReview}>
-        Review and sign
+        Publish feedback
       </Button>
     </div>
   </div>
@@ -281,14 +281,14 @@ const Editor = ({ view }: { readonly view: ObservationView }) => {
           </Button>
         </div>
       ) : null}
-      <div className="grid flex-1 lg:grid-cols-[42fr_58fr]">
+      <div className="grid flex-1 lg:grid-cols-[40fr_60fr]">
         <EvidencePane view={view} desktop={desktop} />
-        <div className="px-4 py-5 md:px-6 lg:py-6">
+        <div className="px-4 pt-5 pb-28 md:px-6 lg:pt-6 lg:pb-24">
           <div className="mx-auto grid max-w-[640px] gap-6">
             <div className="grid gap-1">
-              <h2 className="font-serif text-h1 font-medium text-ink">What you saw</h2>
+              <h2 className="font-serif text-h1 font-medium text-ink">Your feedback</h2>
               <p className="text-ui text-ink-2">
-                {first} asked you to look at{' '}
+                {first} asked for feedback on{' '}
                 {view.requestedSkills.map((s) => s.name).join(' and ') || 'this work'}.
               </p>
             </div>

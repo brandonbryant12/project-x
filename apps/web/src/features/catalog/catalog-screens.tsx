@@ -2,6 +2,7 @@ import type { SkillCard, SkillDetail, TemplateCard } from '@repo/api';
 import { SKILL_DOMAINS } from '@repo/domain';
 import {
   BadgeSeal,
+  Button,
   Card,
   EmptyState,
   Input,
@@ -14,11 +15,12 @@ import {
   TabsTrigger,
 } from '@repo/ui';
 import { Link } from '@tanstack/react-router';
-import { SearchIcon } from 'lucide-react';
+import { AwardIcon, SearchIcon, SendIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Page, PageHeader, SkillChip } from '@/components/page.tsx';
-import { domainLabel, kindLabel, levelName } from '@/lib/format.ts';
+import { useLogDialog } from '@/components/shell/log-dialog-context.tsx';
 import { ProgressBlock } from '@/features/development/development-screen.tsx';
+import { domainLabel, kindLabel, levelName } from '@/lib/format.ts';
 import { useSession } from '@/lib/session.ts';
 
 const Search = ({
@@ -83,10 +85,18 @@ export const SkillsScreen = ({ skills }: { readonly skills: ReadonlyArray<SkillC
   return (
     <Page>
       <PageHeader
-        title="Skills"
-        description="The capabilities that matter here, and what each looks like at every level. Everyone sees the same catalog."
+        title="Skill catalog"
+        description="The shared advisor and leadership skills that matter here — click any skill to see what each level looks like."
         actions={<Search value={q} onChange={setQ} label="Find a skill" />}
       />
+      <Card className="mb-8 flex flex-wrap items-center gap-3 border-primary/20 bg-primary-soft/35 px-4 py-3 text-ui text-ink-2">
+        <AwardIcon className="size-4 shrink-0 text-primary-ink" aria-hidden />
+        <span>
+          <span className="font-medium text-ink">How badges are earned:</span> 2 published
+          observations at or above a skill level (at least 1 seen first-hand) unlocks that level’s
+          badge automatically.
+        </span>
+      </Card>
       {domains.length === 0 ? <EmptyState>No skills match “{q}”.</EmptyState> : null}
       <div className="grid gap-8 lg:grid-cols-2">
         {domains.map((d) => (
@@ -134,25 +144,37 @@ const TemplateRow = ({ template }: { readonly template: TemplateCard }) => (
 
 export const SkillScreen = ({ skill }: { readonly skill: SkillDetail }) => {
   const session = useSession();
+  const log = useLogDialog();
   // "Who can I learn from" means other people; "Teaching others" first.
   const holders = skill.holders
     .filter((h) => h.person.id !== session.person.id)
     .toSorted((a, b) => b.level - a.level);
   return (
     <Page>
-      <header className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-center">
-        <BadgeSeal
-          level={(skill.myHighestLevel ?? 0) as 0 | 2 | 3 | 4}
-          domain={skill.domain}
-          size={64}
-        />
-        <div className="grid gap-1.5">
-          <p className="text-meta text-ink-3">
-            {domainLabel(skill.domain)} · serves {skill.outcome.toLowerCase()}
-          </p>
-          <h1 className="font-serif text-h1 font-medium text-ink md:text-display">{skill.name}</h1>
-          <p className="max-w-2xl text-body text-ink-2">{skill.summary}</p>
+      <header className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <BadgeSeal
+            level={(skill.myHighestLevel ?? 0) as 0 | 2 | 3 | 4}
+            domain={skill.domain}
+            size={64}
+          />
+          <div className="grid gap-1.5">
+            <p className="text-meta text-ink-3">
+              {domainLabel(skill.domain)} · serves {skill.outcome.toLowerCase()}
+            </p>
+            <h1 className="font-serif text-h1 font-medium text-ink md:text-display">
+              {skill.name}
+            </h1>
+            <p className="max-w-2xl text-body text-ink-2">{skill.summary}</p>
+          </div>
         </div>
+        <Button
+          variant="primary"
+          className="shrink-0 self-start sm:self-center"
+          onClick={() => log.show({ skillId: skill.id })}
+        >
+          <SendIcon /> Ask for feedback
+        </Button>
       </header>
       <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid content-start gap-12">

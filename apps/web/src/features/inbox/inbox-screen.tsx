@@ -1,5 +1,6 @@
 import type { InboxItem, InboxView } from '@repo/api';
 import {
+  Button,
   Card,
   DueLabel,
   EmptyState,
@@ -10,7 +11,8 @@ import {
   TabsList,
   TabsTrigger,
 } from '@repo/ui';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { MessageSquarePlusIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Page, PageHeader, SkillChip } from '@/components/page.tsx';
 import { formatDate } from '@/lib/format.ts';
@@ -19,6 +21,13 @@ import { OBSERVATION_STATUS } from '@/lib/lifecycle-presentation.ts';
 export type InboxTab = 'requests' | 'drafts' | 'signed' | 'mine';
 
 const WEEK = 7 * 86_400_000;
+
+const rowActionLabel = (item: InboxItem, perspective: 'observer' | 'subject') => {
+  if (perspective === 'subject') return 'View';
+  if (item.status === 'requested') return 'Give feedback';
+  if (item.status === 'drafting') return 'Continue';
+  return 'View';
+};
 
 const Row = ({
   item,
@@ -30,23 +39,32 @@ const Row = ({
   const navigate = useNavigate();
   const person = perspective === 'observer' ? item.subject : item.observer;
   const open = () => void navigate({ to: '/observations/$id', params: { id: item.id } });
+  const isActionable =
+    perspective === 'observer' && (item.status === 'requested' || item.status === 'drafting');
   return (
     <li>
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         data-inbox-row
         onClick={open}
-        className="flex w-full cursor-pointer items-start gap-3 px-4 py-4 text-left transition-colors hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none md:px-5"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            open();
+          }
+        }}
+        className="flex w-full cursor-pointer flex-wrap items-center gap-3.5 px-4 py-4 text-left transition-colors hover:bg-sunken/70 focus-visible:bg-sunken focus-visible:outline-none md:px-5"
       >
         <PersonAvatar person={person} size="md" />
         <span className="grid min-w-0 flex-1 gap-1">
-          <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-            <span className="text-ui font-medium text-ink">
+          <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+            <span className="text-ui font-semibold text-ink">
               {perspective === 'subject' ? `Asked ${person.displayName}` : person.displayName}
             </span>
             {item.status === 'signed' || item.status === 'under_review' ? (
               <span className="text-meta text-ink-3 tabular">
-                Signed {formatDate(item.updatedAt)}
+                Published {formatDate(item.updatedAt)}
               </span>
             ) : (
               <DueLabel dueAt={item.dueAt} />
@@ -56,23 +74,28 @@ const Row = ({
             {item.activityTitle} · {formatDate(item.occurredOn)}
           </span>
           {item.evidencePreview ? (
-            <span className="line-clamp-1 text-meta text-ink-3">{item.evidencePreview}</span>
+            <span className="line-clamp-1 text-meta text-ink-3">“{item.evidencePreview}”</span>
           ) : null}
           <span className="mt-1 flex flex-wrap items-center gap-1.5">
             {item.skills.map((s) => (
               <SkillChip key={s.id} name={s.name} />
             ))}
-            {item.status === 'drafting' && item.indicatorsTicked > 0 ? (
-              <span className="text-meta text-ink-3">
-                · {item.indicatorsTicked} indicators ticked
-              </span>
-            ) : null}
             {perspective === 'subject' || item.status === 'drafting' ? (
-              <StatusPill {...OBSERVATION_STATUS[item.status]} className="ml-auto" />
+              <StatusPill {...OBSERVATION_STATUS[item.status]} />
             ) : null}
           </span>
         </span>
-      </button>
+        <Button
+          size="sm"
+          variant={isActionable ? 'primary' : 'secondary'}
+          asChild
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Link to="/observations/$id" params={{ id: item.id }}>
+            {rowActionLabel(item, perspective)}
+          </Link>
+        </Button>
+      </div>
     </li>
   );
 };
@@ -88,7 +111,7 @@ const Group = ({
 }) =>
   items.length === 0 ? null : (
     <section className="grid gap-2">
-      {label ? <h2 className="text-meta font-medium text-ink-3">{label}</h2> : null}
+      {label ? <h2 className="text-meta font-semibold text-ink-3 uppercase">{label}</h2> : null}
       <Card>
         <ul className="divide-y divide-line">
           {items.map((item) => (
@@ -106,7 +129,7 @@ const ByUrgency = ({ items }: { readonly items: ReadonlyArray<InboxItem> }) => {
   return (
     <div className="grid gap-6">
       <Group
-        label={soon.length > 0 && later.length > 0 ? 'Closing this week' : undefined}
+        label={soon.length > 0 && later.length > 0 ? 'Due this week' : undefined}
         items={soon}
         perspective="observer"
       />
@@ -115,7 +138,7 @@ const ByUrgency = ({ items }: { readonly items: ReadonlyArray<InboxItem> }) => {
   );
 };
 
-/** J/K to move between rows, Enter to open (ux-brief §3); inactive while typing. */
+/** J/K to move between rows, Enter to open; inactive while typing. */
 const useRowKeys = () => {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -155,30 +178,45 @@ export const InboxScreen = ({
   return (
     <Page width="reading">
       <PageHeader
-        title="To sign"
-        description="Observations waiting for your signature, and the ones you have asked for."
+        title="Feedback requests"
+        description="Respond to advisors asking for feedback, finish saved drafts, or check requests you sent."
+        actions={
+          <Button variant="primary" asChild>
+            <Link to="/observations/new">
+              <MessageSquarePlusIcon /> Give feedback
+            </Link>
+          </Button>
+        }
       />
       <div ref={ref}>
         <Tabs value={tab} onValueChange={(v) => onTab(v as InboxTab)}>
           <TabsList className="mb-6">
             <TabsTrigger value="requests">
-              Requests{counts.requests ? ` · ${counts.requests}` : ''}
+              Waiting on you{counts.requests ? ` · ${counts.requests}` : ''}
             </TabsTrigger>
             <TabsTrigger value="drafts">
               Drafts{counts.drafts ? ` · ${counts.drafts}` : ''}
             </TabsTrigger>
-            <TabsTrigger value="signed">Signed</TabsTrigger>
             <TabsTrigger value="mine">
-              Asked by you{counts.mine ? ` · ${counts.mine}` : ''}
+              Sent by you{counts.mine ? ` · ${counts.mine}` : ''}
             </TabsTrigger>
+            <TabsTrigger value="signed">Published</TabsTrigger>
           </TabsList>
           <TabsContent value="requests">
             {inbox.requests.length > 0 ? (
               <ByUrgency items={inbox.requests} />
             ) : (
-              <EmptyState>
-                You’re all caught up. If you saw someone do good work today, you can start an
-                observation yourself.
+              <EmptyState
+                action={
+                  <Button variant="primary" size="sm" asChild>
+                    <Link to="/observations/new">
+                      <MessageSquarePlusIcon /> Give feedback
+                    </Link>
+                  </Button>
+                }
+              >
+                You’re all caught up. If you watched someone handle a great client conversation, you
+                can share feedback directly.
               </EmptyState>
             )}
           </TabsContent>
@@ -187,15 +225,8 @@ export const InboxScreen = ({
               <Group items={inbox.drafts} perspective="observer" />
             ) : (
               <EmptyState>
-                No drafts. Observations you start are kept here until you sign them.
+                No saved drafts. Feedback you save for later appears here until you publish it.
               </EmptyState>
-            )}
-          </TabsContent>
-          <TabsContent value="signed">
-            {inbox.signed.length > 0 ? (
-              <Group items={inbox.signed} perspective="observer" />
-            ) : (
-              <EmptyState>Observations you sign appear here.</EmptyState>
             )}
           </TabsContent>
           <TabsContent value="mine">
@@ -203,9 +234,15 @@ export const InboxScreen = ({
               <Group items={inbox.mine} perspective="subject" />
             ) : (
               <EmptyState>
-                Nothing you asked for is waiting. After your next client meeting, log it and ask
-                someone who saw it.
+                No open requests. After a client meeting, click Ask for feedback in the top bar.
               </EmptyState>
+            )}
+          </TabsContent>
+          <TabsContent value="signed">
+            {inbox.signed.length > 0 ? (
+              <Group items={inbox.signed} perspective="observer" />
+            ) : (
+              <EmptyState>Feedback you publish appears here.</EmptyState>
             )}
           </TabsContent>
         </Tabs>
