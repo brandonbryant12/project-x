@@ -33,8 +33,10 @@
   --info: oklch(0.55 0.1 245);
   --info-soft: oklch(0.96 0.03 245);
   --info-ink: oklch(0.42 0.1 245);
-  --shadow-sm: 0 1px 2px oklch(0.2 0.01 60 / 0.06);
+  --shadow-sm: 0 1px 2px oklch(0.2 0.01 60 / 0.05);
+  --shadow-card: 0 1px 2px oklch(0.2 0.01 60 / 0.04), 0 4px 12px -4px oklch(0.2 0.01 60 / 0.04);
   --shadow-overlay: 0 8px 24px -6px oklch(0.2 0.01 60 / 0.12), 0 2px 6px oklch(0.2 0.01 60 / 0.06);
+  --folio-dot: oklch(0.24 0.012 60 / 0.065);
   color-scheme: light;
 }
 
@@ -69,7 +71,9 @@
   --info-soft: oklch(0.27 0.04 245);
   --info-ink: oklch(0.82 0.08 245);
   --shadow-sm: none;
+  --shadow-card: inset 0 1px 0 oklch(1 0 0 / 0.03);
   --shadow-overlay: 0 0 0 1px var(--line);
+  --folio-dot: oklch(0.94 0.008 85 / 0.06);
   color-scheme: dark;
 }
 
@@ -130,6 +134,7 @@
   --radius-dialog: 14px;
 
   --shadow-sm: var(--shadow-sm);
+  --shadow-card: var(--shadow-card);
   --shadow-overlay: var(--shadow-overlay);
 
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);

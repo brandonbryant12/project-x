@@ -7,9 +7,10 @@ import type {
 } from '@repo/api';
 import { OBSERVATION_MODE_LABELS } from '@repo/domain';
 import {
-  BadgeSeal,
   Button,
   Card,
+  CatalystArc,
+  cn,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -18,6 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   EmptyState,
+  MasteryRing,
   PersonAvatar,
   PersonChip,
   Pill,
@@ -38,10 +40,10 @@ import {
   PencilIcon,
   PlusIcon,
   SendIcon,
-  SparklesIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 import { FirstRunStep } from '@/components/first-run.tsx';
+import { MasteryStrip } from '@/components/mastery-strip.tsx';
 import { Page, SkillChip } from '@/components/page.tsx';
 import { useLogDialog } from '@/components/shell/log-dialog-context.tsx';
 import { queryOptions, useApiMutation } from '@/lib/api.ts';
@@ -107,11 +109,26 @@ export const ProgressBlock = ({
   readonly action?: React.ReactNode;
 }) => {
   const held = progress.heldLevels.length > 0 ? Math.max(...progress.heldLevels) : 0;
+  const primary = progress.criteria[0];
+  const almostThere =
+    primary !== undefined &&
+    primary.required - primary.current === 1 &&
+    progress.targetLevelName !== null;
   return (
-    <Card className="flex flex-col justify-between gap-4 p-5">
+    <Card
+      className={cn(
+        'flex flex-col justify-between gap-4 p-5',
+        almostThere && 'border-brass/65 ring-1 ring-brass/25',
+      )}
+    >
       <div className="grid gap-4">
         <div className="flex items-start gap-3">
-          <BadgeSeal level={held as 0 | 2 | 3} domain={progress.skill.domain} size={40} />
+          <MasteryRing
+            level={held}
+            current={primary?.current ?? 0}
+            required={primary?.required ?? 0}
+            size="md"
+          />
           <div className="min-w-0 flex-1">
             <Link
               to="/catalog/skills/$slug"
@@ -120,7 +137,13 @@ export const ProgressBlock = ({
             >
               {progress.skill.name}
             </Link>
-            <p className="text-meta text-ink-3">{progressSubtitle(progress, aim)}</p>
+            <p
+              className={cn('text-meta', almostThere ? 'font-medium text-brass-ink' : 'text-ink-3')}
+            >
+              {almostThere
+                ? `1 more observation to unlock ${progress.targetLevelName}`
+                : progressSubtitle(progress, aim)}
+            </p>
           </div>
           {held > 0 ? <Pill tone="success">Level {held}</Pill> : null}
         </div>
@@ -439,8 +462,8 @@ const PlanBody = ({
 
       {plan.tryNextTime ? (
         <Card className="grid gap-1.5 border-brass/40 bg-brass-soft/45 p-4 md:p-5">
-          <div className="flex items-center gap-2 text-meta font-semibold tracking-wider text-brass-ink uppercase">
-            <SparklesIcon className="size-3.5" aria-hidden />
+          <div className="flex items-center gap-2 font-mono text-[11px] font-medium tracking-[0.09em] text-brass-ink uppercase">
+            <CatalystArc size={13} />
             Try next time
           </div>
           <p className="narrative text-ink">“{plan.tryNextTime.sentence}”</p>
@@ -482,6 +505,7 @@ const PlanBody = ({
             />
           ))}
         </div>
+        <MasteryStrip personId={plan.owner.id} progress={plan.progress} />
       </section>
 
       <FeedbackHistorySection plan={plan} observations={observations} editable={editable} />

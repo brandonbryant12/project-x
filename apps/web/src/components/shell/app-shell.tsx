@@ -1,5 +1,6 @@
 import type { SessionView } from '@repo/api';
 import {
+  BrandLockup,
   Button,
   Drawer,
   DrawerContent,
@@ -33,7 +34,6 @@ import { useMemo, useState } from 'react';
 import { HowItWorksDialog } from '@/components/how-it-works-dialog.tsx';
 import { QuickRequestDialog } from '@/features/development/quick-request-dialog.tsx';
 import { call } from '@/lib/api.ts';
-import { PRODUCT_NAME } from '@/lib/brand.ts';
 import { CommandPalette } from './command-palette.tsx';
 import { useLogDialog } from './log-dialog-context.tsx';
 import { navFor } from './nav.ts';
@@ -163,11 +163,8 @@ export const AppShell = ({
       <Sidebar session={session} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2.5 border-b border-line bg-canvas/90 px-4 backdrop-blur md:px-6">
-          <Link
-            to="/"
-            className="shrink-0 font-serif text-[17px] font-medium whitespace-nowrap text-ink lg:hidden"
-          >
-            {PRODUCT_NAME}
+          <Link to="/" className="shrink-0 lg:hidden">
+            <BrandLockup size="sm" />
           </Link>
           <button
             type="button"

@@ -1,28 +1,35 @@
 import type { Persona } from '@repo/api';
-import { Button, Card, PersonChip, Pill, Separator, Skeleton } from '@repo/ui';
+import {
+  BrandLockup,
+  Button,
+  Card,
+  CatalystArc,
+  PersonChip,
+  Pill,
+  Separator,
+  Skeleton,
+} from '@repo/ui';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Schema } from 'effect';
-import { AwardIcon, CompassIcon, MessageSquareHeartIcon } from 'lucide-react';
 import { useState } from 'react';
 import { call, describeError, queryOptions } from '@/lib/api.ts';
-import { PRODUCT_NAME } from '@/lib/brand.ts';
 import { entraStartHref, safeReturnPath } from '@/lib/return-to.ts';
 
 const PILLARS = [
   {
-    icon: CompassIcon,
+    index: '01',
     title: 'Pick 1–3 focus skills',
     detail: 'Choose the client and coaching skills you want to build right now.',
   },
   {
-    icon: MessageSquareHeartIcon,
-    title: 'Fast, real feedback',
-    detail: 'Request or give specific feedback after real client calls in under a minute.',
+    index: '02',
+    title: 'Fast, observed feedback',
+    detail: 'Request or share specific coaching notes after real client calls in under a minute.',
   },
   {
-    icon: AwardIcon,
-    title: 'Earn skill milestones',
+    index: '03',
+    title: 'Earn verified milestones',
     detail: 'Two verified observations earn a skill badge with the real feedback behind it.',
   },
 ] as const;
@@ -72,40 +79,37 @@ const SignIn = () => {
     }
   };
   return (
-    <main className="grid min-h-dvh place-items-center px-4 py-10 md:px-8">
-      <div className="grid w-full max-w-4xl gap-8 lg:grid-cols-[1.05fr_1fr] lg:items-center lg:gap-12">
-        <div className="grid gap-6">
-          <div className="flex items-center gap-2.5">
-            <span
-              aria-hidden
-              className="grid size-8 place-items-center rounded-full border-2 border-primary bg-primary-soft"
-            >
-              <span className="size-3 rounded-full bg-primary" />
-            </span>
-            <span className="font-serif text-h2 font-medium text-ink">{PRODUCT_NAME}</span>
-          </div>
-          <div className="grid gap-3">
-            <h1 className="font-serif text-display font-medium text-ink">
-              Grow advisor skills through real client work.
+    <main className="folio-paper grid min-h-dvh place-items-center px-4 py-10 md:px-8">
+      <div className="grid w-full max-w-4xl gap-10 lg:grid-cols-[1.08fr_1fr] lg:items-center lg:gap-14">
+        <div className="grid gap-7">
+          <BrandLockup size="lg" tagline="Observed Advisory Craft" />
+          <div className="grid gap-3.5">
+            <h1 className="editorial-serif text-[2.25rem] leading-[1.12] font-normal text-ink md:text-[2.65rem]">
+              Grow advisor skills through{' '}
+              <em className="text-primary-ink italic">real client work.</em>
             </h1>
-            <p className="text-body text-ink-2">
-              A simple coaching workspace for financial advisors, coaches, and branch leaders —
-              built around real observed meetings, not CRM activity counts.
+            <p className="max-w-md text-body text-ink-2">
+              A quiet coaching folio for financial advisors, coaches, and branch leaders — built
+              around real observed meetings, never vanity CRM counts.
             </p>
           </div>
-          <ul className="grid gap-3">
+          <ol className="grid divide-y divide-line border-y border-line">
             {PILLARS.map((p) => (
-              <li key={p.title} className="flex items-start gap-3">
-                <span className="grid size-8 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-ink">
-                  <p.icon className="size-4" aria-hidden />
+              <li key={p.index} className="flex items-baseline gap-4 py-3.5">
+                <span className="font-mono text-meta font-medium text-primary-ink tabular">
+                  {p.index}
                 </span>
                 <div className="grid gap-0.5">
-                  <p className="text-ui font-medium text-ink">{p.title}</p>
+                  <p className="text-ui font-semibold text-ink">{p.title}</p>
                   <p className="text-meta text-ink-2">{p.detail}</p>
                 </div>
               </li>
             ))}
-          </ul>
+          </ol>
+          <p className="inline-flex items-center gap-2 text-meta text-ink-3">
+            <CatalystArc size={13} />
+            <span>Every closed mastery ring quotes the real observation behind it.</span>
+          </p>
         </div>
 
         <Card className="grid gap-5 p-6">

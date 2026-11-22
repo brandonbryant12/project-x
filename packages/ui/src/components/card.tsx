@@ -2,7 +2,10 @@ import type * as React from 'react';
 import { cn } from '../lib/cn.ts';
 
 export const Card = ({ className, ...props }: React.ComponentProps<'div'>) => (
-  <div className={cn('rounded-card border border-line bg-surface', className)} {...props} />
+  <div
+    className={cn('rounded-card border border-line bg-surface shadow-card', className)}
+    {...props}
+  />
 );
 
 export const CardHeader = ({ className, ...props }: React.ComponentProps<'div'>) => (
@@ -28,7 +31,13 @@ export const CardFooter = ({ className, ...props }: React.ComponentProps<'div'>)
   />
 );
 
-/** Small uppercase-free section label used above groups. */
+/** Editorial folio section label with quiet hairline cadence. */
 export const SectionLabel = ({ className, ...props }: React.ComponentProps<'h2'>) => (
-  <h2 className={cn('text-meta font-medium tracking-wide text-ink-3', className)} {...props} />
+  <h2
+    className={cn(
+      'font-mono text-[11px] font-medium tracking-[0.09em] text-ink-3 uppercase',
+      className,
+    )}
+    {...props}
+  />
 );

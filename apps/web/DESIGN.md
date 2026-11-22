@@ -1,10 +1,44 @@
-# DESIGN.md — the "Quiet Ledger" contract for agents
+# DESIGN.md — the "Catalyst Folio" contract for agents
 
 This page is the design contract for the web app. Navigation (who sees what)
 is `src/components/shell/nav.ts`; Home is `src/features/home/home-screen.tsx`
 with Action needed, Focus skills progress, Recent coaching feedback, and Your
 coaching team. If this page and the code disagree, fix one of them in the same
 change.
+
+## Brand Identity & Philosophy — "Catalyst Folio"
+
+Coaching Catalyst reads like a **bespoke advisory folio**, not a generic SaaS
+dashboard or gamified tracker. Every visual decision reinforces one idea:
+_real coaching happens when two people meet around real client work, and one
+observed insight shifts an advisor's trajectory._
+
+- **The Mark (`CatalystMark` & `apps/web/public/favicon.svg`):**
+  The **Closing Mastery Ring** — one clean open `C` arc in pine ink (coaching
+  craft) closing toward completion with a single warm brass arc (the catalyst
+  observation that unlocks mastery). Zero visual bloat, razor-sharp at 16px.
+- **How Name and Mark Interact (`BrandLockup`):**
+  The compact Closing Mastery Ring sits optically aligned beside `Coaching`
+  (disciplined Geist semibold) and _`Catalyst`_ (optical Newsreader italic in
+  pine ink).
+- **Unified Skill Acquisition System (`MasteryRing`, `MasteryStrip`, `SkillLadder`, `ProgressBar`):**
+  Every skill in the product uses the exact same Closing Mastery Ring geometry:
+  - **Untouched**: quiet dashed ring (`0`).
+  - **Closing (`1/2`)**: locked levels in pine ink + active next-level quadrant
+    filling in warm catalyst brass, with a brass highlight when 1 observation
+    away from unlocking.
+  - **Unlocked (`L2`, `L3`, `L4`)**: locked pine quadrants (`L4` closes 360°
+    with a brass halo).
+  - **`MasteryStrip`** shows all advisory skills in the catalog as interactive
+    miniature rings on Home and My skills so progress across the full craft is
+    visible at a glance.
+- **Typographic Contrast Rule:**
+  - **Sans (`Geist`)** = system structure, controls, tables, navigation.
+  - **Mono (`Geist Mono`)** = section eyebrows, step indices (`01 / 02 / 03`),
+    ring readouts (`L3`, `1/2`), and unlocked ratios (`3/8`).
+  - **Optical Serif (`Newsreader`) & Italic** = human voice — coaching quotes,
+    editorial page titles, and the catalytic emphasis phrase (e.g. _real client
+    work_, the advisor's name in the Home greeting, and _Catalyst_ in the lockup).
 
 ## Feel
 

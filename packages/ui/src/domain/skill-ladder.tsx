@@ -6,7 +6,7 @@ const SHORT_LEVEL_LABELS = ['Learning', 'With support', 'Independent', 'Teaching
 
 const barClass = (earned: boolean, isTarget: boolean) => {
   if (earned) return 'bg-primary';
-  if (isTarget) return 'border border-dashed border-primary bg-primary-soft';
+  if (isTarget) return 'border border-dashed border-brass bg-brass-soft';
   return 'bg-sunken ring-1 ring-line';
 };
 
@@ -17,8 +17,9 @@ const labelClass = (earned: boolean, isTarget: boolean) => {
 };
 
 /**
- * Visual 4-step skill ladder: makes current standing and next milestone
- * legible in half a second without reading dense text checklists.
+ * Visual 4-step skill ladder harmonizing with MasteryRing:
+ * earned levels lock in solid pine ink; the active next milestone stands in
+ * warm catalyst brass.
  */
 export const SkillLadder = ({
   heldLevels,
@@ -62,7 +63,8 @@ export const SkillLadder = ({
 };
 
 /**
- * Visual progress bar for a skill's next milestone criterion (e.g. "1 of 2 observations").
+ * Visual progress bar for a skill's next milestone criterion (e.g. "1 of 2 observations"):
+ * brass fill while closing the ring, locking to success green once met.
  */
 export const ProgressBar = ({
   current,
@@ -77,12 +79,13 @@ export const ProgressBar = ({
 }) => {
   const clamped = Math.min(current, required);
   const pct = required > 0 ? Math.round((clamped / required) * 100) : 100;
+  const met = clamped >= required;
   return (
     <div className={cn('grid gap-1.5', className)}>
       {label ? (
         <div className="flex items-baseline justify-between gap-2 text-meta">
           <span className="text-ink-2">{label}</span>
-          <span className="font-medium text-ink tabular">
+          <span className="font-mono text-[11.5px] font-medium text-ink tabular">
             {clamped}/{required}
           </span>
         </div>
@@ -97,7 +100,7 @@ export const ProgressBar = ({
         <div
           className={cn(
             'h-full rounded-full transition-all duration-300',
-            clamped >= required ? 'bg-success' : 'bg-primary',
+            met ? 'bg-success' : 'bg-brass',
           )}
           style={{ width: `${pct}%` }}
         />

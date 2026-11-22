@@ -3,7 +3,10 @@ import {
   BadgeSeal,
   Button,
   Card,
+  CatalystArc,
+  cn,
   DueLabel,
+  MasteryRing,
   PersonAvatar,
   PersonChip,
   Pill,
@@ -12,9 +15,10 @@ import {
   SkillLadder,
 } from '@repo/ui';
 import { Link } from '@tanstack/react-router';
-import { ArrowRightIcon, MessageSquarePlusIcon, SendIcon, SparklesIcon } from 'lucide-react';
+import { ArrowRightIcon, MessageSquarePlusIcon, SendIcon } from 'lucide-react';
 import { useState } from 'react';
 import { FirstRunStep, ObserverFirstRun, ProgramHealthCard } from '@/components/first-run.tsx';
+import { MasteryStrip } from '@/components/mastery-strip.tsx';
 import { Page } from '@/components/page.tsx';
 import { ServerLink } from '@/components/server-link.tsx';
 import { useLogDialog } from '@/components/shell/log-dialog-context.tsx';
@@ -80,11 +84,30 @@ const HomeSkillCard = ({ progress }: { readonly progress: ProgressView }) => {
   const log = useLogDialog();
   const held = progress.heldLevels.length > 0 ? Math.max(...progress.heldLevels) : 0;
   const primaryCriterion = progress.criteria[0];
+  const remaining = primaryCriterion
+    ? Math.max(0, primaryCriterion.required - primaryCriterion.current)
+    : 0;
+  const almostThere = remaining === 1 && progress.targetLevelName !== null;
+  const subtitle = (() => {
+    if (almostThere) return `1 more observation to unlock ${progress.targetLevelName}`;
+    if (progress.targetLevelName) return `Next milestone: ${progress.targetLevelName}`;
+    return 'Every milestone unlocked';
+  })();
   return (
-    <Card className="flex flex-col justify-between gap-4 p-4 md:p-5">
+    <Card
+      className={cn(
+        'flex flex-col justify-between gap-4 p-4 md:p-5',
+        almostThere && 'border-brass/65 ring-1 ring-brass/25',
+      )}
+    >
       <div className="grid gap-3.5">
         <div className="flex items-start gap-3">
-          <BadgeSeal level={held as 0 | 2 | 3} domain={progress.skill.domain} size={40} />
+          <MasteryRing
+            level={held}
+            current={primaryCriterion?.current ?? 0}
+            required={primaryCriterion?.required ?? 0}
+            size="md"
+          />
           <div className="min-w-0 flex-1">
             <Link
               to="/catalog/skills/$slug"
@@ -93,10 +116,10 @@ const HomeSkillCard = ({ progress }: { readonly progress: ProgressView }) => {
             >
               {progress.skill.name}
             </Link>
-            <p className="text-meta text-ink-3">
-              {progress.targetLevelName
-                ? `Next badge: ${progress.targetLevelName}`
-                : 'Every badge earned'}
+            <p
+              className={cn('text-meta', almostThere ? 'font-medium text-brass-ink' : 'text-ink-3')}
+            >
+              {subtitle}
             </p>
           </div>
           {held > 0 ? <Pill tone="success">Level {held}</Pill> : null}
@@ -109,7 +132,7 @@ const HomeSkillCard = ({ progress }: { readonly progress: ProgressView }) => {
             label={primaryCriterion.label}
           />
         ) : (
-          <p className="text-meta text-success-ink">All milestones earned for this skill.</p>
+          <p className="text-meta text-success-ink">All milestones unlocked for this skill.</p>
         )}
       </div>
       <div className="flex items-center justify-between gap-2 border-t border-line pt-3">
@@ -122,7 +145,7 @@ const HomeSkillCard = ({ progress }: { readonly progress: ProgressView }) => {
         </Link>
         <Button
           size="sm"
-          variant="secondary"
+          variant={almostThere ? 'primary' : 'secondary'}
           onClick={() => log.show({ skillId: progress.skill.id })}
         >
           <SendIcon /> Ask for feedback
@@ -255,7 +278,7 @@ const ActionCenter = ({
       {observer && home.toObserve.length > 0 ? (
         <Card className="grid gap-3 p-4 md:p-5">
           <div className="flex items-center gap-2 text-ui font-medium text-ink">
-            <SparklesIcon className="size-4 text-primary" aria-hidden />
+            <CatalystArc size={13} />
             Suggested to observe this week
           </div>
           <ul className="divide-y divide-line">
@@ -355,8 +378,8 @@ export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
       <div className="grid content-start gap-8">
         <header className="flex flex-col gap-4 border-b border-line pb-6 md:flex-row md:items-end md:justify-between">
           <div className="grid gap-1">
-            <h1 className="font-serif text-h1 font-medium text-ink md:text-display">
-              {greeting()}, {home.firstName}.
+            <h1 className="editorial-serif text-h1 font-normal text-ink md:text-display">
+              {greeting()}, <em className="text-primary-ink italic">{home.firstName}.</em>
             </h1>
             <p className="text-body text-ink-2">{homeSubtitle(home, waiting)}</p>
           </div>
@@ -399,6 +422,7 @@ export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
                 <HomeSkillCard key={p.skill.id} progress={p} />
               ))}
             </div>
+            <MasteryStrip personId={session.person.id} progress={home.progress} />
           </section>
         ) : null}
 

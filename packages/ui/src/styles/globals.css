@@ -76,3 +76,14 @@
   line-height: var(--text-narrative--line-height);
   font-optical-sizing: auto;
 }
+
+@utility folio-paper {
+  background-image: radial-gradient(var(--folio-dot) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+@utility editorial-serif {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+}

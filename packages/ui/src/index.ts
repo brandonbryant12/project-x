@@ -12,6 +12,8 @@ export * from './components/overlays.tsx';
 export * from './components/command.tsx';
 export * from './components/misc.tsx';
 export * from './domain/skill-domain.ts';
+export * from './domain/brand-mark.tsx';
+export * from './domain/mastery-ring.tsx';
 export * from './domain/badge-seal.tsx';
 export * from './domain/person.tsx';
 export * from './domain/status.tsx';
