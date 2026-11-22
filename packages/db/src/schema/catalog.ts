@@ -8,6 +8,7 @@ import {
   type SkillDefinition,
   type SkillId,
   type SkillIndicatorId,
+  type SkillResource,
   type SkillVersionId,
 } from '@repo/domain';
 import { sql } from 'drizzle-orm';
@@ -46,6 +47,8 @@ export const skill = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /** Curated level-up playbook resources attached to this skill (levels 1–4). */
+    resources: jsonb('resources').$type<ReadonlyArray<SkillResource>>().notNull().default([]),
     status: text('status').notNull().default('draft'),
     /** Keeper's work in progress; becomes a skill_version on PUBLISH. */
     draftDefinition: jsonb('draft_definition').$type<SkillDefinition>(),

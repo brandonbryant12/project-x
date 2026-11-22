@@ -273,6 +273,7 @@ const seedDirectoryAndCatalog = Effect.gen(function* () {
       domain: s.domain,
       outcome: s.outcome,
       tags: [...s.tags],
+      resources: [...(s.resources ?? [])],
       status: 'published',
     });
     yield* db.insert(schema.skillVersion).values({

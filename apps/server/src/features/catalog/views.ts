@@ -168,6 +168,7 @@ export const searchSkills = Effect.fn('catalog.skills')(function* (query: Skills
       outcome: row.outcome,
       tier: metric?.tier ?? skillTierFromTags(row.tags),
       tags: metric?.displayTags ?? extractDisplayTags(row.tags),
+      resourceCount: row.resources.length,
       holderCount: metric?.holderCount ?? 0,
       activeFocusCount: metric?.activeFocusCount ?? 0,
       signal: metric?.signal ?? 'balanced',
@@ -277,6 +278,7 @@ export const buildSkillDetail = Effect.fn('catalog.skill')(function* (slug: stri
     outcome: row.outcome,
     tier: metric?.tier ?? skillTierFromTags(row.tags),
     tags: metric?.displayTags ?? extractDisplayTags(row.tags),
+    resourceCount: row.resources.length,
     holderCount: highest.size,
     activeFocusCount: metric?.activeFocusCount ?? 0,
     signal: metric?.signal ?? 'balanced',
@@ -287,6 +289,7 @@ export const buildSkillDetail = Effect.fn('catalog.skill')(function* (slug: stri
     versionId: version.id,
     version: version.number,
     levels: definitions.get(version.id)?.levels ?? [],
+    resources: row.resources,
     holders: [...highest.entries()]
       .toSorted((a, b) => b[1] - a[1])
       .map(([personId, level]) => ({

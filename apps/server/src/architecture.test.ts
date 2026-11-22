@@ -45,12 +45,8 @@ const CROSS_FEATURE_DEBT: ReadonlyArray<string> = [];
  */
 const RESERVED: Readonly<Record<string, string>> = {
   tenant: 'provisioned by the seed or by hand; tenant onboarding is not built',
-  skill: 'catalog is seeded; catalog management is not built',
-  skillVersion: 'catalog is seeded; catalog management is not built',
-  skillLevel: 'catalog is seeded; catalog management is not built',
-  skillIndicator: 'catalog is seeded; catalog management is not built',
-  activityTemplate: 'catalog is seeded; catalog management is not built',
-  activityTemplateSkill: 'catalog is seeded; catalog management is not built',
+  activityTemplate: 'catalog templates are seeded; template authoring is not built',
+  activityTemplateSkill: 'catalog templates are seeded; template authoring is not built',
 };
 
 describe('architecture', () => {

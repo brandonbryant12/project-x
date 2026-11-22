@@ -2,8 +2,13 @@ import { EvidenceId, IsoDate } from '@repo/domain';
 import { Schema } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api';
 import { Authenticated } from '../auth.ts';
-import { Forbidden, InvalidTransition, NotFound } from '../errors.ts';
-import { AiUsageView, AuditEventView } from '../models/index.ts';
+import { Forbidden, InvalidTransition, NotFound, Unprocessable } from '../errors.ts';
+import {
+  AiUsageView,
+  AuditEventView,
+  TenantPolicyView,
+  UpdateTenantPolicyInput,
+} from '../models/index.ts';
 
 /** Tenant admins and compliance reviewers. Every read here is itself audited (ADR 0015). */
 export class AdminGroup extends HttpApiGroup.make('admin')
@@ -21,6 +26,15 @@ export class AdminGroup extends HttpApiGroup.make('admin')
       },
       success: Schema.Array(AuditEventView),
       error: Forbidden,
+    }),
+    HttpApiEndpoint.get('policy', '/admin/policy', {
+      success: TenantPolicyView,
+      error: Forbidden,
+    }),
+    HttpApiEndpoint.put('updatePolicy', '/admin/policy', {
+      payload: UpdateTenantPolicyInput,
+      success: TenantPolicyView,
+      error: [Forbidden, Unprocessable],
     }),
     HttpApiEndpoint.post('resolveEvidence', '/admin/evidence/:id/resolve', {
       params: { id: EvidenceId },

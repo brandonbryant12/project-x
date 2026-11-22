@@ -9,6 +9,7 @@ import {
   type LucideIcon,
   ScanSearchIcon,
   ScrollTextIcon,
+  SlidersHorizontalIcon,
   SproutIcon,
   UsersIcon,
 } from 'lucide-react';
@@ -78,20 +79,25 @@ export const navFor = (session: SessionView): ReadonlyArray<NavGroup> => {
   });
 
   const admin = grants.includes('tenant_admin');
-  if (admin || grants.includes('program_owner')) {
+  const programOwner = grants.includes('program_owner');
+  const compliance = grants.includes('compliance_reviewer');
+  if (admin || programOwner) {
     groups.push({
       label: 'Program',
       items: [{ key: 'adoption', label: 'Adoption', to: '/adoption', icon: ChartNoAxesColumnIcon }],
     });
   }
-  if (admin || grants.includes('compliance_reviewer')) {
-    groups.push({
-      label: 'Governance',
-      items: [
+  if (admin || compliance || programOwner) {
+    const govItems: Array<NavItem> = [
+      { key: 'policy', label: 'Program policy', to: '/admin/policy', icon: SlidersHorizontalIcon },
+    ];
+    if (admin || compliance) {
+      govItems.push(
         { key: 'ai-usage', label: 'Privacy checks', to: '/admin/ai-usage', icon: ScanSearchIcon },
         { key: 'audit', label: 'Audit trail', to: '/admin/audit', icon: ScrollTextIcon },
-      ],
-    });
+      );
+    }
+    groups.push({ label: 'Governance', items: govItems });
   }
   return groups;
 };

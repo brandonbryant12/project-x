@@ -1,4 +1,10 @@
-import { CurrentActor, NotFound } from '@repo/api';
+import {
+  CurrentActor,
+  Forbidden,
+  NotFound,
+  Unprocessable,
+  type UpdateTenantPolicyInput,
+} from '@repo/api';
 import {
   AdvisoryDispositionId,
   EvidenceLifecycle,
@@ -11,6 +17,7 @@ import { Effect } from 'effect';
 import { now } from '../../platform/time.ts';
 import { recordAudit } from '../shared/audit.ts';
 import { decide } from '../shared/mutation.ts';
+import { buildTenantPolicy } from './views.ts';
 
 interface ResolveEvidenceInput {
   readonly event: 'RELEASE' | 'RESOLVE';
@@ -91,4 +98,64 @@ export const resolveEvidence = Effect.fn('admin.resolveEvidence')(function* (
       }
     }),
   );
+});
+
+/** `PUT /admin/policy`: updates tenant badge rigor criteria and observation window (audited). */
+export const updateTenantPolicy = Effect.fn('admin.updatePolicy')(function* (
+  payload: UpdateTenantPolicyInput,
+) {
+  const actor = yield* CurrentActor;
+  if (!actor.grants.includes('tenant_admin')) {
+    return yield* Effect.fail(
+      new Forbidden({ message: 'Only tenant admins can update program policy.' }),
+    );
+  }
+  if (payload.badgeCriteria.minObservers > payload.badgeCriteria.minDemonstrations) {
+    return yield* Effect.fail(
+      new Unprocessable({
+        message: 'Minimum distinct observers cannot exceed minimum observations.',
+        field: 'badgeCriteria.minObservers',
+      }),
+    );
+  }
+  const db = yield* Db;
+  const [tenantRow] = yield* db
+    .select({ settings: schema.tenant.settings })
+    .from(schema.tenant)
+    .where(eq(schema.tenant.id, actor.tenantId));
+  if (!tenantRow) return yield* Effect.die('invariant: actor tenant missing');
+
+  const nextSettings = {
+    ...tenantRow.settings,
+    badgeCriteria: {
+      minDemonstrations: payload.badgeCriteria.minDemonstrations,
+      minObservers: payload.badgeCriteria.minObservers,
+      minFirstHandShare: payload.badgeCriteria.minFirstHandShare,
+      minSpanDays: payload.badgeCriteria.minSpanDays,
+    },
+    observationWindowDays: payload.observationWindowDays,
+  };
+
+  yield* transactionally(
+    Effect.gen(function* () {
+      yield* db
+        .update(schema.tenant)
+        .set({ settings: nextSettings })
+        .where(eq(schema.tenant.id, actor.tenantId));
+      yield* recordAudit(actor, {
+        entityType: 'tenant_policy',
+        entityId: actor.tenantId,
+        event: 'POLICY_UPDATED',
+        ...(payload.reason?.trim()
+          ? { note: { kind: 'review' as const, body: payload.reason.trim() } }
+          : {}),
+        data: {
+          badgeCriteria: nextSettings.badgeCriteria,
+          observationWindowDays: nextSettings.observationWindowDays,
+        },
+      });
+    }),
+  );
+
+  return yield* buildTenantPolicy();
 });

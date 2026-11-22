@@ -31,6 +31,7 @@ import { Effect } from 'effect';
 import { CheckCircle2Icon, CheckIcon, MessageSquarePlusIcon } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import { Page, PageHeader } from '@/components/page.tsx';
+import { VoiceNoteBar } from '@/components/voice-note-bar.tsx';
 import { callEffect, describeError, queryOptions } from '@/lib/api.ts';
 import { useMachine } from '@/lib/foldkit.ts';
 import { daysAgoIso, formatDate, formatLongDate, kindLabel, todayIso } from '@/lib/format.ts';
@@ -347,6 +348,13 @@ const SkillsAndNotes = ({
 
       <StepSection step="4" label="Your coaching note">
         <div className="grid gap-4 rounded-card border border-line bg-surface p-4 md:p-5">
+          <VoiceNoteBar
+            subjectFirstName={first}
+            onApply={({ saw, next }) => {
+              send({ type: 'SET_SAW', value: saw });
+              if (next) send({ type: 'SET_NEXT', value: next });
+            }}
+          />
           <Field>
             <Label htmlFor="capture-saw">What did {first} do well?</Label>
             <Textarea

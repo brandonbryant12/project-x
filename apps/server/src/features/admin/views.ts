@@ -1,5 +1,19 @@
-import { CurrentActor, Forbidden, type Actor, type AiUsageRow } from '@repo/api';
-import { toIsoDate, type IsoDate, type QuestionSetId } from '@repo/domain';
+import {
+  CurrentActor,
+  Forbidden,
+  type Actor,
+  type AiUsageRow,
+  type TenantPolicyView,
+} from '@repo/api';
+import {
+  DEFAULT_BADGE_CRITERIA,
+  OBSERVE_WINDOW_DAYS,
+  STRICT_BADGE_CRITERIA,
+  toIsoDate,
+  type BadgeCriteriaConfig,
+  type IsoDate,
+  type QuestionSetId,
+} from '@repo/domain';
 import { Db, schema } from '@repo/db';
 import { and, desc, eq, gte, lt } from 'drizzle-orm';
 import { Effect } from 'effect';
@@ -126,4 +140,52 @@ export const buildAuditTrail = Effect.fn('admin.auditTrail')(function* (query: A
     reason: note ?? event.reasonCode,
     policyVersion: event.policyVersion,
   }));
+});
+
+const matchesCriteria = (a: BadgeCriteriaConfig, b: BadgeCriteriaConfig) =>
+  a.minDemonstrations === b.minDemonstrations &&
+  a.minObservers === b.minObservers &&
+  Math.abs(a.minFirstHandShare - b.minFirstHandShare) < 0.001 &&
+  a.minSpanDays === b.minSpanDays;
+
+const classifyPreset = (criteria: BadgeCriteriaConfig): TenantPolicyView['preset'] => {
+  if (matchesCriteria(criteria, DEFAULT_BADGE_CRITERIA)) return 'poc';
+  if (matchesCriteria(criteria, STRICT_BADGE_CRITERIA)) return 'strict';
+  return 'custom';
+};
+
+/** `GET /admin/policy`: tenant rigor and badge policy controls. */
+export const buildTenantPolicy = Effect.fn('admin.policy')(function* () {
+  const actor = yield* CurrentActor;
+  const canRead =
+    actor.grants.includes('tenant_admin') ||
+    actor.grants.includes('program_owner') ||
+    actor.grants.includes('compliance_reviewer');
+  if (!canRead) {
+    return yield* Effect.fail(
+      new Forbidden({ message: 'Only admins, program owners, and compliance can view policy.' }),
+    );
+  }
+  const db = yield* Db;
+  const [row] = yield* db
+    .select({
+      name: schema.tenant.name,
+      timeZone: schema.tenant.timeZone,
+      settings: schema.tenant.settings,
+    })
+    .from(schema.tenant)
+    .where(eq(schema.tenant.id, actor.tenantId));
+  if (!row) return yield* Effect.die('invariant: actor tenant missing');
+  const badgeCriteria: BadgeCriteriaConfig = {
+    ...DEFAULT_BADGE_CRITERIA,
+    ...row.settings.badgeCriteria,
+  };
+  return {
+    tenantName: row.name,
+    timeZone: row.timeZone,
+    preset: classifyPreset(badgeCriteria),
+    badgeCriteria,
+    observationWindowDays: row.settings.observationWindowDays ?? OBSERVE_WINDOW_DAYS,
+    canEdit: actor.grants.includes('tenant_admin'),
+  } satisfies TenantPolicyView;
 });

@@ -1,4 +1,4 @@
-import type { InteractionKind, SkillDomain } from '@repo/domain';
+import type { InteractionKind, SkillDomain, SkillResource } from '@repo/domain';
 
 /**
  * Starter catalog for a wealth-management firm (fictional content, written to
@@ -12,6 +12,7 @@ export interface SeedSkill {
   readonly summary: string;
   readonly outcome: string;
   readonly tags: ReadonlyArray<string>;
+  readonly resources?: ReadonlyArray<SkillResource>;
   readonly levels: readonly [SeedLevel, SeedLevel, SeedLevel, SeedLevel];
 }
 interface SeedLevel {
@@ -28,6 +29,38 @@ export const SEED_SKILLS: ReadonlyArray<SeedSkill> = [
       'Uncovers what a client actually wants their money to do, before talking about products.',
     outcome: 'Client trust',
     tags: ['core', 'client-facing', 'meetings', 'new-clients'],
+    resources: [
+      {
+        id: 'res_disc_l2_script',
+        level: 2,
+        kind: 'script',
+        title: '5 open discovery prompts that avoid product talk',
+        summary:
+          'Use these five phrasing starters in the first 10 minutes to get clients speaking in their own words.',
+        url: null,
+        durationMinutes: 5,
+      },
+      {
+        id: 'res_disc_l3_playbook',
+        level: 3,
+        kind: 'playbook',
+        title: 'Surfacing unstated household trade-offs',
+        summary:
+          'Step-by-step debrief structure for pausing before projections and reflecting priorities back to both spouses.',
+        url: null,
+        durationMinutes: 12,
+      },
+      {
+        id: 'res_disc_l4_call',
+        level: 4,
+        kind: 'sample_call',
+        title: 'Gold-standard discovery debrief checklist',
+        summary:
+          'How senior advisors run a 15-minute post-call debrief to sharpen a colleague’s questioning rhythm.',
+        url: null,
+        durationMinutes: 15,
+      },
+    ],
     levels: [
       {
         summary: 'Follows a discovery checklist with support.',
@@ -116,6 +149,28 @@ export const SEED_SKILLS: ReadonlyArray<SeedSkill> = [
     summary: 'Helps clients stay the course when markets or emotions push them off it.',
     outcome: 'Client retention through volatility',
     tags: ['common', 'volatility', 'retention', 'client-facing'],
+    resources: [
+      {
+        id: 'res_beh_l2_guide',
+        level: 2,
+        kind: 'guide',
+        title: 'Name the emotion before the numbers',
+        summary:
+          'Three-step cadence for turbulent market calls: acknowledge fear, anchor to the written plan, avoid short-term predictions.',
+        url: null,
+        durationMinutes: 8,
+      },
+      {
+        id: 'res_beh_l3_playbook',
+        level: 3,
+        kind: 'playbook',
+        title: 'Setting a 48-hour decision checkpoint',
+        summary:
+          'How to help an anxious client pause an impulsive move without pressure or lectures.',
+        url: null,
+        durationMinutes: 10,
+      },
+    ],
     levels: [
       {
         summary: 'Reassures with facts from a script.',
@@ -198,6 +253,26 @@ export const SEED_SKILLS: ReadonlyArray<SeedSkill> = [
     summary: 'Is open about fees, conflicts and limits, so clients never feel surprised.',
     outcome: 'Client trust',
     tags: ['core', 'trust', 'fees', 'conflicts'],
+    resources: [
+      {
+        id: 'res_trust_l2_script',
+        level: 2,
+        kind: 'script',
+        title: 'Plain-English fee & compensation opener',
+        summary: 'Bring up fees proactively in the first meeting before a client has to ask.',
+        url: null,
+        durationMinutes: 6,
+      },
+      {
+        id: 'res_trust_l3_guide',
+        level: 3,
+        kind: 'guide',
+        title: 'Delivering difficult portfolio news early',
+        summary: 'Framework for transparent, calm updates paired with concrete next options.',
+        url: null,
+        durationMinutes: 10,
+      },
+    ],
     levels: [
       {
         summary: 'Discloses what is required, when prompted.',

@@ -19,7 +19,7 @@ import {
 } from '@repo/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { CheckIcon, CompassIcon, PlusIcon, SearchIcon, SendIcon } from 'lucide-react';
+import { CheckIcon, CompassIcon, PencilIcon, PlusIcon, SearchIcon, SendIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Page, PageHeader, SkillChip } from '@/components/page.tsx';
 import { useLogDialog } from '@/components/shell/log-dialog-context.tsx';
@@ -34,6 +34,8 @@ import {
   SkillConstellation,
   SkillLandscapeChart,
 } from './catalog-visuals.tsx';
+import { SkillPlaybooksSection } from './playbook-section.tsx';
+import { SkillStudioDialog } from './skill-studio-dialog.tsx';
 
 type CatalogLens = 'all' | 'popular' | 'lacking' | 'in_plan' | 'unearned';
 
@@ -134,6 +136,7 @@ const CatalogSkillCard = ({
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
         <span className="font-mono text-meta text-ink-3 tabular">
           {skill.holderCount} held · {skill.activeFocusCount} active
+          {skill.resourceCount > 0 ? ` · ${skill.resourceCount} playbooks` : ''}
         </span>
         <div className="flex items-center gap-2">
           <Link
@@ -293,6 +296,36 @@ const FilterStrip = ({
   </div>
 );
 
+const RareCombosSection = ({
+  combos,
+  skillById,
+  onBuildCombo,
+}: {
+  readonly combos: CatalogInsights['rareCombos'];
+  readonly skillById: ReadonlyMap<SkillId, SkillCard>;
+  readonly onBuildCombo: (ids: ReadonlyArray<SkillId>) => void;
+}) =>
+  combos.length > 0 ? (
+    <section className="grid gap-3" aria-labelledby="rare-combos-heading">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <SectionLabel id="rare-combos-heading">Rare combos · stand out uniquely</SectionLabel>
+        <span className="inline-flex items-center gap-1.5 text-meta text-ink-3">
+          <CatalystArc size={12} /> Cross-domain pairs held by few or no peers yet
+        </span>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {combos.slice(0, 4).map((combo) => (
+          <RareComboCard
+            key={`${combo.skills[0].id}-${combo.skills[1].id}`}
+            combo={combo}
+            skillById={skillById}
+            onBuildCombo={onBuildCombo}
+          />
+        ))}
+      </div>
+    </section>
+  ) : null;
+
 export const SkillsScreen = ({
   skills,
   insights,
@@ -300,13 +333,17 @@ export const SkillsScreen = ({
   readonly skills: ReadonlyArray<SkillCard>;
   readonly insights: CatalogInsights;
 }) => {
+  const session = useSession();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [tier, setTier] = useState<'all' | SkillTier>('all');
   const [lens, setLens] = useState<CatalogLens>('all');
   const [tag, setTag] = useState<string | null>(null);
   const [planSeedIds, setPlanSeedIds] = useState<ReadonlyArray<SkillId> | null>(null);
+  const [authoring, setAuthoring] = useState(false);
 
+  const canAuthor =
+    session.grants.includes('tenant_admin') || session.grants.includes('program_owner');
   const myDev = useQuery(queryOptions('development', 'mine', undefined));
   const skillById = new Map(skills.map((s) => [s.id, s]));
   const popularIds = new Set(insights.popularSkillIds);
@@ -327,6 +364,11 @@ export const SkillsScreen = ({
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <Search value={q} onChange={setQ} label="Search skills or tags" />
+              {canAuthor ? (
+                <Button variant="secondary" onClick={() => setAuthoring(true)}>
+                  <PlusIcon /> New skill
+                </Button>
+              ) : null}
               <Button variant="primary" onClick={() => setPlanSeedIds([])}>
                 <CompassIcon /> Build plan
               </Button>
@@ -355,26 +397,11 @@ export const SkillsScreen = ({
         </section>
 
         {/* Rare Combos Discovery */}
-        {insights.rareCombos.length > 0 ? (
-          <section className="grid gap-3" aria-labelledby="rare-combos-heading">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <SectionLabel id="rare-combos-heading">Rare combos · stand out uniquely</SectionLabel>
-              <span className="inline-flex items-center gap-1.5 text-meta text-ink-3">
-                <CatalystArc size={12} /> Cross-domain pairs held by few or no peers yet
-              </span>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {insights.rareCombos.slice(0, 4).map((combo) => (
-                <RareComboCard
-                  key={`${combo.skills[0].id}-${combo.skills[1].id}`}
-                  combo={combo}
-                  skillById={skillById}
-                  onBuildCombo={(ids) => setPlanSeedIds(ids)}
-                />
-              ))}
-            </div>
-          </section>
-        ) : null}
+        <RareCombosSection
+          combos={insights.rareCombos}
+          skillById={skillById}
+          onBuildCombo={(ids) => setPlanSeedIds(ids)}
+        />
 
         {/* Interactive Explorer */}
         <section className="grid gap-4" aria-labelledby="browse-catalog-heading">
@@ -440,6 +467,15 @@ export const SkillsScreen = ({
           initialSkillIds={planSeedIds.length > 0 ? planSeedIds : undefined}
         />
       ) : null}
+      {authoring ? (
+        <SkillStudioDialog
+          open
+          onClose={() => setAuthoring(false)}
+          onSaved={(created) =>
+            void navigate({ to: '/catalog/skills/$slug', params: { slug: created.slug } })
+          }
+        />
+      ) : null}
     </Page>
   );
 };
@@ -470,10 +506,14 @@ const TemplateRow = ({ template }: { readonly template: TemplateCard }) => (
 
 const SkillDetailHeader = ({
   skill,
+  canAuthor,
+  onEdit,
   onAddToPlan,
   onAskFeedback,
 }: {
   readonly skill: SkillDetail;
+  readonly canAuthor: boolean;
+  readonly onEdit: () => void;
   readonly onAddToPlan: () => void;
   readonly onAskFeedback: () => void;
 }) => {
@@ -494,7 +534,7 @@ const SkillDetailHeader = ({
             </Pill>
             {skill.signal !== 'balanced' ? <Pill tone={sig.tone}>{sig.label}</Pill> : null}
             <span className="text-meta text-ink-3">
-              {domainLabel(skill.domain)} · serves {skill.outcome.toLowerCase()}
+              {domainLabel(skill.domain)} · serves {skill.outcome.toLowerCase()} · v{skill.version}
             </span>
           </div>
           <h1 className="editorial-serif text-h1 font-normal text-ink md:text-display">
@@ -517,6 +557,11 @@ const SkillDetailHeader = ({
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap gap-2 self-start sm:self-center">
+        {canAuthor ? (
+          <Button variant="ghost" onClick={onEdit}>
+            <PencilIcon /> Edit skill
+          </Button>
+        ) : null}
         {!skill.inMyPlan ? (
           <Button variant="secondary" onClick={onAddToPlan}>
             <PlusIcon /> Add to plan
@@ -534,10 +579,14 @@ export const SkillScreen = ({ skill }: { readonly skill: SkillDetail }) => {
   const session = useSession();
   const log = useLogDialog();
   const [planSeedIds, setPlanSeedIds] = useState<ReadonlyArray<SkillId> | null>(null);
+  const [editing, setEditing] = useState(false);
   const myDev = useQuery(queryOptions('development', 'mine', undefined));
   const allSkills = useQuery(queryOptions('catalog', 'skills', { query: {} }));
   const skillById = new Map((allSkills.data ?? []).map((s) => [s.id, s]));
 
+  const canAuthor =
+    session.grants.includes('tenant_admin') || session.grants.includes('program_owner');
+  const canEditResources = canAuthor || session.grants.includes('coach');
   const holders = skill.holders
     .filter((h) => h.person.id !== session.person.id)
     .toSorted((a, b) => b.level - a.level);
@@ -546,6 +595,8 @@ export const SkillScreen = ({ skill }: { readonly skill: SkillDetail }) => {
     <Page>
       <SkillDetailHeader
         skill={skill}
+        canAuthor={canAuthor}
+        onEdit={() => setEditing(true)}
         onAddToPlan={() => setPlanSeedIds([skill.id])}
         onAskFeedback={() => log.show({ skillId: skill.id })}
       />
@@ -583,6 +634,8 @@ export const SkillScreen = ({ skill }: { readonly skill: SkillDetail }) => {
               ))}
             </Tabs>
           </section>
+
+          <SkillPlaybooksSection skill={skill} canEdit={canEditResources} />
 
           <section className="grid gap-3" aria-labelledby="templates">
             <SectionLabel id="templates">Real work that builds this</SectionLabel>
@@ -664,6 +717,14 @@ export const SkillScreen = ({ skill }: { readonly skill: SkillDetail }) => {
           onClose={() => setPlanSeedIds(null)}
           existingPlan={myDev.data?.plan ?? null}
           initialSkillIds={planSeedIds}
+        />
+      ) : null}
+      {editing ? (
+        <SkillStudioDialog
+          key={`${skill.id}-${skill.version}`}
+          open
+          onClose={() => setEditing(false)}
+          skill={skill}
         />
       ) : null}
     </Page>

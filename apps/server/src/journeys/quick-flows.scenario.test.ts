@@ -13,7 +13,13 @@ import { ScenarioLayer, atScenarioTime, signInAs } from '../test/harness.ts';
  * (`publishQuick`), and POC badge awards after 2 observations while preserving
  * privacy holds and observer eligibility.
  */
-const client = HttpApiTest.groups(Api, ['observations', 'development', 'support', 'catalog']);
+const client = HttpApiTest.groups(Api, [
+  'observations',
+  'development',
+  'support',
+  'catalog',
+  'admin',
+]);
 
 layer(ScenarioLayer, { timeout: 60_000 })('simplified coaching flows', (it) => {
   it.effect('instant-active plan creation and editable focus skills', () =>
@@ -146,6 +152,80 @@ layer(ScenarioLayer, { timeout: 60_000 })('simplified coaching flows', (it) => {
       assert.isTrue(catalogCards.some((s) => s.tier === 'common'));
       const detail = yield* api.catalog.skill({ params: { slug: focusSkill.slug } });
       assert.isAtLeast(detail.rarePairings.length, 1);
+
+      // Tenant admin configures badge rigor policy and authors a custom skill + playbook resource.
+      yield* signInAs('Rhea Castillo');
+      const policy = yield* api.admin.policy();
+      assert.strictEqual(policy.preset, 'poc');
+      assert.isTrue(policy.canEdit);
+      const updatedPolicy = yield* api.admin.updatePolicy({
+        payload: {
+          badgeCriteria: {
+            minDemonstrations: 3,
+            minObservers: 2,
+            minFirstHandShare: 0.5,
+            minSpanDays: 28,
+          },
+          observationWindowDays: 21,
+          reason: 'Move pilot cohort to enterprise rigor',
+        },
+      });
+      assert.strictEqual(updatedPolicy.preset, 'strict');
+      assert.strictEqual(updatedPolicy.observationWindowDays, 21);
+
+      const authored = yield* api.catalog.createSkill({
+        payload: {
+          name: 'Estate transition readiness',
+          domain: 'planning_advice',
+          tier: 'common',
+          summary: 'Guides multi-generational households cleanly through wealth transfer planning.',
+          outcome: 'Multi-gen retention',
+          tags: ['estate', 'households'],
+          levels: [
+            {
+              level: 1,
+              summary: 'Gathers estate documents with support.',
+              indicators: ['Lists existing wills and beneficiaries'],
+            },
+            {
+              level: 2,
+              summary: 'Frames transfer goals in plain terms.',
+              indicators: ['Walks through beneficiary trade-offs clearly'],
+            },
+            {
+              level: 3,
+              summary: 'Leads family transition meetings independently.',
+              indicators: ['Aligns heirs and spouses on shared priorities'],
+            },
+            {
+              level: 4,
+              summary: 'Coaches peers on complex estate conversations.',
+              indicators: ['Debriefs family meetings with colleagues'],
+            },
+          ],
+        },
+      });
+      assert.strictEqual(authored.version, 1);
+      assert.strictEqual(authored.tier, 'common');
+
+      const withResource = yield* api.catalog.addResource({
+        params: { id: authored.id },
+        payload: {
+          level: 3,
+          kind: 'playbook',
+          title: 'Family meeting agenda template',
+          summary: 'A 45-minute structure for inviting adult children into the conversation.',
+          url: 'https://playbook.northwind.example/estate-meeting',
+          durationMinutes: 10,
+        },
+      });
+      assert.strictEqual(withResource.resources.length, 1);
+      const resId = withResource.resources[0]?.id;
+      assert.isDefined(resId);
+      const afterRemove = yield* api.catalog.removeResource({
+        params: { id: authored.id, resourceId: resId },
+      });
+      assert.strictEqual(afterRemove.resources.length, 0);
     }),
   );
 });

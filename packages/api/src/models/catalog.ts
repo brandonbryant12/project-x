@@ -1,8 +1,12 @@
 import {
   ActivityTemplateId,
   InteractionKind,
+  Level,
+  ResourceKind,
+  SkillDomain,
   SkillId,
   SkillLevelDefinition,
+  SkillResource,
   SkillSignal,
   SkillTier,
   SkillVersionId,
@@ -16,6 +20,7 @@ export const SkillCard = Schema.Struct({
   outcome: Schema.String,
   tier: SkillTier,
   tags: Schema.Array(Schema.String),
+  resourceCount: Schema.Number,
   holderCount: Schema.Number,
   activeFocusCount: Schema.Number,
   signal: SkillSignal,
@@ -73,9 +78,62 @@ export const SkillDetail = Schema.Struct({
   versionId: SkillVersionId,
   version: Schema.Number,
   levels: Schema.Array(SkillLevelDefinition),
+  resources: Schema.Array(SkillResource),
   holders: Schema.Array(BadgeHolder),
   templates: Schema.Array(TemplateCard),
   myProgress: Schema.NullOr(ProgressView),
   rarePairings: Schema.Array(SkillCombo),
 });
 export type SkillDetail = typeof SkillDetail.Type;
+
+export const AuthorLevelInput = Schema.Struct({
+  level: Level,
+  summary: Schema.String.pipe(Schema.check(Schema.isMinLength(3), Schema.isMaxLength(400))),
+  indicators: Schema.Array(
+    Schema.String.pipe(Schema.check(Schema.isMinLength(3), Schema.isMaxLength(240))),
+  ).pipe(Schema.check(Schema.isMinLength(1), Schema.isMaxLength(8))),
+});
+
+export const AuthorSkillInput = Schema.Struct({
+  name: Schema.String.pipe(Schema.check(Schema.isMinLength(2), Schema.isMaxLength(100))),
+  slug: Schema.optional(Schema.String.pipe(Schema.check(Schema.isPattern(/^[a-z0-9-]{2,80}$/)))),
+  domain: SkillDomain,
+  tier: SkillTier,
+  summary: Schema.String.pipe(Schema.check(Schema.isMinLength(5), Schema.isMaxLength(320))),
+  outcome: Schema.String.pipe(Schema.check(Schema.isMinLength(2), Schema.isMaxLength(120))),
+  tags: Schema.Array(
+    Schema.String.pipe(Schema.check(Schema.isMinLength(1), Schema.isMaxLength(40))),
+  ),
+  levels: Schema.Array(AuthorLevelInput).pipe(
+    Schema.check(Schema.isMinLength(4), Schema.isMaxLength(4)),
+  ),
+});
+export type AuthorSkillInput = typeof AuthorSkillInput.Type;
+
+export const UpdateSkillInput = Schema.Struct({
+  name: Schema.String.pipe(Schema.check(Schema.isMinLength(2), Schema.isMaxLength(100))),
+  domain: SkillDomain,
+  tier: SkillTier,
+  summary: Schema.String.pipe(Schema.check(Schema.isMinLength(5), Schema.isMaxLength(320))),
+  outcome: Schema.String.pipe(Schema.check(Schema.isMinLength(2), Schema.isMaxLength(120))),
+  tags: Schema.Array(
+    Schema.String.pipe(Schema.check(Schema.isMinLength(1), Schema.isMaxLength(40))),
+  ),
+  levels: Schema.optional(
+    Schema.Array(AuthorLevelInput).pipe(Schema.check(Schema.isMinLength(4), Schema.isMaxLength(4))),
+  ),
+  changeNote: Schema.optional(Schema.String.pipe(Schema.check(Schema.isMaxLength(200)))),
+});
+export type UpdateSkillInput = typeof UpdateSkillInput.Type;
+
+export const AddSkillResourceInput = Schema.Struct({
+  level: Level,
+  kind: ResourceKind,
+  title: Schema.String.pipe(Schema.check(Schema.isMinLength(2), Schema.isMaxLength(140))),
+  summary: Schema.String.pipe(Schema.check(Schema.isMaxLength(400))),
+  url: Schema.NullOr(Schema.String.pipe(Schema.check(Schema.isMaxLength(500)))),
+  durationMinutes: Schema.NullOr(
+    Schema.Number.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(1))),
+  ),
+});
+export type AddSkillResourceInput = typeof AddSkillResourceInput.Type;

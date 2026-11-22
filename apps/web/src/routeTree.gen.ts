@@ -19,6 +19,7 @@ import { Route as AppInboxRouteImport } from './routes/_app/inbox'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppAdminAiUsageRouteImport } from './routes/_app/admin/ai-usage'
 import { Route as AppAdminAuditRouteImport } from './routes/_app/admin/audit'
+import { Route as AppAdminPolicyRouteImport } from './routes/_app/admin/policy'
 import { Route as AppObservationsIdRouteImport } from './routes/_app/observations/$id'
 import { Route as AppObservationsNewRouteImport } from './routes/_app/observations/new'
 import { Route as AppPeopleIndexRouteImport } from './routes/_app/people/index'
@@ -78,6 +79,11 @@ const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
   path: '/admin/audit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminPolicyRoute = AppAdminPolicyRouteImport.update({
+  id: '/admin/policy',
+  path: '/admin/policy',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppObservationsIdRoute = AppObservationsIdRouteImport.update({
   id: '/observations/$id',
   path: '/observations/$id',
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/admin/audit': typeof AppAdminAuditRoute
+  '/admin/policy': typeof AppAdminPolicyRoute
   '/observations/$id': typeof AppObservationsIdRoute
   '/observations/new': typeof AppObservationsNewRoute
   '/team/$personId': typeof AppTeamPersonIdRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/admin/audit': typeof AppAdminAuditRoute
+  '/admin/policy': typeof AppAdminPolicyRoute
   '/observations/$id': typeof AppObservationsIdRoute
   '/observations/new': typeof AppObservationsNewRoute
   '/team/$personId': typeof AppTeamPersonIdRoute
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/admin/ai-usage': typeof AppAdminAiUsageRoute
   '/_app/admin/audit': typeof AppAdminAuditRoute
+  '/_app/admin/policy': typeof AppAdminPolicyRoute
   '/_app/observations/$id': typeof AppObservationsIdRoute
   '/_app/observations/new': typeof AppObservationsNewRoute
   '/_app/team/$personId': typeof AppTeamPersonIdRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/ai-usage'
     | '/admin/audit'
+    | '/admin/policy'
     | '/observations/$id'
     | '/observations/new'
     | '/team/$personId'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/ai-usage'
     | '/admin/audit'
+    | '/admin/policy'
     | '/observations/$id'
     | '/observations/new'
     | '/team/$personId'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/admin/ai-usage'
     | '/_app/admin/audit'
+    | '/_app/admin/policy'
     | '/_app/observations/$id'
     | '/_app/observations/new'
     | '/_app/team/$personId'
@@ -328,6 +340,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/policy': {
+      id: '/_app/admin/policy'
+      path: '/admin/policy'
+      fullPath: '/admin/policy'
+      preLoaderRoute: typeof AppAdminPolicyRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/observations/$id': {
       id: '/_app/observations/$id'
       path: '/observations/$id'
@@ -403,6 +422,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppAdminAiUsageRoute: typeof AppAdminAiUsageRoute
   AppAdminAuditRoute: typeof AppAdminAuditRoute
+  AppAdminPolicyRoute: typeof AppAdminPolicyRoute
   AppObservationsIdRoute: typeof AppObservationsIdRoute
   AppObservationsNewRoute: typeof AppObservationsNewRoute
   AppTeamPersonIdRoute: typeof AppTeamPersonIdRoute
@@ -423,6 +443,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppAdminAiUsageRoute: AppAdminAiUsageRoute,
   AppAdminAuditRoute: AppAdminAuditRoute,
+  AppAdminPolicyRoute: AppAdminPolicyRoute,
   AppObservationsIdRoute: AppObservationsIdRoute,
   AppObservationsNewRoute: AppObservationsNewRoute,
   AppTeamPersonIdRoute: AppTeamPersonIdRoute,
