@@ -1,0 +1,1 @@
+ALTER TABLE "plan" DROP CONSTRAINT "plan_agreed_when_live";

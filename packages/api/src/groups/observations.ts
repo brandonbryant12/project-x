@@ -4,11 +4,14 @@ import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import { Authenticated } from '../auth.ts';
 import { Conflict, Forbidden, InvalidTransition, NotFound, Unprocessable } from '../errors.ts';
 import {
+  EligibleObserverSummary,
   InboxView,
   ObservationDraftInput,
   ObservationTransitionInput,
   ObservationView,
   ObserveTarget,
+  QuickPublishInput,
+  QuickRequestInput,
   RequestObservationInput,
   StartObservationInput,
 } from '../models/index.ts';
@@ -21,6 +24,9 @@ export class ObservationsGroup extends HttpApiGroup.make('observations')
     HttpApiEndpoint.get('targets', '/observations/targets', {
       success: Schema.Array(ObserveTarget),
     }),
+    HttpApiEndpoint.get('observers', '/observations/observers', {
+      success: Schema.Array(EligibleObserverSummary),
+    }),
     HttpApiEndpoint.get('get', '/observations/:id', {
       params: { id: ObservationId },
       success: ObservationView,
@@ -31,8 +37,18 @@ export class ObservationsGroup extends HttpApiGroup.make('observations')
       success: ObservationView,
       error: lifecycleErrors,
     }),
+    HttpApiEndpoint.post('requestQuick', '/observations/request-quick', {
+      payload: QuickRequestInput,
+      success: ObservationView,
+      error: lifecycleErrors,
+    }),
     HttpApiEndpoint.post('start', '/observations/start', {
       payload: StartObservationInput,
+      success: ObservationView,
+      error: lifecycleErrors,
+    }),
+    HttpApiEndpoint.post('publishQuick', '/observations/publish-quick', {
+      payload: QuickPublishInput,
       success: ObservationView,
       error: lifecycleErrors,
     }),

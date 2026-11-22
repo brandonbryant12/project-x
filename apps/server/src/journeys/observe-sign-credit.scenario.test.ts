@@ -57,7 +57,7 @@ layer(ScenarioLayer, { timeout: 60_000 })('observe → sign → credit', (it) =>
                   credit: true,
                 },
               ],
-              narrativeSaw: 'Good call.',
+              narrativeSaw: 'Good.',
               narrativeNext: '',
             },
           })

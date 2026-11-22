@@ -31,12 +31,24 @@ export interface BadgeCriteriaConfig {
   readonly minSpanDays: number;
 }
 
-/** Defaults; tenants may tune the numbers, never the structure (ADR 0007). */
-export const DEFAULT_BADGE_CRITERIA: BadgeCriteriaConfig = {
+/** Strict enterprise preset: multi-observer, 4-week span (ADR 0007). */
+export const STRICT_BADGE_CRITERIA: BadgeCriteriaConfig = {
   minDemonstrations: 3,
   minObservers: 2,
   minFirstHandShare: 0.5,
   minSpanDays: 28,
+};
+
+/**
+ * Active defaults (simplified POC preset): 2 observations (at least 1 first-hand),
+ * no multi-week wait or second-observer lock. Tenants can tighten to
+ * `STRICT_BADGE_CRITERIA` via tenant settings without code changes.
+ */
+export const DEFAULT_BADGE_CRITERIA: BadgeCriteriaConfig = {
+  minDemonstrations: 2,
+  minObservers: 1,
+  minFirstHandShare: 0.5,
+  minSpanDays: 0,
 };
 
 export type CriterionKey = 'demonstrations' | 'observers' | 'firstHand' | 'span';
@@ -100,34 +112,46 @@ export const evaluateBadge = (
   const span = first !== undefined && last !== undefined ? daysBetween(first, last) : 0;
   const levelName = LEVEL_NAMES[level].toLowerCase();
 
-  const criteria: ReadonlyArray<Criterion> = [
+  const criteria: Array<Criterion> = [
     criterion(
       'demonstrations',
       demonstrations,
       config.minDemonstrations,
-      `${Math.min(demonstrations, config.minDemonstrations)} of ${config.minDemonstrations} times observed at ${levelName} or above`,
-    ),
-    criterion(
-      'observers',
-      observers,
-      config.minObservers,
-      `${Math.min(observers, config.minObservers)} of ${config.minObservers} ${plural(config.minObservers, 'observer')}`,
-    ),
-    criterion(
-      'firstHand',
-      firstHandInteractions.size,
-      firstHandNeeded,
-      `${Math.min(firstHandInteractions.size, firstHandNeeded)} of ${firstHandNeeded} seen first-hand`,
-    ),
-    criterion(
-      'span',
-      span,
-      config.minSpanDays,
-      span >= config.minSpanDays
-        ? `Over ${Math.floor(span / 7)} weeks`
-        : `${Math.floor(span / 7)} of ${Math.ceil(config.minSpanDays / 7)} weeks`,
+      `${Math.min(demonstrations, config.minDemonstrations)} of ${config.minDemonstrations} ${plural(config.minDemonstrations, 'observation')} at ${levelName} or above`,
     ),
   ];
+  if (config.minObservers > 1) {
+    criteria.push(
+      criterion(
+        'observers',
+        observers,
+        config.minObservers,
+        `${Math.min(observers, config.minObservers)} of ${config.minObservers} ${plural(config.minObservers, 'observer')}`,
+      ),
+    );
+  }
+  if (config.minFirstHandShare > 0) {
+    criteria.push(
+      criterion(
+        'firstHand',
+        firstHandInteractions.size,
+        firstHandNeeded,
+        `${Math.min(firstHandInteractions.size, firstHandNeeded)} of ${firstHandNeeded} seen first-hand`,
+      ),
+    );
+  }
+  if (config.minSpanDays > 0) {
+    criteria.push(
+      criterion(
+        'span',
+        span,
+        config.minSpanDays,
+        span >= config.minSpanDays
+          ? `Over ${Math.floor(span / 7)} weeks`
+          : `${Math.floor(span / 7)} of ${Math.ceil(config.minSpanDays / 7)} weeks`,
+      ),
+    );
+  }
 
   return { level, met: criteria.every((c) => c.met), criteria, demonstrations };
 };

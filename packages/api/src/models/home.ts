@@ -1,6 +1,7 @@
 import { EngagementId, EngagementLifecycle, IsoDate, PlanId, PlanLifecycle } from '@repo/domain';
 import { Schema } from 'effect';
-import { Instant, PersonSummary, SkillRef } from './common.ts';
+import { Instant, PersonSummary, ProgressView, SkillRef } from './common.ts';
+import { EligibleObserverSummary } from './observations.ts';
 
 export const QueueItem = Schema.Struct({
   kind: Schema.Literals([
@@ -72,6 +73,10 @@ export const HomeView = Schema.Struct({
   leader: Schema.NullOr(PersonSummary),
   /** Observers: people worth observing this week, at most three. Part of "Waiting on you". */
   toObserve: Schema.Array(ObserveSuggestion),
+  /** Focus skill progress right on Home for visual skill cards. */
+  progress: Schema.Array(ProgressView),
+  /** People who can observe the current user today (for 1-click feedback requests). */
+  eligibleObservers: Schema.Array(EligibleObserverSummary),
   /** Program owners: the adoption view's first two numbers (ADR 0021). Null for everyone else. */
   programHealth: Schema.NullOr(
     Schema.Struct({

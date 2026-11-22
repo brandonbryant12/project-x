@@ -1,6 +1,7 @@
 import type {
   Actor,
   AdvisoryView,
+  EligibleObserverSummary,
   InboxItem,
   ObservationEventType,
   ObservationView,
@@ -12,6 +13,7 @@ import {
   ObservationLifecycle,
   canReadNarrative,
   developmentAccess,
+  eligibleObserversOf,
   type EvidenceStatus,
   type InteractionKind,
   type Level,
@@ -561,4 +563,18 @@ export const buildTargets = Effect.fn('observations.targets')(function* (actor: 
     });
   }
   return result.toSorted((a, b) => a.person.displayName.localeCompare(b.person.displayName));
+});
+
+/** People eligible to observe the current actor today (coaches, leader, designees). */
+export const buildObservers = Effect.fn('observations.observers')(function* (actor: Actor) {
+  const facts = yield* loadRelationshipFacts(actor.tenantId);
+  const eligible = eligibleObserversOf(facts, actor.personId, yield* today);
+  const people = yield* loadPeople(
+    actor.tenantId,
+    eligible.map((e) => e.personId),
+  );
+  return eligible.map((e): EligibleObserverSummary => ({
+    person: personFrom(people, e.personId),
+    basis: e.basis,
+  }));
 });

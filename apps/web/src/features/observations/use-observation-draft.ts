@@ -1,5 +1,11 @@
 import type { ObservationView, RatingInput } from '@repo/api';
-import type { Level, ObservationMode, SkillId, SkillIndicatorId } from '@repo/domain';
+import {
+  MIN_NARRATIVE_LENGTH,
+  type Level,
+  type ObservationMode,
+  type SkillId,
+  type SkillIndicatorId,
+} from '@repo/domain';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { call, queryOptions } from '@/lib/api.ts';
@@ -26,7 +32,7 @@ export type SaveState =
   | { readonly kind: 'failed' }
   | { readonly kind: 'conflict' };
 
-export const MIN_SAW = 40;
+export const MIN_SAW = MIN_NARRATIVE_LENGTH;
 
 const fromView = (view: ObservationView): Draft => ({
   mode: view.mode,

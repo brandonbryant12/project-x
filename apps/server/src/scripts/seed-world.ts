@@ -386,6 +386,7 @@ const scenario = (world: Effect.Success<typeof seedDirectoryAndCatalog>) =>
                 skillId: skill(slug),
                 targetLevel,
               })),
+              startActive: false,
             }),
           ),
         );

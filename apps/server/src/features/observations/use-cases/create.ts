@@ -1,18 +1,23 @@
+import { Decisions } from '@repo/ai';
 import {
   CurrentActor,
   Conflict,
   NotFound,
   Unprocessable,
+  type QuickRequestInput,
   type RequestObservationInput,
   type StartObservationInput,
 } from '@repo/api';
 import {
   ActivityId,
   ActivityLifecycle,
+  EvidenceId,
   InteractionId,
+  LOG_WINDOW_DAYS,
   OBSERVE_WINDOW_DAYS,
   ObservationId,
   OPEN_OBSERVATION_STATES,
+  screenLocally,
   type ActivityStatus,
   type SkillId,
   type SkillVersionId,
@@ -21,6 +26,7 @@ import {
 import { Db, schema, transactionally } from '@repo/db';
 import { and, eq, inArray } from 'drizzle-orm';
 import { Effect } from 'effect';
+import { afterCommit } from '../../../platform/background-context.ts';
 import {
   BusinessTimeZone,
   addDaysIso,
@@ -28,7 +34,9 @@ import {
   now,
   today,
 } from '../../../platform/time.ts';
+import { screenEvidenceWithAssistant } from '../../shared/advisory/evidence-screening.ts';
 import { recordAudit } from '../../shared/audit.ts';
+import { digestOf } from '../../shared/notes.ts';
 import { notify } from '../../shared/notify.ts';
 import { basisEdge } from '../../shared/relationships.ts';
 import { currentPlanOf } from '../../shared/plans.ts';
@@ -268,4 +276,150 @@ export const startObservation = Effect.fn('useCase.startObservation')(function* 
     }),
   );
   return id;
+});
+
+/**
+ * One-shot feedback request: logs the work and sends the observation request in
+ * a single atomic transaction. Removes the two-modal friction for advisors.
+ */
+export const requestQuickObservation = Effect.fn('useCase.requestQuickObservation')(function* (
+  input: QuickRequestInput,
+) {
+  const actor = yield* CurrentActor;
+  const db = yield* Db;
+  const decisions = yield* Decisions;
+  const on = yield* today;
+  if (input.occurredOn > on) {
+    return yield* Effect.fail(
+      new Unprocessable({ message: 'Log work that has already happened.', field: 'occurredOn' }),
+    );
+  }
+  if (input.occurredOn < addDaysIso(on, -LOG_WINDOW_DAYS)) {
+    return yield* Effect.fail(
+      new Unprocessable({
+        message: `Log work within ${LOG_WINDOW_DAYS} days of doing it.`,
+        field: 'occurredOn',
+      }),
+    );
+  }
+  const note = input.note?.trim() ?? '';
+  if (note.length > 0) {
+    const check = screenLocally(note);
+    if (check.held) {
+      return yield* Effect.fail(
+        new Unprocessable({
+          message: `Your note appears to include client details (${check.reasons.join('; ').toLowerCase()}). Remove client names or account details before sending.`,
+          field: 'note',
+        }),
+      );
+    }
+  }
+  const basis = yield* requireEligible(actor.tenantId, {
+    observerId: input.observerId,
+    subjectId: actor.personId,
+    on: input.occurredOn,
+  });
+  const versions = yield* currentVersions(actor.tenantId, input.skillIds);
+  const edge = yield* basisEdge(actor.tenantId, {
+    observerId: input.observerId,
+    subjectId: actor.personId,
+    on: input.occurredOn,
+    basis,
+  });
+  const activityId = ActivityId.generate();
+  const interactionId = InteractionId.generate();
+  const observationId = ObservationId.generate();
+  const evidenceId = note.length > 0 ? EvidenceId.generate() : null;
+  const dueAt = yield* dueDate(actor.tenantId);
+  const title = input.title?.trim() || INTERACTION_KIND_LABELS[input.kind];
+
+  yield* transactionally(
+    Effect.gen(function* () {
+      const plan = yield* currentPlanOf(actor.tenantId, actor.personId);
+      const at = yield* now;
+      yield* db.insert(schema.activity).values({
+        id: activityId,
+        tenantId: actor.tenantId,
+        planId: plan?.id ?? null,
+        ownerId: actor.personId,
+        title,
+        origin: 'ad_hoc',
+        status: 'underway',
+      });
+      yield* db.insert(schema.activitySkill).values(
+        input.skillIds.map((skillId, position) => ({
+          tenantId: actor.tenantId,
+          activityId,
+          skillId,
+          position,
+        })),
+      );
+      yield* db.insert(schema.interaction).values({
+        id: interactionId,
+        tenantId: actor.tenantId,
+        activityId,
+        ownerId: actor.personId,
+        loggedById: actor.personId,
+        occurredOn: input.occurredOn,
+        kind: input.kind,
+        clientRef: null,
+        createdAt: at,
+      });
+      if (evidenceId) {
+        yield* db.insert(schema.evidence).values({
+          id: evidenceId,
+          tenantId: actor.tenantId,
+          interactionId,
+          authorId: actor.personId,
+          body: note,
+          contentDigest: digestOf(note),
+          status: 'available',
+          holdReason: null,
+        });
+      }
+      yield* db.insert(schema.observation).values({
+        id: observationId,
+        tenantId: actor.tenantId,
+        createdAt: at,
+        interactionId,
+        subjectId: actor.personId,
+        observerId: input.observerId,
+        requestedById: actor.personId,
+        basis,
+        ...edge,
+        mode: input.mode,
+        status: 'requested',
+        dueAt,
+      });
+      yield* db
+        .insert(schema.observationRating)
+        .values(ratingRows(actor.tenantId, observationId, input.skillIds, versions));
+      yield* recordAudit(actor, {
+        entityType: 'interaction',
+        entityId: interactionId,
+        event: 'LOG',
+        data: { kind: input.kind, quickRequest: true },
+      });
+      yield* recordAudit(actor, {
+        entityType: 'observation',
+        entityId: observationId,
+        event: 'REQUEST',
+        to: 'requested',
+        data: { observerId: input.observerId, basis, mode: input.mode },
+        ...(note.length > 0 && { note: { kind: 'request' as const, body: note } }),
+      });
+      yield* notify(actor.tenantId, {
+        recipientId: input.observerId,
+        kind: 'observation_requested',
+        entityType: 'observation',
+        entityId: observationId,
+        actorId: actor.personId,
+        dueOn: businessDateIn(dueAt, yield* BusinessTimeZone),
+      });
+    }),
+  );
+  if (evidenceId && decisions.availability.enabled) {
+    yield* afterCommit(screenEvidenceWithAssistant(actor, evidenceId));
+  }
+  return observationId;
 });

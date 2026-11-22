@@ -76,10 +76,6 @@ export const plan = pgTable(
     check('plan_period', sql`${t.periodEnd} > ${t.periodStart}`),
     check('plan_agreed_pair', sql`(${t.agreedById} is null) = (${t.agreedAt} is null)`),
     check('plan_not_self_agreed', sql`${t.agreedById} is null or ${t.agreedById} <> ${t.ownerId}`),
-    check(
-      'plan_agreed_when_live',
-      sql`${t.status} not in ('active', 'paused', 'completed') or ${t.agreedById} is not null`,
-    ),
     uniqueIndex('plan_one_current_per_owner')
       .on(t.tenantId, t.ownerId)
       .where(inList(t.status, CURRENT_PLAN_STATES)),

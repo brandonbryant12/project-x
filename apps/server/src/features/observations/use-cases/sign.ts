@@ -5,6 +5,7 @@ import {
   Unprocessable,
   type Actor,
   type ObservationDraftInput,
+  type QuickPublishInput,
 } from '@repo/api';
 import {
   CreditId,
@@ -29,6 +30,7 @@ import { notify } from '../../shared/notify.ts';
 import { decide, requireUpdated } from '../../shared/mutation.ts';
 import { digestOf } from '../../shared/notes.ts';
 import { awardEarnedBadges, lockPersonLedger } from '../../shared/recognition.ts';
+import { startObservation } from './create.ts';
 import { currentVersions, loadVisible, requireEligible } from './shared.ts';
 
 type ObservationRow = typeof schema.observation.$inferSelect;
@@ -283,4 +285,57 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
     }),
   );
   return { awarded };
+});
+
+/**
+ * One-shot publish for observer-initiated feedback ("Give feedback").
+ * Pre-validates narrative and ratings so failed input never leaves an orphan
+ * draft, then starts and signs through `signObservation` (preserving I2).
+ */
+export const publishQuickObservation = Effect.fn('useCase.publishQuickObservation')(function* (
+  input: QuickPublishInput,
+) {
+  if (
+    input.ratings.length === 0 ||
+    input.ratings.length > MAX_SKILLS_PER_OBSERVATION ||
+    input.ratings.some((r) => r.level === null)
+  ) {
+    return yield* Effect.fail(
+      new Unprocessable({ message: 'Choose a level for each skill.', field: 'ratings' }),
+    );
+  }
+  if (input.narrativeSaw.trim().length < MIN_NARRATIVE_LENGTH) {
+    return yield* Effect.fail(
+      new Unprocessable({
+        message: `Write at least ${MIN_NARRATIVE_LENGTH} characters about what you saw.`,
+        field: 'narrativeSaw',
+      }),
+    );
+  }
+  const narrativeScreen = screenLocally(`${input.narrativeSaw}\n${input.narrativeNext}`);
+  if (narrativeScreen.held) {
+    return yield* Effect.fail(
+      new Unprocessable({
+        message: `Your note appears to include client details (${narrativeScreen.reasons.join('; ').toLowerCase()}). Remove them to publish.`,
+        field: 'narrativeSaw',
+      }),
+    );
+  }
+  const id = yield* startObservation({
+    subjectId: input.subjectId,
+    activityId: input.activityId,
+    title: input.title,
+    occurredOn: input.occurredOn,
+    kind: input.kind,
+    mode: input.mode,
+    skillIds: input.ratings.map((r) => r.skillId),
+  });
+  yield* signObservation(id, {
+    version: 1,
+    mode: input.mode,
+    ratings: input.ratings,
+    narrativeSaw: input.narrativeSaw,
+    narrativeNext: input.narrativeNext,
+  });
+  return id;
 });

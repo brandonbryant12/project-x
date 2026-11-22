@@ -75,7 +75,7 @@ describe('observation', () => {
 
   it('refuses to sign without complete ratings, a real narrative, or under a privacy hold', () => {
     expect(L.next('drafting', { ...ready, ratingsComplete: false }, { type: 'SIGN' })).toBeNull();
-    expect(L.next('drafting', { ...ready, narrativeLength: 12 }, { type: 'SIGN' })).toBeNull();
+    expect(L.next('drafting', { ...ready, narrativeLength: 4 }, { type: 'SIGN' })).toBeNull();
     expect(L.next('drafting', { ...ready, privacyHold: true }, { type: 'SIGN' })).toBeNull();
   });
 
@@ -92,12 +92,9 @@ describe('observation', () => {
 });
 
 describe('plan', () => {
-  it('can be proposed only with 1-3 focus skills and at least one activity', () => {
-    const facts = { focusSkillCount: 2, activityCount: 1, endorsed: false };
+  it('can be proposed with 1-3 focus skills even before activities are logged', () => {
+    const facts = { focusSkillCount: 2, activityCount: 0, endorsed: false };
     expect(PlanLifecycle.next('draft', facts, { type: 'PROPOSE' })).toBe('proposed');
-    expect(
-      PlanLifecycle.next('draft', { ...facts, activityCount: 0 }, { type: 'PROPOSE' }),
-    ).toBeNull();
     expect(
       PlanLifecycle.next('draft', { ...facts, focusSkillCount: 4 }, { type: 'PROPOSE' }),
     ).toBeNull();

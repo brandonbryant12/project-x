@@ -93,6 +93,30 @@ export const PlanView = Schema.Struct({
 });
 export type PlanView = typeof PlanView.Type;
 
+export const RecentObservationItem = Schema.Struct({
+  id: ObservationId,
+  status: ObservationLifecycle.Status,
+  occurredOn: IsoDate,
+  signedAt: Schema.NullOr(Instant),
+  activityTitle: Schema.String,
+  kind: InteractionKind,
+  observer: PersonSummary,
+  mode: ObservationMode,
+  ratings: Schema.Array(
+    Schema.Struct({
+      skill: SkillRef,
+      level: Schema.NullOr(Schema.Number),
+      levelName: Schema.NullOr(Schema.String),
+      credit: Schema.Boolean,
+    }),
+  ),
+  narrativeSaw: Schema.String,
+  narrativeNext: Schema.String,
+  narrativeVisible: Schema.Boolean,
+  evidenceStatus: Schema.NullOr(EvidenceLifecycle.Status),
+});
+export type RecentObservationItem = typeof RecentObservationItem.Type;
+
 export const DevelopmentView = Schema.Struct({
   person: PersonSummary,
   plan: Schema.NullOr(PlanView),
@@ -106,10 +130,12 @@ export const DevelopmentView = Schema.Struct({
   ),
   /** Progress for skills with credit outside the current plan's focus. */
   otherProgress: Schema.Array(ProgressView),
+  /** Recent signed and open observations, newest first, for a clean coaching timeline. */
+  recentObservations: Schema.Array(RecentObservationItem),
 });
 export type DevelopmentView = typeof DevelopmentView.Type;
 
-const Title = Schema.String.pipe(Schema.check(Schema.isMinLength(3), Schema.isMaxLength(120)));
+const Title = Schema.String.pipe(Schema.check(Schema.isMinLength(1), Schema.isMaxLength(120)));
 const SkillIds = (max: number) =>
   Schema.Array(SkillId).pipe(Schema.check(Schema.isMinLength(1), Schema.isMaxLength(max)));
 
@@ -123,6 +149,8 @@ export const CreatePlanInput = Schema.Struct({
   focusSkills: Schema.Array(FocusSkillInput).pipe(
     Schema.check(Schema.isMinLength(1), Schema.isMaxLength(3)),
   ),
+  /** Defaults to true (instant-active); pass false to start in draft for formal agreement. */
+  startActive: Schema.optional(Schema.Boolean),
 });
 export type CreatePlanInput = typeof CreatePlanInput.Type;
 
@@ -158,7 +186,7 @@ export const LogInteractionInput = Schema.Struct({
   occurredOn: IsoDate,
   kind: InteractionKind,
   clientRef: Schema.NullOr(Schema.String.pipe(Schema.check(Schema.isMaxLength(64)))),
-  reflection: Schema.String.pipe(Schema.check(Schema.isMinLength(10), Schema.isMaxLength(4000))),
+  reflection: Schema.String.pipe(Schema.check(Schema.isMaxLength(4000))),
 });
 export type LogInteractionInput = typeof LogInteractionInput.Type;
 

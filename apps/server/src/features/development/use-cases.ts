@@ -99,6 +99,7 @@ export const createPlan = Effect.fn('useCase.createPlan')(function* (input: Crea
     return yield* Effect.fail(new Conflict({ message: 'You already have a current plan.' }));
   }
   const id = PlanId.generate();
+  const initialStatus: PlanStatus = input.startActive === false ? 'draft' : 'active';
   yield* transactionally(
     Effect.gen(function* () {
       yield* db.insert(schema.plan).values({
@@ -109,7 +110,7 @@ export const createPlan = Effect.fn('useCase.createPlan')(function* (input: Crea
         intent: input.intent,
         periodStart: input.periodStart,
         periodEnd: input.periodEnd,
-        status: 'draft',
+        status: initialStatus,
       });
       yield* db.insert(schema.planSkill).values(
         input.focusSkills.map((f, position) => ({
@@ -120,7 +121,12 @@ export const createPlan = Effect.fn('useCase.createPlan')(function* (input: Crea
           position,
         })),
       );
-      yield* recordAudit(actor, { entityType: 'plan', entityId: id, event: 'CREATE', to: 'draft' });
+      yield* recordAudit(actor, {
+        entityType: 'plan',
+        entityId: id,
+        event: 'CREATE',
+        to: initialStatus,
+      });
     }),
   );
   return id;
@@ -139,10 +145,10 @@ export const updatePlan = Effect.fn('useCase.updatePlan')(function* (
   if (PlanLifecycle.isTerminal(plan.status as PlanStatus) && input.closingSummary === undefined) {
     return yield* Effect.fail(new Unprocessable({ message: 'This plan is closed.' }));
   }
-  if (input.focusSkills && plan.status !== 'draft') {
+  if (input.focusSkills && plan.status !== 'draft' && plan.status !== 'active') {
     return yield* Effect.fail(
       new Unprocessable({
-        message: 'Focus skills can change while the plan is a draft. Revise it first.',
+        message: 'Focus skills can change while the plan is active or a draft.',
         field: 'focusSkills',
       }),
     );
@@ -238,7 +244,7 @@ export const planEvent = Effect.fn('useCase.planEvent')(function* (
         ? 'Plans are agreed by the owner’s coach, or by their leader if they have no coach.'
         : 'You cannot change this plan.',
     ...(event === 'PROPOSE' && {
-      explain: 'Add one to three focus skills and at least one piece of work before proposing.',
+      explain: 'Add one to three focus skills before proposing.',
     }),
   });
   const at = yield* now;

@@ -214,3 +214,37 @@ export const ObserveTarget = Schema.Struct({
   focusSkills: Schema.Array(SkillRef),
 });
 export type ObserveTarget = typeof ObserveTarget.Type;
+
+export const EligibleObserverSummary = Schema.Struct({
+  person: PersonSummary,
+  basis: ObserverBasis,
+});
+export type EligibleObserverSummary = typeof EligibleObserverSummary.Type;
+
+/** One-shot feedback request: logs the work and sends the observation request together. */
+export const QuickRequestInput = Schema.Struct({
+  observerId: PersonId,
+  skillIds: SkillIds,
+  kind: InteractionKind,
+  title: Schema.NullOr(Schema.String.pipe(Schema.check(Schema.isMaxLength(120)))),
+  occurredOn: IsoDate,
+  mode: ObservationMode,
+  note: Schema.NullOr(Schema.String.pipe(Schema.check(Schema.isMaxLength(2000)))),
+});
+export type QuickRequestInput = typeof QuickRequestInput.Type;
+
+/** One-shot feedback publish: records the observation and signs it in one step. */
+export const QuickPublishInput = Schema.Struct({
+  subjectId: PersonId,
+  activityId: Schema.NullOr(ActivityId),
+  title: Schema.NullOr(Schema.String.pipe(Schema.check(Schema.isMaxLength(120)))),
+  occurredOn: IsoDate,
+  kind: InteractionKind,
+  mode: ObservationMode,
+  ratings: Schema.Array(RatingInput).pipe(
+    Schema.check(Schema.isMinLength(1), Schema.isMaxLength(3)),
+  ),
+  narrativeSaw: Schema.String.pipe(Schema.check(Schema.isMaxLength(4000))),
+  narrativeNext: Schema.String.pipe(Schema.check(Schema.isMaxLength(4000))),
+});
+export type QuickPublishInput = typeof QuickPublishInput.Type;

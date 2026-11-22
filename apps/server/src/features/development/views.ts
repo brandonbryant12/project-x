@@ -6,6 +6,7 @@ import type {
   InteractionView,
   PlanView,
   PersonSummary,
+  RecentObservationItem,
 } from '@repo/api';
 import {
   ActivityLifecycle,
@@ -333,11 +334,119 @@ const loadTemplates = Effect.fn('development.templates')(function* (
   return new Map<string, string>(rows.map((r) => [r.id, r.name]));
 });
 
+const recentObservationsFor = Effect.fn('development.recentObservations')(function* (
+  actor: Actor,
+  personId: PersonId,
+  on: IsoDate,
+) {
+  const db = yield* Db;
+  const facts = yield* loadRelationshipFacts(actor.tenantId);
+  const rows = yield* db
+    .select()
+    .from(schema.observation)
+    .where(
+      and(
+        eq(schema.observation.tenantId, actor.tenantId),
+        eq(schema.observation.subjectId, personId),
+        inArray(schema.observation.status, [
+          'signed',
+          'under_review',
+          'requested',
+          'drafting',
+          'returned',
+        ]),
+      ),
+    )
+    .orderBy(desc(schema.observation.updatedAt))
+    .limit(25);
+  if (rows.length === 0) return [] as Array<RecentObservationItem>;
+  const obsIds = rows.map((r) => r.id);
+  const interactionIds = rows.map((r) => r.interactionId);
+  const [interactions, ratings, evidence] = yield* Effect.all([
+    db.select().from(schema.interaction).where(inArray(schema.interaction.id, interactionIds)),
+    db
+      .select()
+      .from(schema.observationRating)
+      .where(inArray(schema.observationRating.observationId, obsIds))
+      .orderBy(schema.observationRating.position),
+    db.select().from(schema.evidence).where(inArray(schema.evidence.interactionId, interactionIds)),
+  ]);
+  const activities = interactions.length
+    ? yield* db
+        .select({ id: schema.activity.id, title: schema.activity.title })
+        .from(schema.activity)
+        .where(
+          inArray(
+            schema.activity.id,
+            interactions.map((i) => i.activityId),
+          ),
+        )
+    : [];
+  const [people, skills] = yield* Effect.all([
+    loadPeople(
+      actor.tenantId,
+      rows.map((r) => r.observerId),
+    ),
+    loadSkills(
+      actor.tenantId,
+      ratings.map((r) => r.skillId),
+    ),
+  ]);
+  const activityById = new Map(activities.map((a) => [a.id, a.title]));
+  const interactionById = new Map(interactions.map((i) => [i.id, i]));
+  const items: Array<RecentObservationItem> = [];
+  for (const row of rows) {
+    const interaction = interactionById.get(row.interactionId);
+    if (!interaction) continue;
+    const isObserver = row.observerId === actor.personId;
+    const draftHidden = row.signedAt === null && !isObserver;
+    const narrativeVisible =
+      !draftHidden &&
+      canReadNarrative(facts, {
+        viewerId: actor.personId,
+        subjectId: row.subjectId,
+        observerId: row.observerId,
+        on,
+      });
+    const ev = evidence.filter((e) => e.interactionId === interaction.id).at(-1);
+    const obsRatings = ratings.filter((r) => r.observationId === row.id);
+    items.push({
+      id: row.id,
+      status: row.status as ObservationStatus,
+      occurredOn: interaction.occurredOn,
+      signedAt: row.signedAt?.toISOString() ?? null,
+      activityTitle: activityById.get(interaction.activityId) ?? 'Work',
+      kind: interaction.kind as InteractionKind,
+      observer: personFrom(people, row.observerId),
+      mode: row.mode as ObservationMode,
+      ratings: obsRatings.flatMap((r) => {
+        const skill = skills.get(r.skillId);
+        if (!skill) return [];
+        const level = draftHidden ? null : r.level;
+        return [
+          {
+            skill: toSkillRef(skill),
+            level,
+            levelName: level !== null ? LEVEL_NAMES[level as 1 | 2 | 3 | 4] : null,
+            credit: r.credit,
+          },
+        ];
+      }),
+      narrativeSaw: narrativeVisible ? (row.narrativeSaw ?? '') : '',
+      narrativeNext: narrativeVisible ? (row.narrativeNext ?? '') : '',
+      narrativeVisible,
+      evidenceStatus: (ev?.status as EvidenceStatus | undefined) ?? null,
+    });
+  }
+  return items.toSorted((a, b) => b.occurredOn.localeCompare(a.occurredOn));
+});
+
 export const buildDevelopmentView = Effect.fn('development.view')(function* (
   actor: Actor,
   personId: PersonId,
 ) {
   const db = yield* Db;
+  const on = yield* today;
   const current = yield* currentPlanOf(actor.tenantId, personId);
   const past = yield* db
     .select()
@@ -370,6 +479,7 @@ export const buildDevelopmentView = Effect.fn('development.view')(function* (
       periodEnd: p.periodEnd,
     })),
     otherProgress: yield* progressFor(actor.tenantId, personId, other),
+    recentObservations: yield* recentObservationsFor(actor, personId, on),
   } satisfies DevelopmentView;
 });
 

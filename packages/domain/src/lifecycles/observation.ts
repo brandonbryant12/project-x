@@ -20,7 +20,7 @@ export interface ObservationFacts {
   readonly acknowledged: boolean;
 }
 
-export const MIN_NARRATIVE_LENGTH = 40;
+export const MIN_NARRATIVE_LENGTH = 10;
 
 export type ObservationEvent =
   | { readonly type: 'START' }

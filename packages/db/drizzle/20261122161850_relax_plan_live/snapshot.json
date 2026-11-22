@@ -1,0 +1,37 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "76180086-6367-436f-870e-008e672a3bc4",
+  "prevIds": [
+    "7ca2eb63-1f10-464f-ba14-6eeb67d0ed78"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "plan"
+      ],
+      "writes": [
+        "s|ck|public.plan.plan_agreed_when_live",
+        "n|ck|public.plan.plan_agreed_when_live",
+        "e|ck|public.plan.plan_agreed_when_live",
+        "n|con|public.plan.plan_agreed_when_live"
+      ],
+      "reads": [
+        "n|tbl|public.plan",
+        "n|sch|public",
+        "e|col|public.plan.status",
+        "e|col|public.plan.agreed_by_id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"public\",\"plan\",\"plan_agreed_when_live\"]"
+    }
+  ]
+}

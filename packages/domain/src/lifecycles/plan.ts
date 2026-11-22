@@ -29,9 +29,7 @@ const planMachine = setup({
   types: { context: {} as PlanFacts, events: {} as PlanEvent },
   guards: {
     proposable: ({ context }) =>
-      context.focusSkillCount >= 1 &&
-      context.focusSkillCount <= MAX_FOCUS_SKILLS &&
-      context.activityCount >= 1,
+      context.focusSkillCount >= 1 && context.focusSkillCount <= MAX_FOCUS_SKILLS,
     notEndorsed: ({ context }) => !context.endorsed,
   },
 }).createMachine({
@@ -82,7 +80,7 @@ export const PlanLifecycle = defineLifecycle({
     'CANCEL',
     'EXPIRE',
   ],
-  initialStates: ['draft'],
+  initialStates: ['draft', 'active'],
   terminalStates: ['completed', 'canceled', 'expired'],
 });
 

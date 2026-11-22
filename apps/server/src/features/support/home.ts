@@ -5,6 +5,7 @@ import {
   coacheesOf,
   coachesOf,
   directReportsOf,
+  eligibleObserversOf,
   leaderOf,
   type IsoDate,
   type Level,
@@ -247,7 +248,7 @@ const planSummary = Effect.fn('support.home.plan')(function* (actor: Actor) {
   );
   const next = progress.find((p) => p.criteria.some((c) => !c.met)) ?? progress[0];
   const nextStep = next ? { skill: next.skill, sentence: next.nextStep } : null;
-  if (!plan) return { nextStep, plan: null };
+  if (!plan) return { nextStep, plan: null, progress };
   const activities = yield* db
     .select({ id: schema.activity.id })
     .from(schema.activity)
@@ -258,6 +259,7 @@ const planSummary = Effect.fn('support.home.plan')(function* (actor: Actor) {
   );
   return {
     nextStep,
+    progress,
     plan: {
       id: plan.id,
       title: plan.title,
@@ -381,7 +383,7 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
   const facts = yield* loadRelationshipFacts(actor.tenantId);
   const me = actor.personId;
   const queue = yield* needsYouQueue(actor, facts, on);
-  const { nextStep, plan } = yield* planSummary(actor);
+  const { nextStep, plan, progress } = yield* planSummary(actor);
   const recently = yield* recentFeed(actor, facts, on);
   const toObserve = yield* worthObserving(actor, facts, on);
   const coverage = actor.grants.includes('program_owner')
@@ -389,7 +391,12 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
     : null;
   const coachIds = coachesOf(facts, me, on);
   const leaderId = leaderOf(facts, me, on);
-  const support = yield* loadPeople(actor.tenantId, [...coachIds, ...(leaderId ? [leaderId] : [])]);
+  const eligible = eligibleObserversOf(facts, me, on);
+  const support = yield* loadPeople(actor.tenantId, [
+    ...coachIds,
+    ...(leaderId ? [leaderId] : []),
+    ...eligible.map((e) => e.personId),
+  ]);
   const [me$] = yield* db
     .select({ name: schema.person.displayName })
     .from(schema.person)
@@ -401,6 +408,11 @@ export const buildHome = Effect.fn('support.home')(function* (actor: Actor) {
     nextStep,
     recently: recently.slice(0, 6),
     plan,
+    progress,
+    eligibleObservers: eligible.map((e) => ({
+      person: personFrom(support, e.personId),
+      basis: e.basis,
+    })),
     coaches: coachIds.map((id) => personFrom(support, id)),
     leader: leaderId ? personFrom(support, leaderId) : null,
     toObserve,
