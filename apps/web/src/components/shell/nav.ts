@@ -1,5 +1,6 @@
 import type { SessionView } from '@repo/api';
 import {
+  BookOpenIcon,
   ChartNoAxesColumnIcon,
   CompassIcon,
   HandshakeIcon,
@@ -26,40 +27,56 @@ export interface NavGroup {
 }
 
 /**
- * Navigation adapts to the relationships a person has (ux-brief §1), and stays
- * short: an advisor sees Home, My plan and Skills. Observers add what waits for
- * their signature and the people they support. People is reached from search;
- * profile and notifications from the account menu; coaching from "Your support".
+ * Navigation separates "My growth" from "Coaching others" so advisors, leaders,
+ * and coaches immediately understand where their own progress lives vs. where
+ * they support others.
  */
 export const navFor = (session: SessionView): ReadonlyArray<NavGroup> => {
   const { relations, grants } = session;
   const groups: Array<NavGroup> = [
     {
       label: null,
+      items: [{ key: 'home', label: 'Home', to: '/', icon: HomeIcon }],
+    },
+    {
+      label: 'My growth',
       items: [
-        { key: 'home', label: 'Home', to: '/', icon: HomeIcon },
-        ...(relations.canObserve
-          ? [
-              {
-                key: 'inbox',
-                label: 'To sign',
-                to: '/inbox',
-                icon: InboxIcon,
-                badge: 'inbox' as const,
-              },
-            ]
-          : []),
-        { key: 'development', label: 'My plan', to: '/development', icon: SproutIcon },
-        ...(relations.hasReports
-          ? [{ key: 'team', label: 'My team', to: '/team', icon: UsersIcon }]
-          : []),
-        ...(relations.isCoach || relations.hasCoachees
-          ? [{ key: 'coaching', label: 'People I coach', to: '/coaching', icon: HandshakeIcon }]
-          : []),
-        { key: 'skills', label: 'Skills', to: '/catalog/skills', icon: CompassIcon },
+        { key: 'development', label: 'My skills', to: '/development', icon: SproutIcon },
+        { key: 'skills', label: 'Skill catalog', to: '/catalog/skills', icon: CompassIcon },
       ],
     },
   ];
+
+  const coachingItems: Array<NavItem> = [];
+  if (relations.canObserve) {
+    coachingItems.push({
+      key: 'inbox',
+      label: 'Feedback requests',
+      to: '/inbox',
+      icon: InboxIcon,
+      badge: 'inbox',
+    });
+  }
+  if (relations.hasReports) {
+    coachingItems.push({ key: 'team', label: 'My team', to: '/team', icon: UsersIcon });
+  }
+  if (relations.isCoach || relations.hasCoachees) {
+    coachingItems.push({
+      key: 'coaching',
+      label: 'People I coach',
+      to: '/coaching',
+      icon: HandshakeIcon,
+    });
+  }
+  if (coachingItems.length > 0) {
+    groups.push({ label: 'Coaching', items: coachingItems });
+  }
+
+  groups.push({
+    label: 'Directory',
+    items: [{ key: 'people', label: 'People', to: '/people', icon: BookOpenIcon }],
+  });
+
   const admin = grants.includes('tenant_admin');
   if (admin || grants.includes('program_owner')) {
     groups.push({
@@ -71,7 +88,7 @@ export const navFor = (session: SessionView): ReadonlyArray<NavGroup> => {
     groups.push({
       label: 'Governance',
       items: [
-        { key: 'ai-usage', label: 'Assistant checks', to: '/admin/ai-usage', icon: ScanSearchIcon },
+        { key: 'ai-usage', label: 'Privacy checks', to: '/admin/ai-usage', icon: ScanSearchIcon },
         { key: 'audit', label: 'Audit trail', to: '/admin/audit', icon: ScrollTextIcon },
       ],
     });

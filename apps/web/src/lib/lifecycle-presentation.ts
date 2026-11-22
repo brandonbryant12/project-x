@@ -1,5 +1,4 @@
 import type {
-  ActivityStatus,
   EngagementStatus,
   EvidenceStatus,
   ObservationStatus,
@@ -39,14 +38,6 @@ export const PLAN_STATUS: Record<PlanStatus, Presentation> = {
   expired: { label: 'Closed', tone: 'muted' },
 };
 
-export const ACTIVITY_STATUS: Record<ActivityStatus, Presentation> = {
-  planned: { label: 'Planned', tone: 'neutral' },
-  underway: { label: 'Underway', tone: 'primary' },
-  done: { label: 'Done', tone: 'success' },
-  canceled: { label: 'Canceled', tone: 'muted' },
-  expired: { label: 'Closed', tone: 'muted' },
-};
-
 export const ENGAGEMENT_STATUS: Record<EngagementStatus, Presentation> = {
   proposed: { label: 'Proposed', tone: 'info' },
   active: { label: 'Active', tone: 'primary' },
@@ -74,11 +65,6 @@ export const PLAN_EVENT_LABEL: Record<string, string> = {
   RESUME: 'Resume',
   COMPLETE: 'Complete plan',
   CANCEL: 'Cancel plan',
-};
-
-export const ACTIVITY_EVENT_LABEL: Record<string, string> = {
-  COMPLETE: 'Mark done',
-  CANCEL: 'Drop this work',
 };
 
 export const ENGAGEMENT_EVENT_LABEL: Record<string, string> = {

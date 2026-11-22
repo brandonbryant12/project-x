@@ -1,40 +1,36 @@
 import type { HomeView, PersonSummary } from '@repo/api';
 import { Button, Card } from '@repo/ui';
 import { Link } from '@tanstack/react-router';
-import { EyeIcon } from 'lucide-react';
+import {
+  AwardIcon,
+  CompassIcon,
+  MessageSquareHeartIcon,
+  MessageSquarePlusIcon,
+} from 'lucide-react';
 
 const first = (p: PersonSummary) => p.displayName.split(' ')[0] ?? p.displayName;
 
-const FirstRunCard = ({
-  eyebrow,
-  title,
-  children,
-  action,
-}: {
-  readonly eyebrow: string;
-  readonly title: string;
-  readonly children: React.ReactNode;
-  readonly action: React.ReactNode;
-}) => (
-  <Card className="grid gap-4 p-5 md:p-6">
-    <div className="grid gap-2">
-      <p className="text-meta text-ink-3">{eyebrow}</p>
-      <h2 className="font-serif text-h1 font-medium text-ink">{title}</h2>
-      <div className="grid max-w-[60ch] gap-3 text-body text-ink-2">{children}</div>
-    </div>
-    {action}
-  </Card>
-);
-
-const HOW_IT_WORKS = [
-  'Pick a skill.',
-  'Do the work and ask someone who saw it.',
-  'They sign, and it counts.',
+const STEPS = [
+  {
+    icon: CompassIcon,
+    label: '1. Pick 1–3 focus skills',
+    hint: 'Choose what you want to sharpen in your client meetings.',
+  },
+  {
+    icon: MessageSquareHeartIcon,
+    label: '2. Request or get feedback',
+    hint: 'Ask your coach or leader after a real call or review.',
+  },
+  {
+    icon: AwardIcon,
+    label: '3. Earn verified milestones',
+    hint: 'Two observations earn a skill badge with their real notes.',
+  },
 ] as const;
 
 /**
- * The first run for someone with no plan: one next step, said plainly, and who
- * will be on the other side of it. Used on Home and on My plan.
+ * Welcoming, self-explanatory onboarding card for anyone who hasn't picked
+ * focus skills yet. Used on Home and My Skills.
  */
 export const FirstRunStep = ({
   leader,
@@ -43,67 +39,92 @@ export const FirstRunStep = ({
 }: {
   readonly leader: PersonSummary | null;
   readonly coaches: ReadonlyArray<PersonSummary>;
-  /** Open the plan dialog in place; without it the button goes to My plan. */
   readonly onStart?: () => void;
 }) => {
   const coach = coaches[0];
-  const who = [
-    coach ? `${first(coach)}, your coach, agrees it with you` : null,
-    leader ? `${first(leader)}, your leader, can see it and observe that work` : null,
+  const people = [
+    coach ? `${first(coach)} (your coach)` : null,
+    leader ? `${first(leader)} (your leader)` : null,
   ].filter(Boolean);
   return (
-    <FirstRunCard
-      eyebrow="Your first step"
-      title="Start a plan"
-      action={
-        onStart ? (
-          <Button variant="primary" className="justify-self-start" onClick={onStart}>
-            Start a plan
-          </Button>
-        ) : (
-          <Button variant="primary" className="justify-self-start" asChild>
-            <Link to="/development" search={{ start: 'plan' }}>
-              Start a plan
-            </Link>
-          </Button>
-        )
-      }
-    >
-      <p>
-        Choose one to three skills to grow and the work that will show them: a client meeting, an
-        annual review, a call you already have.
-        {who.length > 0 ? ` ${who.join('; ')}.` : ''} Your record begins when someone who saw that
-        work signs what they saw.
-      </p>
-      <ol className="grid gap-1 text-ui text-ink">
-        {HOW_IT_WORKS.map((step, i) => (
-          <li key={step} className="flex gap-2">
-            <span className="w-4 shrink-0 text-ink-3 tabular">{i + 1}.</span> {step}
+    <Card className="grid gap-5 border-primary/25 bg-surface p-5 md:p-6">
+      <div className="grid gap-1.5">
+        <p className="text-meta font-semibold tracking-wider text-primary-ink uppercase">
+          Get started in 30 seconds
+        </p>
+        <h2 className="font-serif text-h1 font-medium text-ink">
+          Pick 1–3 skills you want to grow
+        </h2>
+        <p className="max-w-2xl text-body text-ink-2">
+          Coaching Catalyst tracks real coaching feedback from real client work.
+          {people.length > 0
+            ? ` ${people.join(' and ')} can observe your work and share feedback directly on the skills you pick.`
+            : ' Choose the skills you want to focus on, then request feedback after real client meetings.'}
+        </p>
+      </div>
+
+      <ol className="grid gap-3 sm:grid-cols-3">
+        {STEPS.map((s) => (
+          <li key={s.label} className="flex items-start gap-2.5 rounded-card bg-sunken/80 p-3">
+            <span className="grid size-7 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-ink">
+              <s.icon className="size-3.5" aria-hidden />
+            </span>
+            <div className="grid gap-0.5">
+              <p className="text-ui font-medium text-ink">{s.label}</p>
+              <p className="text-meta text-ink-3">{s.hint}</p>
+            </div>
           </li>
         ))}
       </ol>
-    </FirstRunCard>
+
+      <div className="flex flex-wrap items-center gap-2.5">
+        {onStart ? (
+          <Button variant="primary" onClick={onStart}>
+            Pick my focus skills
+          </Button>
+        ) : (
+          <Button variant="primary" asChild>
+            <Link to="/development" search={{ start: 'plan' }}>
+              Pick my focus skills
+            </Link>
+          </Button>
+        )}
+        <Button variant="secondary" asChild>
+          <Link to="/catalog/skills">Browse skill catalog</Link>
+        </Button>
+      </div>
+    </Card>
   );
 };
 
-/** First run for a leader or coach: the one thing only they can do. */
+/** First run for a leader or coach: highlights giving quick feedback to their people. */
 export const ObserverFirstRun = () => (
-  <FirstRunCard
-    eyebrow="Your first step"
-    title="Seen someone do good work this week?"
-    action={
-      <Button variant="primary" className="justify-self-start" asChild>
+  <Card className="grid gap-4 border-primary/25 bg-surface p-5 md:p-6">
+    <div className="grid gap-1.5">
+      <p className="text-meta font-semibold tracking-wider text-primary-ink uppercase">
+        Ready to coach
+      </p>
+      <h2 className="font-serif text-h1 font-medium text-ink">
+        Seen someone do great work this week?
+      </h2>
+      <p className="max-w-2xl text-body text-ink-2">
+        Capture quick, specific feedback after a client meeting, call recording, or team huddle. It
+        takes under a minute and counts directly toward their skill milestones.
+      </p>
+    </div>
+    <div className="flex flex-wrap gap-2.5">
+      <Button variant="primary" asChild>
         <Link to="/observations/new">
-          <EyeIcon /> I saw this
+          <MessageSquarePlusIcon /> Give feedback
         </Link>
       </Button>
-    }
-  >
-    <p>
-      Write down what you saw in under a minute. Your signature is the only thing that counts toward
-      their badge.
-    </p>
-  </FirstRunCard>
+      <Button variant="secondary" asChild>
+        <Link to="/development" search={{ start: 'plan' }}>
+          Pick my own focus skills
+        </Link>
+      </Button>
+    </div>
+  </Card>
 );
 
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -114,21 +135,24 @@ export const ProgramHealthCard = ({
 }: {
   readonly health: NonNullable<HomeView['programHealth']>;
 }) => (
-  <FirstRunCard
-    eyebrow="Your program"
-    title="Program health"
-    action={
-      <Button variant="primary" className="justify-self-start" asChild>
-        <Link to="/adoption">Open</Link>
+  <Card className="grid gap-4 border-primary/25 bg-surface p-5 md:p-6">
+    <div className="grid gap-1.5">
+      <p className="text-meta font-semibold tracking-wider text-primary-ink uppercase">
+        Your program
+      </p>
+      <h2 className="font-serif text-h1 font-medium text-ink">Program health</h2>
+      <p className="max-w-2xl text-body text-ink-2">
+        {count(health.withPlan, 'person has', 'people have')} active focus skills;{' '}
+        {health.observedRecently === null
+          ? `fewer than ${health.minimumCell} were`
+          : `${health.observedRecently} ${health.observedRecently === 1 ? 'was' : 'were'}`}{' '}
+        observed in the last six weeks.
+      </p>
+    </div>
+    <div>
+      <Button variant="primary" asChild>
+        <Link to="/adoption">View adoption report</Link>
       </Button>
-    }
-  >
-    <p>
-      {count(health.withPlan, 'person has', 'people have')} a plan;{' '}
-      {health.observedRecently === null
-        ? `fewer than ${health.minimumCell} were`
-        : `${health.observedRecently} ${health.observedRecently === 1 ? 'was' : 'were'}`}{' '}
-      observed in the last six weeks.
-    </p>
-  </FirstRunCard>
+    </div>
+  </Card>
 );

@@ -17,3 +17,4 @@ export * from './domain/person.tsx';
 export * from './domain/status.tsx';
 export * from './domain/assistant.tsx';
 export * from './domain/rating.tsx';
+export * from './domain/skill-ladder.tsx';

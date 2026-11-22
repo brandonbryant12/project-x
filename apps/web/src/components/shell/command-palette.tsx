@@ -12,12 +12,12 @@ import {
 } from '@repo/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { CompassIcon, EyeIcon, NotebookPenIcon, SproutIcon, UserIcon } from 'lucide-react';
+import { CompassIcon, MessageSquarePlusIcon, SendIcon, SproutIcon, UserIcon } from 'lucide-react';
 import { useState } from 'react';
 import { queryOptions } from '@/lib/api.ts';
 import { useLogDialog } from './log-dialog-context.tsx';
 
-/** ⌘K: people (the directory lives here, not in the nav), skills and intent ("I saw this: Daniel"). */
+/** ⌘K: quick search across people, skills, and core coaching actions. */
 export const CommandPalette = ({
   open,
   onOpenChange,
@@ -48,24 +48,24 @@ export const CommandPalette = ({
           <CommandInput
             value={q}
             onValueChange={setQ}
-            placeholder="Search people, skills or actions"
+            placeholder="Search people, skills, or actions..."
           />
           <CommandList>
             <CommandEmpty>Nothing matches “{q}”.</CommandEmpty>
             {q === '' ? (
-              <CommandGroup heading="Actions">
+              <CommandGroup heading="Quick actions">
                 <CommandItem onSelect={() => go(() => log.show())}>
-                  <NotebookPenIcon /> Log work I did
+                  <SendIcon /> Ask for feedback
                 </CommandItem>
                 {canObserve ? (
                   <CommandItem
                     onSelect={() => go(() => void navigate({ to: '/observations/new' }))}
                   >
-                    <EyeIcon /> I saw this
+                    <MessageSquarePlusIcon /> Give feedback
                   </CommandItem>
                 ) : null}
                 <CommandItem onSelect={() => go(() => void navigate({ to: '/development' }))}>
-                  <SproutIcon /> My plan
+                  <SproutIcon /> My skills
                 </CommandItem>
               </CommandGroup>
             ) : null}
@@ -93,7 +93,8 @@ export const CommandPalette = ({
                       )
                     }
                   >
-                    <EyeIcon /> I saw this: {card.person.displayName.split(' ')[0]}
+                    <MessageSquarePlusIcon /> Give feedback to{' '}
+                    {card.person.displayName.split(' ')[0]}
                   </CommandItem>
                 ) : null}
               </CommandGroup>
@@ -124,10 +125,10 @@ export const CommandPalette = ({
             {q === '' ? (
               <CommandGroup heading="Go to">
                 <CommandItem onSelect={() => go(() => void navigate({ to: '/people' }))}>
-                  <UserIcon /> People
+                  <UserIcon /> People directory
                 </CommandItem>
                 <CommandItem onSelect={() => go(() => void navigate({ to: '/catalog/skills' }))}>
-                  <CompassIcon /> Skills
+                  <CompassIcon /> Skill catalog
                 </CommandItem>
               </CommandGroup>
             ) : null}

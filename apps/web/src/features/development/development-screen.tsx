@@ -1,10 +1,11 @@
 import type {
   ActivityView,
   DevelopmentView,
-  InteractionSummary,
   PlanView,
   ProgressView,
+  RecentObservationItem,
 } from '@repo/api';
+import { OBSERVATION_MODE_LABELS } from '@repo/domain';
 import {
   BadgeSeal,
   Button,
@@ -12,7 +13,6 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  CriteriaChecklist,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -20,42 +20,50 @@ import {
   EmptyState,
   PersonAvatar,
   PersonChip,
+  Pill,
+  ProgressBar,
   SectionLabel,
+  SkillLadder,
   StatusPill,
   toast,
 } from '@repo/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ChevronDownIcon, EllipsisIcon, PlusIcon } from 'lucide-react';
+import {
+  AlertTriangleIcon,
+  ArrowRightIcon,
+  ChevronDownIcon,
+  EllipsisIcon,
+  MessageSquarePlusIcon,
+  PencilIcon,
+  PlusIcon,
+  SendIcon,
+  SparklesIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import { FirstRunStep } from '@/components/first-run.tsx';
 import { Page, SkillChip } from '@/components/page.tsx';
 import { useLogDialog } from '@/components/shell/log-dialog-context.tsx';
 import { queryOptions, useApiMutation } from '@/lib/api.ts';
 import { formatDate, kindLabel } from '@/lib/format.ts';
-import {
-  ACTIVITY_EVENT_LABEL,
-  ACTIVITY_STATUS,
-  EVIDENCE_STATUS,
-  OBSERVATION_STATUS,
-  PLAN_EVENT_LABEL,
-  PLAN_STATUS,
-} from '@/lib/lifecycle-presentation.ts';
-import { AddActivityDialog, CreatePlanDialog } from './plan-dialogs.tsx';
-import { RequestObservationDialog } from './request-observation-dialog.tsx';
+import { OBSERVATION_STATUS, PLAN_EVENT_LABEL, PLAN_STATUS } from '@/lib/lifecycle-presentation.ts';
+import { AddActivityDialog, FocusSkillsDialog } from './plan-dialogs.tsx';
 import { ReviseEvidenceDialog } from './revise-evidence-dialog.tsx';
 
-/** Primary plan events get a button; the rest live in the overflow menu. */
-const PRIMARY_PLAN_EVENTS = new Set(['PROPOSE', 'AGREE', 'ENDORSE', 'RESUME']);
+/** Secondary/formal plan transitions (shown only when relevant, e.g. coach agreeing a proposed plan). */
+const PRIMARY_PLAN_EVENTS = new Set(['AGREE', 'RESUME']);
 
-const PlanActions = ({ plan }: { readonly plan: PlanView }) => {
+const PlanOverflow = ({ plan }: { readonly plan: PlanView }) => {
   const event = useApiMutation('development', 'planEvent', {
     onSuccess: (_d, v) => toast.success(`${PLAN_EVENT_LABEL[v.payload.event] ?? 'Done'}.`),
   });
   const primary = plan.actions.filter((a) => PRIMARY_PLAN_EVENTS.has(a));
-  const rest = plan.actions.filter((a) => !PRIMARY_PLAN_EVENTS.has(a) && a !== 'EXPIRE');
+  const rest = plan.actions.filter(
+    (a) => !PRIMARY_PLAN_EVENTS.has(a) && a !== 'EXPIRE' && a !== 'PROPOSE' && a !== 'REVISE',
+  );
   const send = (e: (typeof plan.actions)[number]) =>
     event.mutate({ params: { id: plan.id }, payload: { event: e } });
+  if (primary.length === 0 && rest.length === 0) return null;
   return (
     <div className="flex items-center gap-2">
       {primary.map((a) => (
@@ -66,7 +74,7 @@ const PlanActions = ({ plan }: { readonly plan: PlanView }) => {
       {rest.length > 0 ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="icon" aria-label="More plan actions">
+            <Button variant="secondary" size="icon" aria-label="More options">
               <EllipsisIcon />
             </Button>
           </DropdownMenuTrigger>
@@ -83,148 +91,182 @@ const PlanActions = ({ plan }: { readonly plan: PlanView }) => {
   );
 };
 
-const InteractionRow = ({
-  interaction,
-  onRequest,
-  onRevise,
-  editable,
+const progressSubtitle = (progress: ProgressView, aim?: string) => {
+  if (aim) return `Goal: ${aim}`;
+  if (progress.targetLevelName) return `Next: ${progress.targetLevelName}`;
+  return 'All badges earned';
+};
+
+export const ProgressBlock = ({
+  progress,
+  aim,
+  action,
 }: {
-  readonly interaction: InteractionSummary;
-  readonly onRequest: (id: string) => void;
-  readonly onRevise: (id: string) => void;
-  readonly editable: boolean;
-}) => (
-  <li className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
-    <span className="w-16 shrink-0 text-meta text-ink-3 tabular">
-      {formatDate(interaction.occurredOn)}
-    </span>
-    <span className="text-ui text-ink-2">{kindLabel(interaction.kind)}</span>
-    {interaction.evidenceStatus && interaction.evidenceStatus !== 'available' ? (
-      <StatusPill {...EVIDENCE_STATUS[interaction.evidenceStatus]} />
-    ) : null}
-    {editable && interaction.evidenceStatus === 'held' ? (
-      <Button size="sm" variant="secondary" onClick={() => onRevise(interaction.id)}>
-        Revise
-      </Button>
-    ) : null}
-    <span className="ml-auto flex flex-wrap items-center gap-2">
-      {interaction.observations.map((o) => (
-        <Link
-          key={o.id}
-          to="/observations/$id"
-          params={{ id: o.id }}
-          className="inline-flex items-center gap-1.5 rounded-full py-0.5 pr-1 pl-0.5 hover:bg-sunken"
-        >
-          <PersonAvatar person={o.observer} size="xs" />
-          <StatusPill {...OBSERVATION_STATUS[o.status]} />
-        </Link>
-      ))}
-      {interaction.canRequestObservation ? (
-        <Button
-          size="sm"
-          variant={interaction.observations.length === 0 ? 'secondary' : 'ghost'}
-          className={interaction.observations.length === 0 ? '' : 'text-ink-3'}
-          onClick={() => onRequest(interaction.id)}
-        >
-          {interaction.observations.length === 0
-            ? 'Ask someone to observe'
-            : 'Ask another observer'}
-        </Button>
+  readonly progress: ProgressView;
+  readonly aim?: string | undefined;
+  readonly action?: React.ReactNode;
+}) => {
+  const held = progress.heldLevels.length > 0 ? Math.max(...progress.heldLevels) : 0;
+  return (
+    <Card className="flex flex-col justify-between gap-4 p-5">
+      <div className="grid gap-4">
+        <div className="flex items-start gap-3">
+          <BadgeSeal level={held as 0 | 2 | 3} domain={progress.skill.domain} size={40} />
+          <div className="min-w-0 flex-1">
+            <Link
+              to="/catalog/skills/$slug"
+              params={{ slug: progress.skill.slug }}
+              className="block truncate text-ui font-semibold text-ink hover:underline"
+            >
+              {progress.skill.name}
+            </Link>
+            <p className="text-meta text-ink-3">{progressSubtitle(progress, aim)}</p>
+          </div>
+          {held > 0 ? <Pill tone="success">Level {held}</Pill> : null}
+        </div>
+
+        <SkillLadder heldLevels={progress.heldLevels} targetLevel={progress.targetLevel} />
+
+        {progress.criteria.length > 0 ? (
+          <div className="grid gap-2.5">
+            {progress.criteria.map((c) => (
+              <ProgressBar key={c.key} current={c.current} required={c.required} label={c.label} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-ui text-success-ink">You hold every badge for this skill.</p>
+        )}
+      </div>
+
+      {action ? (
+        <div className="flex items-center justify-between gap-2 border-t border-line pt-3">
+          <Link
+            to="/catalog/skills/$slug"
+            params={{ slug: progress.skill.slug }}
+            className="text-meta text-ink-3 hover:text-ink hover:underline"
+          >
+            What it looks like
+          </Link>
+          {action}
+        </div>
       ) : null}
-    </span>
+    </Card>
+  );
+};
+
+const ObservationFeedCard = ({ item }: { readonly item: RecentObservationItem }) => (
+  <li>
+    <Card className="grid gap-3 p-4 md:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2 text-meta text-ink-3">
+          <span className="font-medium text-ink tabular">{formatDate(item.occurredOn)}</span>
+          <span>·</span>
+          <span>{item.activityTitle}</span>
+          <span>·</span>
+          <span>{OBSERVATION_MODE_LABELS[item.mode]}</span>
+        </div>
+        <StatusPill {...OBSERVATION_STATUS[item.status]} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <PersonAvatar person={item.observer} size="xs" />
+        <span className="text-ui font-medium text-ink">{item.observer.displayName}</span>
+        <div className="flex flex-wrap gap-1.5">
+          {item.ratings.map((r) => (
+            <Pill key={r.skill.id} tone={r.level ? 'primary' : 'outline'}>
+              {r.skill.name}
+              {r.levelName ? ` · ${r.levelName}` : ''}
+              {!r.credit ? ' (note only)' : ''}
+            </Pill>
+          ))}
+        </div>
+      </div>
+
+      {item.narrativeVisible && item.narrativeSaw ? (
+        <blockquote className="narrative border-l-2 border-brass pl-3.5 text-ink">
+          {item.narrativeSaw}
+        </blockquote>
+      ) : null}
+      {!item.narrativeSaw && (item.status === 'requested' || item.status === 'drafting') ? (
+        <p className="text-ui text-ink-3">
+          Waiting for {item.observer.displayName.split(' ')[0]} to add feedback.
+        </p>
+      ) : null}
+
+      {item.narrativeVisible && item.narrativeNext ? (
+        <p className="rounded-control bg-sunken px-3 py-2 text-ui text-ink-2">
+          <span className="font-medium text-ink">Try next time: </span>
+          {item.narrativeNext}
+        </p>
+      ) : null}
+
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <span className="text-meta text-ink-3">{kindLabel(item.kind)}</span>
+        <Link
+          to="/observations/$id"
+          params={{ id: item.id }}
+          className="inline-flex items-center gap-1 text-meta font-medium text-primary-ink hover:underline"
+        >
+          Open details <ArrowRightIcon className="size-3" />
+        </Link>
+      </div>
+    </Card>
   </li>
 );
 
-const ActivityRow = ({
-  activity,
+const PlannedActivitiesSection = ({
+  activities,
   editable,
-  onRequest,
-  onRevise,
+  onAdd,
 }: {
-  readonly activity: ActivityView;
+  readonly activities: ReadonlyArray<ActivityView>;
   readonly editable: boolean;
-  readonly onRequest: (id: string) => void;
-  readonly onRevise: (id: string) => void;
+  readonly onAdd: () => void;
 }) => {
-  const log = useLogDialog();
-  const event = useApiMutation('development', 'activityEvent');
-  const observed = activity.interactions.filter((i) =>
-    i.observations.some((o) => o.status === 'signed'),
-  ).length;
-  const live = activity.status === 'planned' || activity.status === 'underway';
+  const planned = activities.filter((a) => a.origin === 'planned');
+  if (planned.length === 0 && !editable) return null;
   return (
-    <Collapsible defaultOpen={activity.interactions.length > 0 && activity.interactions.length < 4}>
-      <div className="flex items-start gap-3 px-4 py-4 md:px-5">
-        <CollapsibleTrigger className="group grid min-w-0 flex-1 cursor-pointer gap-1.5 text-left">
-          <span className="flex items-center gap-2">
-            <ChevronDownIcon className="size-4 shrink-0 text-ink-3 transition-transform group-data-[state=closed]:-rotate-90" />
-            <span className="truncate text-ui font-medium text-ink">{activity.title}</span>
-          </span>
-          <span className="flex flex-wrap items-center gap-1.5 pl-6">
-            {activity.targetSkills.map((s) => (
-              <SkillChip key={s.id} name={s.name} />
-            ))}
-            <span className="text-meta text-ink-3">
-              {activity.interactions.length === 0
-                ? 'Nothing logged yet'
-                : `${activity.interactions.length} logged · ${observed} observed`}
-              {activity.intendedObserver
-                ? ` · ${activity.intendedObserver.displayName.split(' ')[0]} will observe`
-                : ''}
-            </span>
-          </span>
+    <Collapsible className="rounded-card border border-line bg-surface">
+      <div className="flex items-center justify-between gap-3 px-4 py-3.5 md:px-5">
+        <CollapsibleTrigger className="group flex flex-1 cursor-pointer items-center gap-2 text-left text-ui font-medium text-ink">
+          <ChevronDownIcon className="size-4 text-ink-3 transition-transform group-data-[state=closed]:-rotate-90" />
+          Planned practice activities
+          <span className="text-meta text-ink-3 tabular">({planned.length})</span>
         </CollapsibleTrigger>
-        <span className="flex shrink-0 items-center gap-2">
-          {activity.status !== 'underway' ? (
-            <StatusPill {...ACTIVITY_STATUS[activity.status]} />
-          ) : null}
-          {editable && live ? (
-            <Button size="sm" variant="secondary" onClick={() => log.show(activity.id)}>
-              Log
-            </Button>
-          ) : null}
-          {editable && activity.actions.length > 0 ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Actions for this work">
-                  <EllipsisIcon />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {activity.actions
-                  .filter((a) => ACTIVITY_EVENT_LABEL[a])
-                  .map((a) => (
-                    <DropdownMenuItem
-                      key={a}
-                      onSelect={() =>
-                        event.mutate({ params: { id: activity.id }, payload: { event: a } })
-                      }
-                    >
-                      {ACTIVITY_EVENT_LABEL[a]}
-                    </DropdownMenuItem>
-                  ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-        </span>
+        {editable ? (
+          <Button variant="ghost" size="sm" onClick={onAdd}>
+            <PlusIcon /> Plan activity
+          </Button>
+        ) : null}
       </div>
-      <CollapsibleContent>
-        {activity.interactions.length > 0 ? (
-          <ul className="divide-y divide-line border-t border-line px-4 md:px-5 md:pl-11">
-            {activity.interactions.map((i) => (
-              <InteractionRow
-                key={i.id}
-                interaction={i}
-                onRequest={onRequest}
-                onRevise={onRevise}
-                editable={editable}
-              />
+      <CollapsibleContent className="border-t border-line">
+        {planned.length > 0 ? (
+          <ul className="divide-y divide-line">
+            {planned.map((a) => (
+              <li
+                key={a.id}
+                className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 md:px-5"
+              >
+                <div className="grid gap-1">
+                  <span className="text-ui font-medium text-ink">{a.title}</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {a.targetSkills.map((s) => (
+                      <SkillChip key={s.id} name={s.name} />
+                    ))}
+                    {a.intendedObserver ? (
+                      <span className="text-meta text-ink-3">
+                        · {a.intendedObserver.displayName.split(' ')[0]} will observe
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <span className="text-meta text-ink-3 tabular">{a.interactions.length} logged</span>
+              </li>
             ))}
           </ul>
         ) : (
-          <p className="border-t border-line px-4 py-3 text-ui text-ink-3 md:px-5 md:pl-11">
-            Nothing logged here yet. After your next client meeting, take a minute to note what you
-            did.
+          <p className="px-4 py-3 text-ui text-ink-3 md:px-5">
+            Optional: add upcoming client meetings or huddles you want to practice a skill in.
           </p>
         )}
       </CollapsibleContent>
@@ -232,141 +274,240 @@ const ActivityRow = ({
   );
 };
 
-export const ProgressBlock = ({
-  progress,
-  aim,
+const FeedbackHistorySection = ({
+  plan,
+  observations,
+  editable,
 }: {
-  readonly progress: ProgressView;
-  readonly aim?: string | undefined;
+  readonly plan: PlanView;
+  readonly observations: ReadonlyArray<RecentObservationItem>;
+  readonly editable: boolean;
 }) => {
-  const held = Math.max(0, ...progress.heldLevels);
-  const subtitle = [
-    aim ? `Aiming for ${aim.toLowerCase()}` : null,
-    progress.targetLevelName
-      ? `next badge: ${progress.targetLevelName.toLowerCase()}`
-      : 'every badge held',
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const log = useLogDialog();
+  const [skillFilter, setSkillFilter] = useState<string>('all');
+  const filteredObs =
+    skillFilter === 'all'
+      ? observations
+      : observations.filter((o) => o.ratings.some((r) => r.skill.id === skillFilter));
+  const filterSkills = [
+    ...new Map(
+      [
+        ...plan.focusSkills.map((f) => f.skill),
+        ...observations.flatMap((o) => o.ratings.map((r) => r.skill)),
+      ].map((s) => [s.id, s]),
+    ).values(),
+  ];
   return (
-    <div className="grid content-start gap-3">
-      <div className="flex items-center gap-3">
-        <BadgeSeal level={held as 0 | 2 | 3} domain={progress.skill.domain} size={40} />
-        <div className="min-w-0">
-          <Link
-            to="/catalog/skills/$slug"
-            params={{ slug: progress.skill.slug }}
-            className="block truncate text-ui font-medium text-ink hover:underline"
-          >
-            {progress.skill.name}
-          </Link>
-          <p className="text-meta text-ink-3">
-            {subtitle.charAt(0).toUpperCase() + subtitle.slice(1)}
-          </p>
-        </div>
+    <section className="grid gap-4" aria-labelledby="feedback-history">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SectionLabel id="feedback-history">Coaching feedback & requests</SectionLabel>
+        {filterSkills.length > 1 ? (
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSkillFilter('all')}
+              className={`h-7 cursor-pointer rounded-full border px-2.5 text-meta transition-colors ${
+                skillFilter === 'all'
+                  ? 'border-primary bg-primary-soft font-medium text-primary-ink'
+                  : 'border-line bg-surface text-ink-2 hover:bg-sunken'
+              }`}
+            >
+              All ({observations.length})
+            </button>
+            {filterSkills.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setSkillFilter(s.id)}
+                className={`h-7 cursor-pointer rounded-full border px-2.5 text-meta transition-colors ${
+                  skillFilter === s.id
+                    ? 'border-primary bg-primary-soft font-medium text-primary-ink'
+                    : 'border-line bg-surface text-ink-2 hover:bg-sunken'
+                }`}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
-      {progress.criteria.length > 0 ? (
-        <CriteriaChecklist criteria={progress.criteria} nextStep={progress.nextStep} />
-      ) : null}
-    </div>
+      {filteredObs.length > 0 ? (
+        <ul className="grid gap-3">
+          {filteredObs.map((obs) => (
+            <ObservationFeedCard key={obs.id} item={obs} />
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          action={
+            editable ? (
+              <Button variant="primary" size="sm" onClick={() => log.show()}>
+                <SendIcon /> Ask for feedback
+              </Button>
+            ) : undefined
+          }
+        >
+          No coaching feedback recorded yet. Request feedback after your next client call or review.
+        </EmptyState>
+      )}
+    </section>
   );
 };
 
-const PlanBody = ({ plan, editable }: { readonly plan: PlanView; readonly editable: boolean }) => {
-  const [adding, setAdding] = useState(false);
-  const [requesting, setRequesting] = useState<string | null>(null);
+const PlanBody = ({
+  plan,
+  observations,
+  personId,
+  editable,
+}: {
+  readonly plan: PlanView;
+  readonly observations: ReadonlyArray<RecentObservationItem>;
+  readonly personId: string;
+  readonly editable: boolean;
+}) => {
+  const log = useLogDialog();
+  const [editingSkills, setEditingSkills] = useState(false);
+  const [addingActivity, setAddingActivity] = useState(false);
   const [revising, setRevising] = useState<string | null>(null);
+
+  const heldInteractions = plan.activities
+    .flatMap((a) => a.interactions)
+    .filter((i) => i.evidenceStatus === 'held');
+
   return (
-    <>
-      <header className="mb-8 grid gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <StatusPill {...PLAN_STATUS[plan.status]} />
-          <span className="text-meta text-ink-3 tabular">
-            {formatDate(plan.periodStart)} – {formatDate(plan.periodEnd, { year: 'numeric' })}
-          </span>
-        </div>
+    <div className="grid gap-8">
+      <header className="grid gap-4 border-b border-line pb-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <h1 className="font-serif text-h1 font-medium text-ink md:text-display">{plan.title}</h1>
-          <PlanActions plan={plan} />
-        </div>
-        {plan.intent ? <p className="narrative max-w-2xl text-ink-2">{plan.intent}</p> : null}
-        <div className="flex flex-wrap gap-x-6 gap-y-3">
-          {plan.coach ? (
-            <PersonChip
-              person={plan.coach}
-              subtitle={plan.agreedBy?.id === plan.coach.id ? 'Coach · agreed' : 'Coach'}
-            />
-          ) : null}
-          {plan.leader ? (
-            <PersonChip
-              person={plan.leader}
-              subtitle={plan.endorsedBy ? 'Leader · endorsed' : 'Leader'}
-            />
-          ) : null}
-        </div>
-      </header>
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="grid content-start gap-3" aria-labelledby="activities">
-          <div className="flex items-center justify-between">
-            <SectionLabel id="activities">Work</SectionLabel>
-            {editable ? (
-              <Button variant="ghost" size="sm" onClick={() => setAdding(true)}>
-                <PlusIcon /> Add work
-              </Button>
-            ) : null}
+          <div className="grid gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              {plan.status !== 'active' ? <StatusPill {...PLAN_STATUS[plan.status]} /> : null}
+              <span className="text-meta text-ink-3">
+                {editable ? 'My growth focus' : `${plan.owner.displayName}’s growth focus`}
+              </span>
+            </div>
+            <h1 className="font-serif text-h1 font-medium text-ink md:text-display">
+              {plan.title}
+            </h1>
+            {plan.intent ? <p className="max-w-2xl text-body text-ink-2">{plan.intent}</p> : null}
           </div>
-          {plan.activities.length > 0 ? (
-            <Card className="divide-y divide-line">
-              {plan.activities.map((a) => (
-                <ActivityRow
-                  key={a.id}
-                  activity={a}
-                  editable={editable}
-                  onRequest={setRequesting}
-                  onRevise={setRevising}
-                />
-              ))}
-            </Card>
-          ) : (
-            <EmptyState>
-              Add the work that will develop these skills: meetings, reviews, conversations you
-              already have.
-            </EmptyState>
-          )}
-        </section>
-        <aside
-          className="grid content-start gap-6 lg:sticky lg:top-20"
-          aria-labelledby="toward-badges"
-        >
-          {plan.tryNextTime ? (
-            <section className="grid gap-2" aria-labelledby="try-next-time">
-              <SectionLabel id="try-next-time">Try next time</SectionLabel>
-              <p className="narrative text-ink">{plan.tryNextTime.sentence}</p>
-              <Link
-                to="/observations/$id"
-                params={{ id: plan.tryNextTime.observationId }}
-                className="text-meta text-ink-3 underline-offset-2 hover:underline"
-              >
-                {plan.tryNextTime.observer.displayName}, {formatDate(plan.tryNextTime.signedAt)}
-              </Link>
-            </section>
-          ) : null}
-          <SectionLabel id="toward-badges">Toward badges</SectionLabel>
+          <div className="flex flex-wrap items-center gap-2">
+            {editable ? (
+              <>
+                <Button variant="secondary" onClick={() => setEditingSkills(true)}>
+                  <PencilIcon /> Edit focus skills
+                </Button>
+                <Button variant="primary" onClick={() => log.show()}>
+                  <SendIcon /> Ask for feedback
+                </Button>
+              </>
+            ) : (
+              <Button variant="primary" asChild>
+                <Link to="/observations/new" search={{ for: personId }}>
+                  <MessageSquarePlusIcon /> Give feedback
+                </Link>
+              </Button>
+            )}
+            <PlanOverflow plan={plan} />
+          </div>
+        </div>
+        {plan.coach || plan.leader ? (
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            {plan.coach ? <PersonChip person={plan.coach} subtitle="Coach" /> : null}
+            {plan.leader ? <PersonChip person={plan.leader} subtitle="Leader" /> : null}
+          </div>
+        ) : null}
+      </header>
+
+      {editable && heldInteractions.length > 0 ? (
+        <Card className="flex flex-wrap items-center justify-between gap-3 border-warning/40 bg-warning-soft/50 px-4 py-3.5">
+          <div className="flex items-start gap-2.5 text-ui text-warning-ink">
+            <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              A note you wrote is held for privacy (it appears to include client details). Revise it
+              to share with your observer.
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setRevising(heldInteractions[0]?.id ?? null)}
+          >
+            Revise note
+          </Button>
+        </Card>
+      ) : null}
+
+      {plan.tryNextTime ? (
+        <Card className="grid gap-1.5 border-brass/40 bg-brass-soft/45 p-4 md:p-5">
+          <div className="flex items-center gap-2 text-meta font-semibold tracking-wider text-brass-ink uppercase">
+            <SparklesIcon className="size-3.5" aria-hidden />
+            Try next time
+          </div>
+          <p className="narrative text-ink">“{plan.tryNextTime.sentence}”</p>
+          <Link
+            to="/observations/$id"
+            params={{ id: plan.tryNextTime.observationId }}
+            className="text-meta text-ink-3 hover:text-ink hover:underline"
+          >
+            From {plan.tryNextTime.observer.displayName} · {formatDate(plan.tryNextTime.signedAt)}
+          </Link>
+        </Card>
+      ) : null}
+
+      <section className="grid gap-3" aria-labelledby="focus-skills-heading">
+        <SectionLabel id="focus-skills-heading">Focus skills</SectionLabel>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {plan.progress.map((p) => (
             <ProgressBlock
               key={p.skill.id}
               progress={p}
               aim={plan.focusSkills.find((f) => f.skill.id === p.skill.id)?.targetLevelName}
+              action={
+                editable ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => log.show({ skillId: p.skill.id })}
+                  >
+                    <SendIcon /> Ask for feedback
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="secondary" asChild>
+                    <Link to="/observations/new" search={{ for: personId }}>
+                      Give feedback
+                    </Link>
+                  </Button>
+                )
+              }
             />
           ))}
-        </aside>
-      </div>
+        </div>
+      </section>
+
+      <FeedbackHistorySection plan={plan} observations={observations} editable={editable} />
+
+      <PlannedActivitiesSection
+        activities={plan.activities}
+        editable={editable}
+        onAdd={() => setAddingActivity(true)}
+      />
+
       {editable ? (
-        <AddActivityDialog plan={plan} open={adding} onClose={() => setAdding(false)} />
+        <>
+          <FocusSkillsDialog
+            open={editingSkills}
+            onClose={() => setEditingSkills(false)}
+            existingPlan={plan}
+          />
+          <AddActivityDialog
+            plan={plan}
+            open={addingActivity}
+            onClose={() => setAddingActivity(false)}
+          />
+          <ReviseEvidenceDialog interactionId={revising} onClose={() => setRevising(null)} />
+        </>
       ) : null}
-      <RequestObservationDialog interactionId={requesting} onClose={() => setRequesting(null)} />
-      <ReviseEvidenceDialog interactionId={revising} onClose={() => setRevising(null)} />
-    </>
+    </div>
   );
 };
 
@@ -377,30 +518,42 @@ export const DevelopmentScreen = ({
 }: {
   readonly development: DevelopmentView;
   readonly self: boolean;
-  /** Arrived from the first-run step: open the plan dialog straight away. */
   readonly startPlan?: boolean;
 }) => {
   const [creating, setCreating] = useState(startPlan && self && !development.plan);
-  // Who supports me, for the first-run sentence; Home already loads it.
   const home = useQuery({ ...queryOptions('support', 'home', undefined), enabled: self });
   const first = development.person.displayName.split(' ')[0];
   return (
     <Page>
       {!self ? (
-        <p className="mb-2 text-meta text-ink-3">
+        <p className="mb-3 text-meta text-ink-3">
           <Link to="/people/$id" params={{ id: development.person.id }} className="hover:underline">
             {development.person.displayName}
           </Link>{' '}
-          · Plan
+          · Skills & coaching
         </p>
       ) : null}
       {development.plan ? (
-        <PlanBody plan={development.plan} editable={self} />
+        <PlanBody
+          plan={development.plan}
+          observations={development.recentObservations}
+          personId={development.person.id}
+          editable={self}
+        />
       ) : (
-        <div className="grid max-w-2xl gap-6">
-          <h1 className="font-serif text-h1 font-medium text-ink md:text-display">
-            {self ? 'My plan' : `${first}’s plan`}
-          </h1>
+        <div className="grid gap-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <h1 className="font-serif text-h1 font-medium text-ink md:text-display">
+              {self ? 'My skills' : `${first}’s skills`}
+            </h1>
+            {!self ? (
+              <Button variant="primary" asChild>
+                <Link to="/observations/new" search={{ for: development.person.id }}>
+                  <MessageSquarePlusIcon /> Give feedback
+                </Link>
+              </Button>
+            ) : null}
+          </div>
           {self ? (
             <FirstRunStep
               leader={home.data?.leader ?? null}
@@ -408,39 +561,36 @@ export const DevelopmentScreen = ({
               onStart={() => setCreating(true)}
             />
           ) : (
-            <EmptyState>{first} doesn’t have a current plan.</EmptyState>
+            <EmptyState>
+              {first} hasn’t picked focus skills yet. You can still give them feedback on any skill
+              in the catalog.
+            </EmptyState>
           )}
+          {development.recentObservations.length > 0 ? (
+            <section className="grid gap-3">
+              <SectionLabel>Recent coaching feedback</SectionLabel>
+              <ul className="grid gap-3">
+                {development.recentObservations.map((obs) => (
+                  <ObservationFeedCard key={obs.id} item={obs} />
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </div>
       )}
+
       {development.otherProgress.length > 0 ? (
-        <section className="mt-12 grid gap-4" aria-labelledby="other-skills">
+        <section className="mt-10 grid gap-4" aria-labelledby="other-skills">
           <SectionLabel id="other-skills">Other skills observed</SectionLabel>
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {development.otherProgress.map((p) => (
               <ProgressBlock key={p.skill.id} progress={p} />
             ))}
           </div>
         </section>
       ) : null}
-      {development.pastPlans.length > 0 ? (
-        <section className="mt-12 grid gap-3" aria-labelledby="past-plans">
-          <SectionLabel id="past-plans">Past plans</SectionLabel>
-          <ul className="divide-y divide-line">
-            {development.pastPlans.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-3 py-3 text-ui">
-                <span className="text-ink">{p.title}</span>
-                <span className="flex items-center gap-3">
-                  <span className="text-meta text-ink-3">
-                    {formatDate(p.periodEnd, { year: 'numeric' })}
-                  </span>
-                  <StatusPill {...PLAN_STATUS[p.status]} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      {self ? <CreatePlanDialog open={creating} onClose={() => setCreating(false)} /> : null}
+
+      {self ? <FocusSkillsDialog open={creating} onClose={() => setCreating(false)} /> : null}
     </Page>
   );
 };

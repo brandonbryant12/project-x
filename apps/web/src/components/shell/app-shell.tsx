@@ -17,27 +17,29 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import {
   BellIcon,
-  EyeIcon,
+  CircleHelpIcon,
   HomeIcon,
   InboxIcon,
   LogOutIcon,
   MenuIcon,
-  NotebookPenIcon,
+  MessageSquarePlusIcon,
   PlusIcon,
   SearchIcon,
+  SendIcon,
   SproutIcon,
   UserIcon,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { LogInteractionDialog } from '@/features/development/log-interaction-dialog.tsx';
+import { HowItWorksDialog } from '@/components/how-it-works-dialog.tsx';
+import { QuickRequestDialog } from '@/features/development/quick-request-dialog.tsx';
 import { call } from '@/lib/api.ts';
+import { PRODUCT_NAME } from '@/lib/brand.ts';
 import { CommandPalette } from './command-palette.tsx';
 import { useLogDialog } from './log-dialog-context.tsx';
 import { navFor } from './nav.ts';
 import { Sidebar, useInboxCount } from './sidebar.tsx';
 import { ThemeToggle } from './theme-toggle.tsx';
 import { useShortcuts } from './use-shortcuts.ts';
-import { PRODUCT_NAME } from '@/lib/brand.ts';
 
 const AccountMenu = ({ session }: { readonly session: SessionView }) => {
   const qc = useQueryClient();
@@ -103,20 +105,20 @@ const MobileTabs = ({
           <span className="relative">
             <InboxIcon className="size-5" />
             {count > 0 ? (
-              <span className="absolute -top-1 -right-2.5 rounded-full bg-sunken px-1 text-[10px] text-ink-2 tabular">
+              <span className="absolute -top-1 -right-2.5 rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-fg tabular">
                 {count}
               </span>
             ) : null}
           </span>
-          To sign
+          Requests
         </Link>
       ) : null}
       <div className="flex h-[60px] flex-1 items-center justify-center">
         <Button
           variant="primary"
           size="icon"
-          className="size-11 rounded-full"
-          aria-label={session.relations.canObserve ? 'I saw this' : 'Log work I did'}
+          className="size-11 rounded-full shadow-sm"
+          aria-label={session.relations.canObserve ? 'Give feedback' : 'Ask for feedback'}
           onClick={() =>
             session.relations.canObserve ? void navigate({ to: '/observations/new' }) : log.show()
           }
@@ -125,7 +127,7 @@ const MobileTabs = ({
         </Button>
       </div>
       <Link to="/development" className={`${tab} h-[60px]`}>
-        <SproutIcon className="size-5" /> My plan
+        <SproutIcon className="size-5" /> My skills
       </Link>
       <button type="button" onClick={onMore} className={`${tab} h-[60px] cursor-pointer`}>
         <MenuIcon className="size-5" /> More
@@ -143,6 +145,7 @@ export const AppShell = ({
 }) => {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const log = useLogDialog();
   const navigate = useNavigate();
   const canObserve = session.relations.canObserve;
@@ -159,22 +162,29 @@ export const AppShell = ({
     <div className="flex min-h-dvh">
       <Sidebar session={session} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-canvas/90 px-4 backdrop-blur md:px-6">
-          <span className="shrink-0 font-serif text-[17px] font-medium whitespace-nowrap lg:hidden">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2.5 border-b border-line bg-canvas/90 px-4 backdrop-blur md:px-6">
+          <Link
+            to="/"
+            className="shrink-0 font-serif text-[17px] font-medium whitespace-nowrap text-ink lg:hidden"
+          >
             {PRODUCT_NAME}
-          </span>
+          </Link>
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
-            className="ml-auto flex h-9 w-9 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-control border border-line bg-surface px-0 text-ui text-ink-3 transition-colors hover:border-line-strong sm:w-full sm:max-w-72 sm:justify-start sm:px-3 lg:ml-0"
+            className="ml-auto flex h-9 w-9 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-control border border-line bg-surface px-0 text-ui text-ink-3 transition-colors hover:border-line-strong sm:w-full sm:max-w-64 sm:justify-start sm:px-3 lg:ml-0"
           >
             <SearchIcon className="size-4" />
-            <span className="hidden flex-1 text-left sm:inline">Search</span>
+            <span className="hidden flex-1 text-left sm:inline">Search people & skills</span>
             <Kbd className="hidden sm:inline-flex">⌘K</Kbd>
           </button>
           <div className="ml-auto hidden items-center gap-2 md:flex">
-            <Button variant="secondary" size="sm" onClick={() => log.show()}>
-              <NotebookPenIcon /> Log work I did
+            <Button
+              variant={canObserve ? 'secondary' : 'primary'}
+              size="sm"
+              onClick={() => log.show()}
+            >
+              <SendIcon /> Ask for feedback
             </Button>
             {canObserve ? (
               <Button
@@ -182,10 +192,19 @@ export const AppShell = ({
                 size="sm"
                 onClick={() => void navigate({ to: '/observations/new' })}
               >
-                <EyeIcon /> I saw this
+                <MessageSquarePlusIcon /> Give feedback
               </Button>
             ) : null}
           </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="How Coaching Catalyst works"
+            title="How it works"
+            onClick={() => setHelpOpen(true)}
+          >
+            <CircleHelpIcon />
+          </Button>
           <ThemeToggle />
           <AccountMenu session={session} />
         </header>
@@ -195,7 +214,8 @@ export const AppShell = ({
       </div>
       <MobileTabs session={session} onMore={() => setMoreOpen(true)} />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} canObserve={canObserve} />
-      <LogInteractionDialog />
+      <QuickRequestDialog />
+      <HowItWorksDialog open={helpOpen} onOpenChange={setHelpOpen} />
       <MoreSheet open={moreOpen} onOpenChange={setMoreOpen} session={session} />
     </div>
   );
@@ -213,7 +233,11 @@ const MoreSheet = ({
   <MoreDrawer open={open} onOpenChange={onOpenChange}>
     {navFor(session).map((group) => (
       <div key={group.label ?? 'top'} className="grid gap-0.5 px-4 pb-3">
-        {group.label ? <p className="px-2 pb-1 text-meta text-ink-3">{group.label}</p> : null}
+        {group.label ? (
+          <p className="px-2 pb-1 text-[11px] font-semibold tracking-wider text-ink-3 uppercase">
+            {group.label}
+          </p>
+        ) : null}
         {group.items.map((item) => (
           <Link
             key={item.key}
@@ -240,7 +264,7 @@ const MoreDrawer = ({
 }) => (
   <Drawer open={open} onOpenChange={onOpenChange}>
     <DrawerContent>
-      <DrawerTitle className="sr-only">More</DrawerTitle>
+      <DrawerTitle className="sr-only">Navigation</DrawerTitle>
       <div className="overflow-y-auto py-2">{children}</div>
     </DrawerContent>
   </Drawer>
