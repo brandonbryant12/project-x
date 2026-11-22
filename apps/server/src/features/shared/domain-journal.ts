@@ -4,6 +4,7 @@ import { Db, schema } from '@repo/db';
 import { and, desc, eq } from 'drizzle-orm';
 import { Context, DateTime, Effect } from 'effect';
 import { randomUUID } from 'node:crypto';
+import { recordDomainEvent } from '../../platform/metrics.ts';
 import { now } from '../../platform/time.ts';
 
 /** Convert the HTTP session `Actor` into a serializable `@alchemy.run/domain` `CoachingActor` context. */
@@ -115,4 +116,7 @@ export const appendDomainEvents = Effect.fn('domain.appendEvents')(function* (
   }
 
   yield* db.insert(schema.domainEvent).values(rows);
+  for (const row of rows) {
+    yield* recordDomainEvent(row.aggregate, row.eventTag);
+  }
 });

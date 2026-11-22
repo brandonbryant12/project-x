@@ -1,1 +1,0 @@
-ALTER TABLE "skill" ADD COLUMN "resources" jsonb DEFAULT '[]' NOT NULL;

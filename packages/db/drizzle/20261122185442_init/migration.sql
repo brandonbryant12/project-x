@@ -139,6 +139,7 @@ CREATE TABLE "skill" (
 	"domain" text NOT NULL,
 	"outcome" text NOT NULL,
 	"tags" text[] DEFAULT '{}'::text[] NOT NULL,
+	"resources" jsonb DEFAULT '[]' NOT NULL,
 	"status" text DEFAULT 'draft' NOT NULL,
 	"draft_definition" jsonb,
 	"current_version_id" text,
@@ -316,8 +317,7 @@ CREATE TABLE "plan" (
 	CONSTRAINT "plan_status_check" CHECK ("status" in ('draft', 'proposed', 'active', 'paused', 'completed', 'canceled', 'expired')),
 	CONSTRAINT "plan_period" CHECK ("period_end" > "period_start"),
 	CONSTRAINT "plan_agreed_pair" CHECK (("agreed_by_id" is null) = ("agreed_at" is null)),
-	CONSTRAINT "plan_not_self_agreed" CHECK ("agreed_by_id" is null or "agreed_by_id" <> "owner_id"),
-	CONSTRAINT "plan_agreed_when_live" CHECK ("status" not in ('active', 'paused', 'completed') or "agreed_by_id" is not null)
+	CONSTRAINT "plan_not_self_agreed" CHECK ("agreed_by_id" is null or "agreed_by_id" <> "owner_id")
 );
 --> statement-breakpoint
 CREATE TABLE "plan_skill" (
@@ -559,6 +559,21 @@ CREATE TABLE "notification" (
 	CONSTRAINT "notification_attempts" CHECK ("attempts" between 0 and 20)
 );
 --> statement-breakpoint
+CREATE TABLE "domain_event" (
+	"id" text PRIMARY KEY,
+	"global_seq" bigint GENERATED ALWAYS AS IDENTITY (sequence name "domain_event_global_seq_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),
+	"tenant_id" text NOT NULL,
+	"stream" text NOT NULL,
+	"stream_seq" integer NOT NULL,
+	"aggregate" text NOT NULL,
+	"aggregate_id" text NOT NULL,
+	"event_tag" text NOT NULL,
+	"payload" jsonb NOT NULL,
+	"command_id" text NOT NULL,
+	"correlation_id" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE UNIQUE INDEX "business_function_tenant_name_unique" ON "business_function" ("tenant_id","name");--> statement-breakpoint
 CREATE UNIQUE INDEX "job_family_tenant_name_unique" ON "job_family" ("tenant_id","name");--> statement-breakpoint
 CREATE UNIQUE INDEX "person_tenant_email_unique" ON "person" ("tenant_id",lower("email")) WHERE "status" <> 'departed';--> statement-breakpoint
@@ -615,6 +630,10 @@ CREATE INDEX "note_entity_idx" ON "note" ("tenant_id","entity_type","entity_id",
 CREATE UNIQUE INDEX "notification_dedupe_unique" ON "notification" ("tenant_id","dedupe_key");--> statement-breakpoint
 CREATE INDEX "notification_dispatch_idx" ON "notification" ("status","send_after");--> statement-breakpoint
 CREATE INDEX "notification_recipient_idx" ON "notification" ("tenant_id","recipient_id","created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "domain_event_global_seq_unique" ON "domain_event" ("global_seq");--> statement-breakpoint
+CREATE UNIQUE INDEX "domain_event_stream_seq_unique" ON "domain_event" ("tenant_id","stream","stream_seq");--> statement-breakpoint
+CREATE INDEX "domain_event_tenant_aggregate_idx" ON "domain_event" ("tenant_id","aggregate","aggregate_id");--> statement-breakpoint
+CREATE INDEX "domain_event_tenant_tag_idx" ON "domain_event" ("tenant_id","event_tag","created_at");--> statement-breakpoint
 ALTER TABLE "business_function" ADD CONSTRAINT "business_function_tenant_id_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenant"("id");--> statement-breakpoint
 ALTER TABLE "job_family" ADD CONSTRAINT "job_family_tenant_id_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenant"("id");--> statement-breakpoint
 ALTER TABLE "notification_preference" ADD CONSTRAINT "notification_preference_person_fk" FOREIGN KEY ("tenant_id","person_id") REFERENCES "person"("tenant_id","id");--> statement-breakpoint
@@ -685,4 +704,5 @@ ALTER TABLE "audit_event" ADD CONSTRAINT "audit_event_tenant_id_tenant_id_fkey" 
 ALTER TABLE "audit_event" ADD CONSTRAINT "audit_event_actor_fk" FOREIGN KEY ("tenant_id","actor_id") REFERENCES "person"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "note" ADD CONSTRAINT "note_author_fk" FOREIGN KEY ("tenant_id","author_id") REFERENCES "person"("tenant_id","id");--> statement-breakpoint
 ALTER TABLE "notification" ADD CONSTRAINT "notification_recipient_fk" FOREIGN KEY ("tenant_id","recipient_id") REFERENCES "person"("tenant_id","id");--> statement-breakpoint
-ALTER TABLE "notification" ADD CONSTRAINT "notification_actor_fk" FOREIGN KEY ("tenant_id","actor_id") REFERENCES "person"("tenant_id","id");
+ALTER TABLE "notification" ADD CONSTRAINT "notification_actor_fk" FOREIGN KEY ("tenant_id","actor_id") REFERENCES "person"("tenant_id","id");--> statement-breakpoint
+ALTER TABLE "domain_event" ADD CONSTRAINT "domain_event_tenant_id_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenant"("id");

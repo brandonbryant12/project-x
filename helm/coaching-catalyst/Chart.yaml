@@ -1,0 +1,12 @@
+apiVersion: v2
+name: coaching-catalyst
+description: Single-deployable Coaching Catalyst application (Effect 4 API + React SPA, ADR 0011)
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+keywords:
+  - coaching
+  - skills
+  - effect
+  - nodejs
+home: https://github.com/brandonbryant12/project-x

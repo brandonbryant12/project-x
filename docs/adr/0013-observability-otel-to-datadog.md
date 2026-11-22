@@ -57,3 +57,24 @@ Datadog Agent's OTLP receiver. Logs are JSON on stdout with `trace_id`,
   without `dd.trace_id` fields in stdout.
 - **The Compose profiles** are `otel` (the Aspire dashboard) and `datadog`
   (the Agent with OTLP intake, including logs).
+
+## Amendment (2026-11-22): sanitized OTLP logs, Datadog correlation, and Effect metrics
+
+- **Optional per-signal OTLP configuration (`apps/server/src/platform/observability.ts`):**
+  Remains off by default (`TELEMETRY_ENABLED=false`). When enabled, supports
+  either a single base `OTEL_EXPORTER_OTLP_ENDPOINT` or independent per-signal
+  overrides (`OTEL_EXPORTER_OTLP_{TRACES,METRICS,LOGS}_ENDPOINT`), optional
+  redacted `OTEL_EXPORTER_OTLP_HEADERS`, `json` or `protobuf` wire encoding
+  (`OTEL_EXPORTER_OTLP_PROTOCOL`), and `delta` metrics aggregation temporality
+  by default (`OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY=delta`, preferred by
+  Datadog).
+- **Datadog trace correlation & PII/secret redaction on all logs:** Structured
+  stdout logs carry `trace_id`, `span_id`, `dd.trace_id`, and `dd.span_id`, and
+  both stdout and OTLP-exported logs pass through `sanitizeTelemetryValue` /
+  `sanitizeTelemetryCause` so narratives, client fields, credentials, bearer
+  tokens, and URL query strings never leave the process.
+- **Built-in low-cardinality Effect metrics (`apps/server/src/platform/metrics.ts`):**
+  Records `http_server_requests_total`, `http_server_request_duration_ms`,
+  `coaching_domain_events_total`, `coaching_advisory_checks_total`, and
+  `coaching_advisory_latency_ms` using bounded low-cardinality attributes
+  (`http.route_group`, `http.status_class`, `aggregate`, `event_tag`).

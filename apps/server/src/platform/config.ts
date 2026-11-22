@@ -43,11 +43,29 @@ export const AppConfig = Config.all({
   }),
   telemetry: Config.all({
     enabled: Config.Boolean('TELEMETRY_ENABLED').pipe(Config.withDefault(false)),
+    /** Base OTLP HTTP endpoint (e.g. http://localhost:4318). Per-signal endpoints override it. */
     otlpEndpoint: optionalString('OTEL_EXPORTER_OTLP_ENDPOINT'),
+    otlpTracesEndpoint: optionalString('OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'),
+    otlpMetricsEndpoint: optionalString('OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'),
+    otlpLogsEndpoint: optionalString('OTEL_EXPORTER_OTLP_LOGS_ENDPOINT'),
+    /** Comma-separated OTLP headers (e.g. auth or Datadog keys), kept Redacted. */
+    otlpHeaders: optionalRedacted('OTEL_EXPORTER_OTLP_HEADERS'),
+    /** OTLP wire format: `protobuf` (preferred by Datadog) or `json`. */
+    otlpProtocol: Config.Literals(['json', 'protobuf'], 'OTEL_EXPORTER_OTLP_PROTOCOL').pipe(
+      Config.withDefault('json' as const),
+    ),
+    /** Metrics aggregation temporality: `delta` (Datadog default) or `cumulative`. */
+    metricsTemporality: Config.Literals(
+      ['delta', 'cumulative'],
+      'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY',
+    ).pipe(Config.withDefault('delta' as const)),
     serviceName: Config.String('OTEL_SERVICE_NAME').pipe(Config.withDefault('app-server')),
     serviceVersion: Config.String('OTEL_SERVICE_VERSION').pipe(Config.withDefault('dev')),
     environment: Config.String('OTEL_ENV').pipe(Config.withDefault('local')),
   }),
+  logLevel: Config.Literals(['debug', 'info', 'warn', 'error'], 'LOG_LEVEL').pipe(
+    Config.withDefault('info' as const),
+  ),
   logFormat: Config.Literals(['json', 'pretty'], 'LOG_FORMAT').pipe(
     Config.withDefault('pretty' as const),
   ),
@@ -107,8 +125,16 @@ export const validateConfig = (config: AppConfig): Effect.Effect<AppConfig, Conf
   if (config.notify.transport === 'smtp' && (!config.notify.smtpHost || !config.notify.from)) {
     problems.push('NOTIFY_TRANSPORT=smtp needs SMTP_HOST and NOTIFY_FROM.');
   }
-  if (config.telemetry.enabled && !config.telemetry.otlpEndpoint) {
-    problems.push('TELEMETRY_ENABLED=true needs OTEL_EXPORTER_OTLP_ENDPOINT.');
+  if (
+    config.telemetry.enabled &&
+    !config.telemetry.otlpEndpoint &&
+    !config.telemetry.otlpTracesEndpoint &&
+    !config.telemetry.otlpMetricsEndpoint &&
+    !config.telemetry.otlpLogsEndpoint
+  ) {
+    problems.push(
+      'TELEMETRY_ENABLED=true needs OTEL_EXPORTER_OTLP_ENDPOINT or a per-signal OTEL_EXPORTER_OTLP_*_ENDPOINT.',
+    );
   }
   return problems.length === 0
     ? Effect.succeed(config)

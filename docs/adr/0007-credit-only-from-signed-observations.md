@@ -84,3 +84,18 @@ Changes:
   no longer hold. Badge receipts are a join table, `badge_award_credit`.
 - **The subject may acknowledge** a signed observation, **or request a
   review** of it.
+
+## Amendment (2026-11-22): tenant-configurable rigor & fact/rule separation
+
+- **Tenant policy controls (`/admin/policy`):** Tenant admins can configure
+  badge rigor (`minDemonstrations`, `minObservers`, `minFirstHandShare`,
+  `minSpanDays`, with `poc` / `balanced` / `strict` presets) and
+  `observationWindowDays` via `TenantPolicy` (`UpdateTenantPolicy`), audited
+  and journaled as `TenantPolicyUpdated`.
+- **Immutable facts separated from derived rules (ADR 0023):** Raw
+  demonstration facts (`DemonstrationRecorded` / `DemonstrationReversed`) are
+  stored independently of badge evaluation rules in `SkillLedger`. Tightening
+  a tenant's rigor never silently revokes existing earned badges unless an
+  admin explicitly invokes `ReevaluateStanding`, and adding a new non-first-hand
+  (`discussed`) observation can never penalize or revoke an already-earned badge
+  (forward no-penalty monotonicity).

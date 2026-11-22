@@ -1,6 +1,7 @@
 import {
   ActivityId,
   CreditId,
+  DomainEventId,
   InteractionId,
   ObservationId,
   PersonId,
@@ -163,7 +164,7 @@ const rejected = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   );
 
 layer(layerTestDb)('database integrity', (it) => {
-  it.effect('I3: the credit ledger and audit trail are append-only', () =>
+  it.effect('I3/I34: the credit ledger, audit trail and domain event journal are append-only', () =>
     Effect.gen(function* () {
       const db = yield* Db;
       const f = yield* fixture;
@@ -181,6 +182,31 @@ layer(layerTestDb)('database integrity', (it) => {
         yield* rejected(
           db.delete(schema.creditEntry).where(eq(schema.creditEntry.id, f.credit.id)),
         ),
+      );
+
+      const eventId = DomainEventId.generate();
+      yield* db.insert(schema.domainEvent).values({
+        id: eventId,
+        tenantId: f.tenantId,
+        stream: `Observation:${f.observationId}`,
+        streamSeq: 1,
+        aggregate: 'Observation',
+        aggregateId: f.observationId,
+        eventTag: 'ObservationSigned',
+        payload: { observationId: f.observationId },
+        commandId: 'cmd_test',
+        correlationId: 'cor_test',
+      });
+      assert.isTrue(
+        yield* rejected(
+          db
+            .update(schema.domainEvent)
+            .set({ eventTag: 'Tampered' })
+            .where(eq(schema.domainEvent.id, eventId)),
+        ),
+      );
+      assert.isTrue(
+        yield* rejected(db.delete(schema.domainEvent).where(eq(schema.domainEvent.id, eventId))),
       );
     }),
   );

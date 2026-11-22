@@ -123,6 +123,18 @@ tables are sans.
 - **Avoid "AI slop":** gradient blobs, emoji, decorative icon-in-circle tiles,
   stat-card dashboards, centered heroes, and uniform card grids where a list
   reads better.
+- **Tactile & editorial micro-details:**
+  - `MasteryRing` SVG arcs smoothly morph on state transitions (`prefers-reduced-motion` respected).
+  - Catalog Constellation and Landscape charts share linked hover focus and
+    instant tooltips (`packages/ui/src/components/overlays.tsx`) — never raw
+    native `title=` lag.
+  - Range controls in Tenant Policy (`/admin/policy`) use `.folio-range` styled
+    tracks and thumbs (`packages/ui/src/styles/tokens.css`).
+  - Voice-to-note dictation (`apps/web/src/lib/voice-capture.ts`)
+    runs strictly on-device, shows a live calm waveform + split-cue pill when
+    splitting into "What I saw" and "Try next time", and never auto-submits.
+  - Destructive catalog/playbook removals require explicit two-step inline
+    confirmation ("Remove" → "Confirm remove").
 
 ## Copy
 

@@ -3,9 +3,12 @@
 This document covers the business domain: its bounded contexts, the entities
 each one owns, the rules that always hold, and every lifecycle. For
 vocabulary, see the [glossary](../../CONTEXT.md). Tables and constraints are
-in the [data model](../architecture/data-model.md). The lifecycle machines
-live in `packages/domain/src/lifecycles/`. When this document and the code
-disagree, the code is the truth and this document must be fixed.
+in the [data model](../architecture/data-model.md). The event-sourced bounded
+context lives in `packages/domain/src/model/` ([domain model graph](../architecture/domain-model.md),
+[ADR 0023](../adr/0023-alchemy-domain-model-and-formal-verification.md)), and
+the lifecycle machines live in `packages/domain/src/lifecycles/`. When this
+document and the code disagree, the code is the truth and this document must be
+fixed.
 
 **Fixed with the client:** the coach / coachee / leader triangle, skills as
 the unit of development, and the term "development plan". Everything else
@@ -26,16 +29,16 @@ here is our best current design and is open to domain experts (see
 
 ## Bounded contexts
 
-| Context         | Owns                                                                                                                        | Notes                                                                                                                                          |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Directory**   | Tenant, Person, ReportingLine, BusinessFunction, RoleGrant, JobFamily, PersonPosition                                       | Mirrors Entra ID. Effective-dated, never edited by product flows. See [identity and access](../architecture/identity-and-access.md).           |
-| **Catalog**     | Skill, SkillVersion (levels and indicators), ActivityTemplate                                                               | Seeded; catalog management is not built. Published versions are immutable. Each indicator has a lineage key that stays stable across versions. |
-| **Coaching**    | CoachingEngagement, ObserverDesignation                                                                                     | The mesh: any coach can engage anyone. Carries no reporting authority. Conversations and commitments are deferred (ADR 0019).                  |
-| **Development** | DevelopmentPlan (focus skills with **target levels**), Activity (with an **observation commitment**), Interaction, Evidence | The coachee's workspace. Logging an event is never credit.                                                                                     |
-| **Recognition** | Observation, Rating, CreditEntry, CreditReversal, BadgeAward                                                                | The **only** context that writes credit.                                                                                                       |
-| **Advisory**    | AdvisoryCheck, AdvisoryDisposition                                                                                          | Gemini Decisions wrapper: the privacy screen only. The learning loop is deferred (ADR 0016).                                                   |
-| **Compliance**  | AuditEvent, Note                                                                                                            | Append-only and exportable. Human reasons live in purgeable notes.                                                                             |
-| **Hub**         | Notification, NotificationPreference; the adoption view (a read-only projection)                                            | Tells people what waits on them, and shows the program owner aggregates. Writes nothing in other contexts (ADR 0018, ADR 0021).                |
+| Context         | Owns                                                                                                                        | Notes                                                                                                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Directory**   | Tenant, Person, ReportingLine, BusinessFunction, RoleGrant, JobFamily, PersonPosition                                       | Mirrors Entra ID. Effective-dated, never edited by product flows. See [identity and access](../architecture/identity-and-access.md).                                                            |
+| **Catalog**     | Skill (core/common tier, tags, playbook resources), SkillVersion (levels and indicators), ActivityTemplate                  | Tenant admins author skills, publish new immutable versions, and attach level-up playbook resources via the Catalog Studio (ADR 0024). Each indicator has a lineage key stable across versions. |
+| **Coaching**    | CoachingEngagement, ObserverDesignation                                                                                     | The mesh: any coach can engage anyone. Carries no reporting authority. Conversations and commitments are deferred (ADR 0019).                                                                   |
+| **Development** | DevelopmentPlan (focus skills with **target levels**), Activity (with an **observation commitment**), Interaction, Evidence | The coachee's workspace. Logging an event is never credit.                                                                                                                                      |
+| **Recognition** | Observation, Rating, CreditEntry, CreditReversal, BadgeAward                                                                | The **only** context that writes credit.                                                                                                                                                        |
+| **Advisory**    | AdvisoryCheck, AdvisoryDisposition                                                                                          | Gemini Decisions wrapper: the privacy screen only. The learning loop is deferred (ADR 0016).                                                                                                    |
+| **Compliance**  | AuditEvent, DomainEvent, Note                                                                                               | Append-only and exportable (`audit_event` and zero-PII `domain_event`). Human reasons live in purgeable notes.                                                                                  |
+| **Hub**         | Notification, NotificationPreference; the adoption view (a read-only projection)                                            | Tells people what waits on them, and shows the program owner aggregates. Writes nothing in other contexts (ADR 0018, ADR 0021).                                                                 |
 
 ## From work to credit
 
@@ -100,6 +103,11 @@ Added in the hub round. The numbers are shared with
   narrative.
 - **I20.** A notification carries no content: no narrative, reflection,
   level, hold reason or `client_ref` (ADR 0018).
+- **I33.** `CoachingModel` passes static `Domain.verify`, multi-aggregate
+  `Story.make` interleaving checks, and exhaustive lifecycle + randomized
+  `SkillLedger` proofs (ADR 0023).
+- **I34.** `domain_event` is tenant-scoped, DB-enforced append-only, and
+  strictly zero-PII (ADR 0023).
 
 ## Eligible observer
 
@@ -163,9 +171,9 @@ transitions that only a human can make.
 
 | Entity                       | States                                                                                                                                                  | Key events and guards                                                                                                                                                                                                                                                                                                |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Skill / ActivityTemplate** | draft → published → retired · discarded                                                                                                                 | `PUBLISH` (H), guarded by the definition being complete; only the seed publishes today                                                                                                                                                                                                                               |
+| **Skill / ActivityTemplate** | draft → published → retired · discarded                                                                                                                 | `PUBLISH` (H), guarded by the definition being complete; tenant admins author and version skills via the Catalog Studio (ADR 0024)                                                                                                                                                                                   |
 | **CoachingEngagement**       | proposed → active ⇄ paused → ended · declined · withdrawn · expired                                                                                     | `ACCEPT` / `DECLINE` (H, the other party). Guard: the coach grant is active. Expires after 14 days.                                                                                                                                                                                                                  |
-| **DevelopmentPlan**          | draft → proposed → active ⇄ paused → completed · canceled · expired                                                                                     | `PROPOSE` needs 1–3 focus skills (each with a target level) and at least one activity. `AGREE` (H): the coach, or the leader if the coachee has no coach. `ENDORSE` (H): the leader chain, which can never block the plan. Expires after the period ends plus a grace period.                                        |
+| **DevelopmentPlan**          | draft → proposed → active ⇄ paused → completed · canceled · expired                                                                                     | Plans may start directly `active` on creation (`createPlan`) with 1–3 editable focus skills, or flow through `PROPOSE` / `AGREE` / `ENDORSE` when formal review is used. Expires after the period ends plus a grace period.                                                                                          |
 | **Activity**                 | planned → underway → done · canceled · expired                                                                                                          | Becomes underway on its first interaction                                                                                                                                                                                                                                                                            |
 | **Evidence**                 | screening → available · held · escalated; held → screening (`REVISE`) · available (`RELEASE`, H admin); escalated → available (`RESOLVE`, H compliance) | The local screen holds immediately and fails closed. Text that passes it is available at once. The AI may then only `HOLD` (suspected PII) or `ESCALATE` (complaint or specific recommendation); it never clears anything. Escalated evidence is never edited away.                                                  |
 | **Observation**              | requested → drafting → signed · declined · returned · withdrawn · expired; signed → under_review → signed (`UPHOLD`) · voided                           | `SIGN` (H, never automated). `ACKNOWLEDGE` / `REQUEST_REVIEW` (H, the subject, once). `VOID` / `UPHOLD` (H, **compliance reviewer** only; void appends reversals and revokes any badge whose criteria no longer hold). The observer sets the **mode** at signing, so first-hand status is never the coachee's claim. |

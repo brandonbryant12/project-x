@@ -6,12 +6,12 @@ rules every table follows. The code lives in `packages/db/src/schema/`.
 
 ## 1. Three kinds of table
 
-| Kind                  | Examples                                                                                                       | Mutability              | Rules                                                                                                                                                                           |
-| --------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Directory mirrors** | `person`, `reporting_line`, `role_grant`, `person_position`                                                    | Synced from Entra or HR | Effective-dated (`valid_from`, `valid_to`). Never edited by product flows. History is kept so eligibility can be evaluated _as of_ any date.                                    |
-| **Workflow entities** | `plan`, `activity`, `observation`, `engagement`, `evidence`                                                    | Current state changes   | One `status` column, constrained to the lifecycle's states. A `version` integer for optimistic concurrency. Every transition also writes `audit_event` in the same transaction. |
-| **Facts and ledgers** | `credit_entry`, `audit_event`, `advisory_check`, `advisory_disposition`, `badge_award`, `observer_designation` | **Append-only**         | Never `UPDATE`d to erase history; corrections are new rows that point at the old ones. Denormalized on purpose: each row explains itself without joins to mutable data.         |
-| **Operational**       | `session`, `notification`, `notification_preference`                                                           | Plumbing                | Hold no content and explain nothing to an auditor. Deleted 90 days after last use (`operational` class). A `notification` row's status changes only in the dispatcher.          |
+| Kind                  | Examples                                                                                                                       | Mutability              | Rules                                                                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Directory mirrors** | `person`, `reporting_line`, `role_grant`, `person_position`                                                                    | Synced from Entra or HR | Effective-dated (`valid_from`, `valid_to`). Never edited by product flows. History is kept so eligibility can be evaluated _as of_ any date.                                    |
+| **Workflow entities** | `plan`, `activity`, `observation`, `engagement`, `evidence`                                                                    | Current state changes   | One `status` column, constrained to the lifecycle's states. A `version` integer for optimistic concurrency. Every transition also writes `audit_event` in the same transaction. |
+| **Facts and ledgers** | `credit_entry`, `audit_event`, `domain_event`, `advisory_check`, `advisory_disposition`, `badge_award`, `observer_designation` | **Append-only**         | Never `UPDATE`d to erase history; corrections are new rows that point at the old ones. Denormalized on purpose: each row explains itself without joins to mutable data.         |
+| **Operational**       | `session`, `notification`, `notification_preference`                                                                           | Plumbing                | Hold no content and explain nothing to an auditor. Deleted 90 days after last use (`operational` class). A `notification` row's status changes only in the dispatcher.          |
 
 `observer_designation` is a fact with one permitted change: it may be ended
 early, once, by setting `ended_on` (enforced by a trigger).
@@ -103,13 +103,16 @@ tenant ─┬─ business_function
         ├─ badge_award       (awarded/revoked; receipt snapshot)
         ├─ advisory_check    (one AI evaluation: digests, probabilities, thresholds, effect, rationale)
         ├─ notification      (outbox: one message to one person, no free text)
-        └─ audit_event       (append-only: who, what, from → to, why, under which policy)
+        ├─ audit_event       (append-only: who, what, from → to, why, under which policy)
+        └─ domain_event      (append-only zero-PII @alchemy.run/domain fact journal, global_seq + stream_seq)
 ```
 
 ## 4. State of the newer tables
 
 | Table                                                      | Schema | Behavior                                                                                                          |
 | ---------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| `domain_event`                                             | Built  | Append-only `@alchemy.run/domain` fact journal (ADR 0023), written atomically inside core write transactions      |
+| `skill.resources`                                          | Built  | Level-up playbook resources attached per skill/level via the Catalog Studio (ADR 0024)                            |
 | `observer_designation`, `observation.basis_designation_id` | Built  | Built (`designated-observer-signs`); the web app hides it behind `FEATURE_DESIGNATED_OBSERVERS`, off by default   |
 | `notification_preference`                                  | Built  | Built                                                                                                             |
 | `notification`                                             | Built  | Rows written in the transition's transaction; dispatcher with staleness check (`notification-carries-no-content`) |
@@ -131,5 +134,7 @@ Designed, not built:
 5. Does each new index correspond to a real query?
 6. Does each free-text column have a retention class? Can it hold PII?
 7. Can an auditor explain every row in 2032 without the code from 2026?
-8. Is the migration forward-only, with expand and contract steps for breaking
-   changes?
+8. Pre-launch migrations stay squashed to two files (`init` generated from
+   `packages/db/src/schema/` + `integrity` for triggers and exclusion
+   constraints); once deployed to production, all subsequent migrations must be
+   forward-only with expand-and-contract steps for breaking changes.

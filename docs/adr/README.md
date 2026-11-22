@@ -39,3 +39,4 @@ does any of the following:
 | [0021](./0021-program-owner-and-adoption-view.md)              | A program owner sees adoption in aggregate only                                                              | Accepted (amended)            |
 | [0022](./0022-calendar-assisted-logging.md)                    | Calendar-assisted logging reads the calendar on demand and never stores it                                   | **Deferred** (never built)    |
 | [0023](./0023-alchemy-domain-model-and-formal-verification.md) | Event-sourced `@alchemy.run/domain` bounded context, formal verification, and zero-drift diagrams            | Accepted                      |
+| [0024](./0024-catalog-studio-playbooks-and-voice-capture.md)   | Skill catalog studio, core/common tiers, level-up playbooks, and on-device voice-to-structured-note capture  | Accepted                      |

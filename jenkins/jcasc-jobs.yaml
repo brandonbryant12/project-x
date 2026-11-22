@@ -1,0 +1,54 @@
+# Optional Jenkins Configuration as Code (JCasC) job registration template.
+# Downstream forks using JCasC + Job DSL can adapt the SCM URL and credential
+# IDs below to provision both PR CI and Main CD pipelines declaratively.
+
+jobs:
+  - script: |
+      folder('coaching-catalyst') {
+        displayName('Coaching Catalyst')
+        description('CI/CD pipelines for Coaching Catalyst (Pipeline from SCM)')
+      }
+
+      multibranchPipelineJob('coaching-catalyst/pr-ci') {
+        displayName('PR CI (Quality Gates & Formal Proofs)')
+        branchSources {
+          git {
+            id('coaching-catalyst-pr-ci')
+            remote('https://git.firm.example/your-org/coaching-catalyst.git')
+            credentialsId('scm-read-credentials')
+          }
+        }
+        factory {
+          workflowBranchProjectFactory {
+            scriptPath('jenkins/Jenkinsfile.pr-ci.groovy')
+          }
+        }
+        orphanedItemStrategy {
+          discardOldItems {
+            numToKeep(20)
+          }
+        }
+      }
+
+      pipelineJob('coaching-catalyst/main-cd') {
+        displayName('Main CD (Build, Helm Lint & Release)')
+        parameters {
+          booleanParam('DEPLOY_TO_STAGING', true, 'Roll out to staging via Helm after gates pass.')
+          booleanParam('DEPLOY_TO_PRODUCTION', false, 'Require manual approval and roll out to production via Helm.')
+        }
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('https://git.firm.example/your-org/coaching-catalyst.git')
+                  credentials('scm-read-credentials')
+                }
+                branch('*/main')
+              }
+            }
+            scriptPath('jenkins/Jenkinsfile.main-cd.groovy')
+            lightweight(true)
+          }
+        }
+      }

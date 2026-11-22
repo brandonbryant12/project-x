@@ -17,7 +17,11 @@ import { SchedulerLive } from '../scheduler/sweeps.ts';
 import { Background } from './background.ts';
 import { ConfigInvalid, type AppConfig } from './config.ts';
 import { NotifierLog, NotifierSmtp } from './notifier.ts';
-import { ObservabilityLive } from './observability.ts';
+import {
+  ObservabilityLive,
+  resolveTelemetryBinding,
+  type TelemetryBinding,
+} from './observability.ts';
 import { Settings } from './settings.ts';
 
 /**
@@ -59,6 +63,7 @@ export interface RuntimeStackPlan {
   readonly auth: AuthBinding;
   readonly decisions: DecisionsBinding;
   readonly notifier: NotifierBinding;
+  readonly telemetry: TelemetryBinding;
 }
 
 const resolveAuth = (config: AppConfig, problems: Array<string>): AuthBinding => {
@@ -116,11 +121,9 @@ export const resolveRuntimePlan = (
   const auth = resolveAuth(config, problems);
   const decisions = resolveDecisions(config, problems);
   const notifier = resolveNotifier(config, problems);
-  if (config.telemetry.enabled && !config.telemetry.otlpEndpoint) {
-    problems.push('TELEMETRY_ENABLED=true needs OTEL_EXPORTER_OTLP_ENDPOINT.');
-  }
+  const telemetry = resolveTelemetryBinding(config, problems);
   return problems.length === 0
-    ? Effect.succeed({ config, auth, decisions, notifier })
+    ? Effect.succeed({ config, auth, decisions, notifier, telemetry })
     : Effect.fail(new ConfigInvalid({ message: problems.join(' ') }));
 };
 
@@ -180,6 +183,6 @@ export const buildServerLayer = (plan: RuntimeStackPlan) => {
   return Layer.mergeAll(http, SchedulerLive, notifications).pipe(
     Layer.provide(Sessions.layer),
     Layer.provideMerge(services),
-    Layer.provide(ObservabilityLive(config)),
+    Layer.provide(ObservabilityLive(config, plan.telemetry)),
   );
 };

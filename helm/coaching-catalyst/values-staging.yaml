@@ -1,0 +1,39 @@
+# Staging overlay example for downstream forks.
+replicaCount: 2
+
+datadog:
+  enabled: true
+  env: staging
+  useNodeAgentOtlp: true
+
+ingress:
+  enabled: true
+  hosts:
+    - host: coaching-staging.firm.example
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: coaching-catalyst-staging-tls
+      hosts:
+        - coaching-staging.firm.example
+
+secrets:
+  existingSecret: coaching-catalyst-staging-secrets
+  externalSecret:
+    enabled: false
+    vaultPath: coaching-catalyst/staging
+
+config:
+  appOrigin: https://coaching-staging.firm.example
+  authMode: entra
+  decisions:
+    mode: mock
+  telemetry:
+    enabled: 'true'
+    otlpProtocol: protobuf
+    metricsTemporality: delta
+    environment: staging
+  logLevel: debug
+  notify:
+    transport: log

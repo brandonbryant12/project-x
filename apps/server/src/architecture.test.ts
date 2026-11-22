@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Architecture invariants (docs/testing/invariants.md I2, I9, I23, I24). They
+ * Architecture invariants (docs/testing/invariants.md I2, I9, I23, I24, I33). They
  * read the source and schema, so they fail when code moves in a way that
  * breaks a rule.
  */
@@ -98,7 +98,7 @@ describe('architecture', () => {
     expect(unwritten).toEqual(Object.keys(RESERVED).toSorted());
   });
 
-  it('I25: CoachingModel passes @alchemy.run/domain static Domain.verify cleanly', () => {
+  it('I33: CoachingModel passes @alchemy.run/domain static Domain.verify cleanly', () => {
     expect(Domain.verify(CoachingModel)).toEqual([]);
   });
 });

@@ -1,0 +1,12 @@
+Coaching Catalyst ({{ include "coaching-catalyst.version" . }}) has been deployed.
+
+- Release:   {{ .Release.Name }}
+- Namespace: {{ .Release.Namespace }}
+- Secret:    {{ include "coaching-catalyst.secretName" . }}
+- Health:    GET /healthz (liveness), GET /readyz (readiness + Postgres check)
+{{- if .Values.ingress.enabled }}
+- URL:       https://{{ (index .Values.ingress.hosts 0).host }}
+{{- else }}
+- Port-forward locally:
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "coaching-catalyst.fullname" . }} 4400:{{ .Values.service.port }}
+{{- end }}

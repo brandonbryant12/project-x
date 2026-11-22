@@ -5,6 +5,7 @@ import { Db, schema } from '@repo/db';
 import { eq } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { createHash } from 'node:crypto';
+import { recordAdvisoryCheck } from '../../../platform/metrics.ts';
 import { now } from '../../../platform/time.ts';
 import type { BuiltQuestions, Interpretation } from './question-sets.ts';
 
@@ -68,6 +69,12 @@ export const runCheck = Effect.fn('advisory.check')(function* (request: CheckReq
         : 'Assistant checks are turned off.',
       completedAt: yield* now,
     });
+    yield* recordAdvisoryCheck({
+      questionSet: request.questionSet.id,
+      provider: decisions.availability.provider,
+      status: 'skipped',
+      effect: 'none',
+    });
     return { status: 'skipped', id } satisfies CheckOutcome as CheckOutcome;
   }
 
@@ -94,6 +101,12 @@ export const runCheck = Effect.fn('advisory.check')(function* (request: CheckReq
       questionSet: request.questionSet.id,
       error: evaluated.error._tag,
     });
+    yield* recordAdvisoryCheck({
+      questionSet: request.questionSet.id,
+      provider: decisions.availability.provider,
+      status: 'failed',
+      effect: 'none',
+    });
     return { status: 'failed', id } satisfies CheckOutcome as CheckOutcome;
   }
 
@@ -118,5 +131,12 @@ export const runCheck = Effect.fn('advisory.check')(function* (request: CheckReq
       completedAt,
     })
     .where(eq(schema.advisoryCheck.id, id));
+  yield* recordAdvisoryCheck({
+    questionSet: request.questionSet.id,
+    provider: decisions.availability.provider,
+    status: 'completed',
+    effect: interpretation.effect,
+    latencyMs: result.latencyMs,
+  });
   return { status: 'completed', id, interpretation } satisfies CheckOutcome as CheckOutcome;
 });

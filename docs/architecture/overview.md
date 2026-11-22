@@ -2,7 +2,8 @@
 
 This is the one-page view of the system. Detail lives in
 [the data model](data-model.md), [identity and access](identity-and-access.md),
-[lifecycles](lifecycles.md) (generated from the code) and the [ADRs](../adr/README.md).
+[domain model graph](domain-model.md) (generated), [lifecycles](lifecycles.md)
+(generated) and the [ADRs](../adr/README.md).
 
 ## 1. System context
 
@@ -195,7 +196,8 @@ The three kinds of tables follow different rules:
 - **Workflow entities** (status plus version): plan, activity, observation,
   engagement, evidence.
 - **Append-only facts** (enforced by triggers): credit, reversal, audit,
-  published catalog. A designation is a fact that may be ended once.
+  `domain_event` journal, published catalog. A designation is a fact that may
+  be ended once.
 - **Operational** (deleted after 90 days): sessions, the notification outbox,
   preferences.
 
@@ -240,3 +242,5 @@ flowchart LR
 | Coaching rhythm      | Deferred until pilot feedback: meetings stay in Outlook, next steps stay on the observation | 0019             |
 | Observer supply      | Designated observers, bounded and anti-collusion                                            | 0020             |
 | Adoption             | Program owner sees aggregates only, cells under five hidden                                 | 0021             |
+| Domain & proofs      | `@alchemy.run/domain` fact model, 3-layer formal verification, zero-drift Mermaid diagrams  | 0023             |
+| Catalog & voice      | Admin catalog authoring studio, core/common tiers, level-up playbooks, on-device voice note | 0024             |

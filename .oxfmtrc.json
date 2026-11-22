@@ -2,5 +2,10 @@
   "printWidth": 100,
   "singleQuote": true,
   "semi": true,
-  "ignorePatterns": ["**/routeTree.gen.ts", "packages/db/drizzle/**", "pnpm-lock.yaml"]
+  "ignorePatterns": [
+    "**/routeTree.gen.ts",
+    "packages/db/drizzle/**",
+    "helm/*/templates/**",
+    "pnpm-lock.yaml"
+  ]
 }

@@ -32,7 +32,7 @@ ALTER TABLE "observer_designation" ADD CONSTRAINT "observer_designation_no_overl
    daterange("valid_from", coalesce("ended_on", "valid_to"), '[)') WITH &&);
 --> statement-breakpoint
 
--- 5. Append-only tables (ADR 0007, 0012, 0015; I3).
+-- 5. Append-only tables (ADR 0007, 0012, 0015, 0023; I3, I34).
 CREATE OR REPLACE FUNCTION forbid_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   RAISE EXCEPTION '% is append-only (% refused)', TG_TABLE_NAME, TG_OP USING ERRCODE = 'restrict_violation';
@@ -42,7 +42,7 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
-    'credit_entry', 'credit_reversal', 'badge_award_credit', 'audit_event',
+    'credit_entry', 'credit_reversal', 'badge_award_credit', 'audit_event', 'domain_event',
     'advisory_disposition', 'skill_version', 'skill_level', 'skill_indicator'
   ] LOOP
     EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON %I FOR EACH ROW EXECUTE FUNCTION forbid_mutation()', t || '_append_only', t);
