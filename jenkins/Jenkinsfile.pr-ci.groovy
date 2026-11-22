@@ -75,7 +75,8 @@ pipeline {
         sh '''
           if command -v helm >/dev/null 2>&1; then
             helm lint helm/coaching-catalyst
-            helm lint helm/coaching-catalyst -f helm/coaching-catalyst/values-staging.yaml
+            helm lint helm/coaching-catalyst -f helm/coaching-catalyst/values-dev.yaml
+            helm lint helm/coaching-catalyst -f helm/coaching-catalyst/values-preprod.yaml
             helm lint helm/coaching-catalyst -f helm/coaching-catalyst/values-prod.yaml
             helm template coaching-catalyst helm/coaching-catalyst \
               -f helm/coaching-catalyst/values-prod.yaml \

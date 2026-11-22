@@ -3,7 +3,7 @@ replicaCount: 3
 
 datadog:
   enabled: true
-  env: production
+  env: prod
   useNodeAgentOtlp: true
 
 autoscaling:
@@ -47,7 +47,7 @@ config:
     enabled: 'true'
     otlpProtocol: protobuf
     metricsTemporality: delta
-    environment: production
+    environment: prod
   logLevel: info
   notify:
     transport: smtp

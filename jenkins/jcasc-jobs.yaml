@@ -1,6 +1,6 @@
 # Optional Jenkins Configuration as Code (JCasC) job registration template.
 # Downstream forks using JCasC + Job DSL can adapt the SCM URL and credential
-# IDs below to provision both PR CI and Main CD pipelines declaratively.
+# IDs below to provision PR CI and Main CD (dev -> preprod -> prod) from SCM.
 
 jobs:
   - script: |
@@ -31,10 +31,11 @@ jobs:
       }
 
       pipelineJob('coaching-catalyst/main-cd') {
-        displayName('Main CD (Build, Helm Lint & Release)')
+        displayName('Main CD (Build, Helm Lint & Dev/Preprod/Prod Release)')
         parameters {
-          booleanParam('DEPLOY_TO_STAGING', true, 'Roll out to staging via Helm after gates pass.')
-          booleanParam('DEPLOY_TO_PRODUCTION', false, 'Require manual approval and roll out to production via Helm.')
+          booleanParam('DEPLOY_TO_DEV', true, 'Roll out to dev via Helm after gates pass.')
+          booleanParam('DEPLOY_TO_PREPROD', false, 'Promote the verified image to preprod via Helm.')
+          booleanParam('DEPLOY_TO_PROD', false, 'Require manual approval and promote to prod via Helm.')
         }
         definition {
           cpsScm {

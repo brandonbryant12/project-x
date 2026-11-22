@@ -1,4 +1,5 @@
 # Declarative Jenkins Pipeline YAML template for downstream forks.
+# Environments: dev -> preprod -> prod.
 # Adapt `agent`, `registry`, `namespace`, and Vault/kube credential IDs to match
 # your organization's internal Jenkins platform (Pipeline-as-YAML / shared lib).
 #
@@ -9,7 +10,7 @@ apiVersion: jenkins.coaching-catalyst/v1
 kind: PipelineTemplate
 metadata:
   name: coaching-catalyst
-  description: CI quality gates, formal verification, OCI build, and Helm rollout
+  description: CI quality gates, formal verification, OCI build, and Helm dev/preprod/prod rollout
 
 agent:
   label: 'linux && node24 && docker && helm'
@@ -28,14 +29,16 @@ environment:
   HELM_CHART_PATH: 'helm/coaching-catalyst'
   # Override in downstream fork:
   IMAGE_REPOSITORY: 'ghcr.io/your-org/coaching-catalyst'
-  STAGING_NAMESPACE: 'coaching-catalyst-staging'
+  DEV_NAMESPACE: 'coaching-catalyst-dev'
+  PREPROD_NAMESPACE: 'coaching-catalyst-preprod'
   PROD_NAMESPACE: 'coaching-catalyst-prod'
   HELM_RELEASE_NAME: 'coaching-catalyst'
 
 credentials:
   # Only bound on main/CD runs — never exposed to PR builds.
   registryPush: 'container-registry-credentials'
-  kubeconfigStaging: 'kubeconfig-staging'
+  kubeconfigDev: 'kubeconfig-dev'
+  kubeconfigPreprod: 'kubeconfig-preprod'
   kubeconfigProd: 'kubeconfig-prod'
 
 stages:
@@ -73,7 +76,8 @@ stages:
     steps:
       - sh: |
           helm lint "${HELM_CHART_PATH}"
-          helm lint "${HELM_CHART_PATH}" -f "${HELM_CHART_PATH}/values-staging.yaml"
+          helm lint "${HELM_CHART_PATH}" -f "${HELM_CHART_PATH}/values-dev.yaml"
+          helm lint "${HELM_CHART_PATH}" -f "${HELM_CHART_PATH}/values-preprod.yaml"
           helm lint "${HELM_CHART_PATH}" -f "${HELM_CHART_PATH}/values-prod.yaml"
           helm template "${HELM_RELEASE_NAME}" "${HELM_CHART_PATH}" \
             -f "${HELM_CHART_PATH}/values-prod.yaml" \
@@ -91,36 +95,56 @@ stages:
           docker build -f apps/server/Dockerfile -t "${IMAGE_REPOSITORY}:${IMAGE_TAG}" .
           docker push "${IMAGE_REPOSITORY}:${IMAGE_TAG}"
 
-  - name: Deploy Staging
+  - name: Deploy Dev
     when:
       branch: main
+      parameter: DEPLOY_TO_DEV=true
     steps:
       - withCredentials:
-          - kubeconfigStaging
+          - kubeconfigDev
       - sh: |
           IMAGE_TAG="sha-$(git rev-parse --short=12 HEAD)"
           helm upgrade --install "${HELM_RELEASE_NAME}" "${HELM_CHART_PATH}" \
-            --namespace "${STAGING_NAMESPACE}" \
+            --namespace "${DEV_NAMESPACE}" \
             --create-namespace \
-            -f "${HELM_CHART_PATH}/values-staging.yaml" \
+            -f "${HELM_CHART_PATH}/values-dev.yaml" \
             --set "image.repository=${IMAGE_REPOSITORY}" \
             --set "image.tag=${IMAGE_TAG}" \
             --atomic \
             --wait \
             --timeout 5m
 
-  - name: Production Approval
+  - name: Deploy Preprod
     when:
       branch: main
-      parameter: DEPLOY_TO_PRODUCTION=true
-    approval:
-      message: 'Approve production Helm rollout of Coaching Catalyst?'
-      ok: 'Deploy to Production'
+      parameter: DEPLOY_TO_PREPROD=true
+    steps:
+      - withCredentials:
+          - kubeconfigPreprod
+      - sh: |
+          IMAGE_TAG="sha-$(git rev-parse --short=12 HEAD)"
+          helm upgrade --install "${HELM_RELEASE_NAME}" "${HELM_CHART_PATH}" \
+            --namespace "${PREPROD_NAMESPACE}" \
+            --create-namespace \
+            -f "${HELM_CHART_PATH}/values-preprod.yaml" \
+            --set "image.repository=${IMAGE_REPOSITORY}" \
+            --set "image.tag=${IMAGE_TAG}" \
+            --atomic \
+            --wait \
+            --timeout 5m
 
-  - name: Deploy Production
+  - name: Prod Approval
     when:
       branch: main
-      parameter: DEPLOY_TO_PRODUCTION=true
+      parameter: DEPLOY_TO_PROD=true
+    approval:
+      message: 'Approve prod Helm rollout of Coaching Catalyst?'
+      ok: 'Deploy to Prod'
+
+  - name: Deploy Prod
+    when:
+      branch: main
+      parameter: DEPLOY_TO_PROD=true
     steps:
       - withCredentials:
           - kubeconfigProd

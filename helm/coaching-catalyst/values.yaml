@@ -1,6 +1,6 @@
 # Default production-safe values for coaching-catalyst.
 # Downstream forks should keep this file as the clean baseline and layer
-# environment overrides in values-staging.yaml / values-prod.yaml.
+# environment overrides in values-dev.yaml / values-preprod.yaml / values-prod.yaml.
 #
 # IMPORTANT: Never place real secrets in values*.yaml.
 # See ../README.md for the Vault secrets matrix.

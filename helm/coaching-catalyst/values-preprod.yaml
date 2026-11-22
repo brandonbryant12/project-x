@@ -1,0 +1,47 @@
+# Preprod overlay for downstream forks (prod-like validation before production).
+replicaCount: 2
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+datadog:
+  enabled: true
+  env: preprod
+  useNodeAgentOtlp: true
+
+ingress:
+  enabled: true
+  hosts:
+    - host: coaching-preprod.firm.example
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: coaching-catalyst-preprod-tls
+      hosts:
+        - coaching-preprod.firm.example
+
+secrets:
+  existingSecret: coaching-catalyst-preprod-secrets
+  externalSecret:
+    enabled: false
+    vaultPath: coaching-catalyst/preprod
+    optionalKeys:
+      - DECISIONS_API_KEY
+      - SMTP_PASSWORD
+
+config:
+  appOrigin: https://coaching-preprod.firm.example
+  authMode: entra
+  decisions:
+    mode: live
+    paidTierConfirmed: 'true'
+  telemetry:
+    enabled: 'true'
+    otlpProtocol: protobuf
+    metricsTemporality: delta
+    environment: preprod
+  logLevel: info
+  notify:
+    transport: log

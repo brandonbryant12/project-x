@@ -1,10 +1,13 @@
 /*
  * Coaching Catalyst - Main Branch CI/CD Pipeline (Pipeline from SCM)
  *
+ * Environments: dev -> preprod -> prod.
  * Downstream forks should configure:
  * - IMAGE_REPOSITORY: internal OCI registry path
- * - Jenkins credentials: container-registry-credentials, kubeconfig-staging, kubeconfig-prod
- * - Application secrets in HashiCorp Vault (never in Jenkins or Helm --set; see helm/README.md)
+ * - Jenkins credentials: container-registry-credentials, kubeconfig-dev,
+ *   kubeconfig-preprod, kubeconfig-prod
+ * - Application secrets in HashiCorp Vault (never in Jenkins or Helm --set;
+ *   see helm/README.md)
  */
 
 pipeline {
@@ -20,14 +23,19 @@ pipeline {
 
   parameters {
     booleanParam(
-      name: 'DEPLOY_TO_STAGING',
+      name: 'DEPLOY_TO_DEV',
       defaultValue: true,
-      description: 'Deploy the verified image to staging via Helm after all gates pass.'
+      description: 'Deploy the verified image to dev via Helm after all gates pass.'
     )
     booleanParam(
-      name: 'DEPLOY_TO_PRODUCTION',
+      name: 'DEPLOY_TO_PREPROD',
       defaultValue: false,
-      description: 'Prompt for manual approval and deploy to production via Helm.'
+      description: 'Promote the verified image to preprod via Helm.'
+    )
+    booleanParam(
+      name: 'DEPLOY_TO_PROD',
+      defaultValue: false,
+      description: 'Prompt for manual approval and promote to prod via Helm.'
     )
     string(
       name: 'IMAGE_REPOSITORY',
@@ -42,7 +50,8 @@ pipeline {
     PATH = "${PNPM_HOME}:${PATH}"
     HELM_CHART_PATH = 'helm/coaching-catalyst'
     HELM_RELEASE_NAME = 'coaching-catalyst'
-    STAGING_NAMESPACE = 'coaching-catalyst-staging'
+    DEV_NAMESPACE = 'coaching-catalyst-dev'
+    PREPROD_NAMESPACE = 'coaching-catalyst-preprod'
     PROD_NAMESPACE = 'coaching-catalyst-prod'
   }
 
@@ -83,7 +92,8 @@ pipeline {
         sh '''
           pnpm build
           helm lint "${HELM_CHART_PATH}"
-          helm lint "${HELM_CHART_PATH}" -f "${HELM_CHART_PATH}/values-staging.yaml"
+          helm lint "${HELM_CHART_PATH}" -f "${HELM_CHART_PATH}/values-dev.yaml"
+          helm lint "${HELM_CHART_PATH}" -f "${HELM_CHART_PATH}/values-preprod.yaml"
           helm lint "${HELM_CHART_PATH}" -f "${HELM_CHART_PATH}/values-prod.yaml"
           helm template "${HELM_RELEASE_NAME}" "${HELM_CHART_PATH}" \
             -f "${HELM_CHART_PATH}/values-prod.yaml" \
@@ -95,7 +105,7 @@ pipeline {
 
     stage('Build & Push Container Image') {
       when {
-        expression { return params.DEPLOY_TO_STAGING || params.DEPLOY_TO_PRODUCTION }
+        expression { return params.DEPLOY_TO_DEV || params.DEPLOY_TO_PREPROD || params.DEPLOY_TO_PROD }
       }
       steps {
         withCredentials([usernamePassword(
@@ -112,17 +122,17 @@ pipeline {
       }
     }
 
-    stage('Deploy Staging') {
+    stage('Deploy Dev') {
       when {
-        expression { return params.DEPLOY_TO_STAGING }
+        expression { return params.DEPLOY_TO_DEV }
       }
       steps {
-        withCredentials([file(credentialsId: 'kubeconfig-staging', variable: 'KUBECONFIG')]) {
+        withCredentials([file(credentialsId: 'kubeconfig-dev', variable: 'KUBECONFIG')]) {
           sh '''
             helm upgrade --install "${HELM_RELEASE_NAME}" "${HELM_CHART_PATH}" \
-              --namespace "${STAGING_NAMESPACE}" \
+              --namespace "${DEV_NAMESPACE}" \
               --create-namespace \
-              -f "${HELM_CHART_PATH}/values-staging.yaml" \
+              -f "${HELM_CHART_PATH}/values-dev.yaml" \
               --set "image.repository=${IMAGE_REPOSITORY}" \
               --set "image.tag=${IMAGE_TAG}" \
               --atomic \
@@ -133,18 +143,39 @@ pipeline {
       }
     }
 
-    stage('Manual Production Approval') {
+    stage('Deploy Preprod') {
       when {
-        expression { return params.DEPLOY_TO_PRODUCTION }
+        expression { return params.DEPLOY_TO_PREPROD }
       }
       steps {
-        input message: "Deploy Coaching Catalyst (${env.IMAGE_TAG}) to production?", ok: 'Deploy'
+        withCredentials([file(credentialsId: 'kubeconfig-preprod', variable: 'KUBECONFIG')]) {
+          sh '''
+            helm upgrade --install "${HELM_RELEASE_NAME}" "${HELM_CHART_PATH}" \
+              --namespace "${PREPROD_NAMESPACE}" \
+              --create-namespace \
+              -f "${HELM_CHART_PATH}/values-preprod.yaml" \
+              --set "image.repository=${IMAGE_REPOSITORY}" \
+              --set "image.tag=${IMAGE_TAG}" \
+              --atomic \
+              --wait \
+              --timeout 5m
+          '''
+        }
       }
     }
 
-    stage('Deploy Production') {
+    stage('Manual Prod Approval') {
       when {
-        expression { return params.DEPLOY_TO_PRODUCTION }
+        expression { return params.DEPLOY_TO_PROD }
+      }
+      steps {
+        input message: "Deploy Coaching Catalyst (${env.IMAGE_TAG}) to prod?", ok: 'Deploy'
+      }
+    }
+
+    stage('Deploy Prod') {
+      when {
+        expression { return params.DEPLOY_TO_PROD }
       }
       steps {
         withCredentials([file(credentialsId: 'kubeconfig-prod', variable: 'KUBECONFIG')]) {

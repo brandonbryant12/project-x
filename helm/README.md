@@ -10,9 +10,10 @@ the `FOR UPDATE SKIP LOCKED` notification dispatcher.
 ## Quick validation
 
 ```bash
-# Lint the chart against defaults, staging, and prod overlays
+# Lint the chart against defaults and all three environment overlays (dev, preprod, prod)
 helm lint helm/coaching-catalyst
-helm lint helm/coaching-catalyst -f helm/coaching-catalyst/values-staging.yaml
+helm lint helm/coaching-catalyst -f helm/coaching-catalyst/values-dev.yaml
+helm lint helm/coaching-catalyst -f helm/coaching-catalyst/values-preprod.yaml
 helm lint helm/coaching-catalyst -f helm/coaching-catalyst/values-prod.yaml
 
 # Render Kubernetes manifests locally without a cluster
@@ -82,7 +83,7 @@ or Jenkins job logs.**
 | `config.telemetry.metricsTemporality`                                      | `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY` | `delta` (preferred by Datadog) or `cumulative`                              |
 | `config.telemetry.serviceName`                                             | `OTEL_SERVICE_NAME`                      | `coaching-catalyst`                                                         |
 | `config.telemetry.serviceVersion`                                          | `OTEL_SERVICE_VERSION`                   | Defaults to `image.tag`                                                     |
-| `config.telemetry.environment`                                             | `OTEL_ENV`                               | `staging` \| `production`                                                   |
+| `config.telemetry.environment`                                             | `OTEL_ENV`                               | `dev` \| `preprod` \| `prod`                                                |
 | `config.logLevel`                                                          | `LOG_LEVEL`                              | `info`                                                                      |
 | `config.logFormat`                                                         | `LOG_FORMAT`                             | `json` (includes `dd.trace_id` / `dd.span_id` correlation + PII redaction)  |
 | `config.schedulerEnabled`                                                  | `SCHEDULER_ENABLED`                      | `true` (advisory-locked across replicas)                                    |
@@ -96,7 +97,8 @@ or Jenkins job logs.**
 
 1. **External Secrets Operator (recommended):** Set `secrets.externalSecret.enabled: true`,
    point `secrets.externalSecret.secretStoreRef` at your Vault `ClusterSecretStore`,
-   and set `secrets.externalSecret.vaultPath` (e.g. `coaching-catalyst/prod`).
+   and set `secrets.externalSecret.vaultPath` (`coaching-catalyst/dev`,
+   `coaching-catalyst/preprod`, or `coaching-catalyst/prod`).
    The chart renders `templates/externalsecret.yaml` and mounts the synced K8s
    Secret automatically.
 2. **Pre-provisioned Kubernetes Secret (Vault CSI / SealedSecrets / platform sync):**
@@ -108,7 +110,8 @@ or Jenkins job logs.**
 
 ## Datadog & OTLP setup
 
-When `datadog.enabled: true` (as in `values-staging.yaml` and `values-prod.yaml`):
+When `datadog.enabled: true` (as in `values-dev.yaml`, `values-preprod.yaml`,
+and `values-prod.yaml`):
 
 - Pod & Deployment labels emit Datadog Unified Service Tags (`tags.datadoghq.com/{env,service,version}`).
 - With `datadog.useNodeAgentOtlp: true`, the Deployment injects `DATADOG_HOST_IP`
