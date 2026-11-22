@@ -52,11 +52,11 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-  plan["1 · My plan<br/>1–3 skills with target levels<br/>agreed with your coach"]
-  work["2 · Log work I did<br/>client meeting, book review…<br/>in 30 seconds"]
-  observe["3 · Observed<br/>coach or leader who saw it:<br/>level + one specific comment"]
-  sign["4 · Signed<br/>credit posts, quoted back to you"]
-  badge["5 · Badge<br/>3 demonstrations · 2 observers ·<br/>first-hand · 4+ weeks"]
+  plan["1 · Focus skills<br/>Pick 1–3 skills with target levels<br/>active right away"]
+  work["2 · Ask for feedback<br/>pick your coach or leader +<br/>a quick note in one step"]
+  observe["3 · Give feedback<br/>coach or leader who saw it:<br/>level + one specific comment"]
+  sign["4 · Published<br/>feedback shared & progress updates"]
+  badge["5 · Skill badge<br/>2 observations · first-hand<br/>(configurable per firm)"]
   plan --> work --> observe --> sign --> badge
   sign -. "try next time" .-> work
 ```
@@ -66,28 +66,28 @@ sequenceDiagram
   actor A as Advisor
   actor C as Coach
   participant App
-  A->>App: Log "Discovery meeting with a new household" + reflection
-  App->>App: automated privacy check (holds client details)
-  A->>App: Ask Coach to observe (they were there)
-  App-->>C: Email + "Waiting on you": "Observe Maya" · open until Mon 30 Nov
-  C->>App: Level "Doing independently" + what I saw + what next
-  App-->>C: Assistant pre-read: "Reads as a specific behavior" (C decides)
-  C->>App: Sign
-  App-->>A: "Signed. Sam's words: …" · progress toward the badge updates
-  App-->>A: Badge earned · how it was earned: 3 demonstrations · 2 observers · 7 weeks
+  A->>App: Ask for feedback ("Discovery call" + optional note)
+  App->>App: automated privacy check (blocks client names/accounts)
+  App-->>C: Email + "Action needed": "Feedback for Maya"
+  C->>App: Level "Doing independently" + what went well + try next time
+  C->>App: Publish feedback
+  App-->>A: Coaching note visible on Home & My skills · progress updates
+  App-->>A: Badge earned · how it was earned: 2 observations · first-hand
 ```
 
 Other journeys:
 
-- **"I saw this"**: an observer records an observation directly after
+- **"Give feedback"**: an observer records and publishes feedback directly after
   watching good work, in one screen.
-- **Plan agreement**: a coachee proposes a plan; their coach agrees it; their
-  leader may endorse it.
+- **Configurable rigor**: POC defaults start plans active immediately and award
+  badges after 2 first-hand observations. Tenants can switch to the strict
+  enterprise preset (3 demonstrations, 2 observers, 4+ weeks) in tenant settings
+  without changing code.
 - **My team**: a leader sees coverage (who has been observed recently) and
-  what is waiting on them. Never rankings.
-- **Privacy hold**: a reflection with client details stays hidden until it is
+  what is waiting on them, with one-click Give feedback. Never rankings.
+- **Privacy hold**: a note with client details is flagged locally and held until
   revised. A complaint or a specific recommendation goes to compliance.
-- **Contest**: a coachee can acknowledge an observation or ask for a review.
+- **Contest**: a coachee can acknowledge a published observation or ask for a review.
 
 ## Principles
 

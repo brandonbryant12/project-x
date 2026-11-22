@@ -2,8 +2,9 @@
 
 This page is the design contract for the web app. Navigation (who sees what)
 is `src/components/shell/nav.ts`; Home is `src/features/home/home-screen.tsx`
-with three sections: "Waiting on you", "Your plan" and "Recently". If this page
-and the code disagree, fix one of them in the same change.
+with Action needed, Focus skills progress, Recent coaching feedback, and Your
+coaching team. If this page and the code disagree, fix one of them in the same
+change.
 
 ## Feel
 
@@ -57,6 +58,8 @@ tables are sans.
   - `BadgeSeal`: earned badges only. `level={0}` renders the dashed "not yet"
     seal.
   - `LevelMeter`: a rating. Never use a seal for a rating.
+  - `SkillLadder` & `ProgressBar`: visual 4-step level ladder and next-badge
+    progress bar used on Home and My skills.
   - `StatusPill`: labels and tones come from
     `src/lib/lifecycle-presentation.ts`.
   - `DueLabel`: shows dates, not countdowns.
@@ -91,10 +94,10 @@ tables are sans.
 
 Plain, adult, second person. Name people, not roles. No exclamation marks and
 no "Great job!". Prefer "record" to "points". The assistant says "appears to"
-and never "I". Use plain words, not internal terms: "Log work I did", "I saw
-this", "My plan", "People I coach", "times observed", "How this was earned"
-(the [glossary](../../CONTEXT.md) maps them). The product name comes from
-`src/lib/brand.ts`.
+and never "I". Use plain words, not internal terms: "Ask for feedback", "Give
+feedback", "My skills", "Feedback requests", "People I coach", "times observed",
+"How this was earned" (the [glossary](../../CONTEXT.md) maps them). The product
+name comes from `src/lib/brand.ts`.
 
 ## Accessibility
 

@@ -48,13 +48,23 @@ export class Unprocessable extends Schema.TaggedError<Unprocessable>()(
   { httpApiStatus: 422 },
 ) {}
 
-export type ApiError =
-  | Unauthorized
-  | Forbidden
-  | NotFound
-  | InvalidTransition
-  | Conflict
-  | Unprocessable;
+export const ApiErrorSchema = Schema.Union([
+  Unauthorized,
+  Forbidden,
+  NotFound,
+  InvalidTransition,
+  Conflict,
+  Unprocessable,
+]);
+
+export type ApiError = typeof ApiErrorSchema.Type;
+
+export const isApiError: (value: unknown) => value is ApiError = Schema.is(ApiErrorSchema);
+
+export const isApiErrorTag = <Tag extends ApiError['_tag']>(
+  error: unknown,
+  tag: Tag,
+): error is Extract<ApiError, { readonly _tag: Tag }> => isApiError(error) && error._tag === tag;
 
 /** User-facing message for any API error. */
 export const errorMessage = (error: ApiError): string => {

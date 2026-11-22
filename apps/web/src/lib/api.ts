@@ -1,4 +1,4 @@
-import { Api, errorMessage, type ApiError } from '@repo/api';
+import { Api, errorMessage, isApiError, isApiErrorTag, type ApiError } from '@repo/api';
 import {
   QueryClient,
   QueryCache,
@@ -53,25 +53,14 @@ export class RequestFailed extends Error {
   }
 }
 
-const isApiError = (e: unknown): e is ApiError =>
-  typeof e === 'object' &&
-  e !== null &&
-  '_tag' in e &&
-  [
-    'Unauthorized',
-    'Forbidden',
-    'NotFound',
-    'InvalidTransition',
-    'Conflict',
-    'Unprocessable',
-  ].includes(String((e as { _tag: unknown })._tag));
+export type ApiClientError = ApiError | RequestFailed;
 
 /** Effect-native API call returning a typed Effect (no thrown promises). */
 export const callEffect = <G extends Group, E extends EndpointOf<G>>(
   group: G,
   endpoint: E,
   request: RequestOf<G, E>,
-): Effect.Effect<SuccessOf<G, E>, ApiError | RequestFailed> =>
+): Effect.Effect<SuccessOf<G, E>, ApiClientError> =>
   Effect.gen(function* () {
     const c = yield* Effect.tryPromise({
       try: () => client(),
@@ -79,7 +68,7 @@ export const callEffect = <G extends Group, E extends EndpointOf<G>>(
     });
     const fn = c[group][endpoint] as (r: unknown) => Effect.Effect<SuccessOf<G, E>, unknown>;
     return yield* fn(request).pipe(
-      Effect.mapError((error): ApiError | RequestFailed =>
+      Effect.mapError((error): ApiClientError =>
         isApiError(error) ? error : new RequestFailed(error),
       ),
     );
@@ -108,9 +97,9 @@ export const queryOptions = <G extends Group, E extends EndpointOf<G>>(
 export const describeError = (error: unknown): string =>
   isApiError(error) ? errorMessage(error) : 'Something went wrong. Nothing was changed.';
 
-export const isUnauthorized = (error: unknown) =>
-  isApiError(error) && error._tag === 'Unauthorized';
-export const isNotFound = (error: unknown) => isApiError(error) && error._tag === 'NotFound';
+export const isUnauthorized = (error: unknown) => isApiErrorTag(error, 'Unauthorized');
+export const isNotFound = (error: unknown) => isApiErrorTag(error, 'NotFound');
+export const isConflict = (error: unknown) => isApiErrorTag(error, 'Conflict');
 
 const redirectToSignIn = (error: unknown) => {
   if (isUnauthorized(error) && !window.location.pathname.startsWith('/sign-in')) {
@@ -143,13 +132,16 @@ export const queryClient = new QueryClient({
 export const useApiMutation = <G extends Group, E extends EndpointOf<G>>(
   group: G,
   endpoint: E,
-  options: Omit<UseMutationOptions<SuccessOf<G, E>, unknown, RequestOf<G, E>>, 'mutationFn'> & {
+  options: Omit<
+    UseMutationOptions<SuccessOf<G, E>, ApiClientError, RequestOf<G, E>>,
+    'mutationFn'
+  > & {
     readonly invalidates?: ReadonlyArray<Group>;
   } = {},
 ) => {
   const qc = useQueryClient();
   const { invalidates, onSuccess, ...rest } = options;
-  return useMutation<SuccessOf<G, E>, unknown, RequestOf<G, E>>({
+  return useMutation<SuccessOf<G, E>, ApiClientError, RequestOf<G, E>>({
     mutationFn: (request) => call(group, endpoint, request),
     onSuccess: async (data, variables, result, context) => {
       await (invalidates

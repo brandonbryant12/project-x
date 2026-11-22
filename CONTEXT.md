@@ -24,20 +24,20 @@ add it here first. The model behind the terms is described in
 
 ## Development
 
-| Term                  | Meaning                                                                                                                             | Not to be confused with                             |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| **Skill**             | A named capability that matters to the business, e.g. _Client discovery_.                                                           | Badge                                               |
-| **Skill version**     | An immutable published definition: four levels, each with observable indicators.                                                    |                                                     |
-| **Level**             | One step on a skill's ladder: 1 Learning, 2 Doing with support, 3 Doing independently, 4 Teaching others.                           |                                                     |
-| **Indicator**         | An observable behavior at a level. Optional for the observer to tick. It carries a `lineage_key` that stays stable across versions. | Trait                                               |
-| **Activity template** | A reusable piece of real work, e.g. _Discovery meeting with a new client_, with suggested skills and a tip for observers.           | Activity                                            |
-| **Development plan**  | A coachee's plan for a period: one to three focus skills, each with a **target level**, plus the activities that will develop them. |                                                     |
-| **Activity**          | One item of planned real work, with an **observation commitment** (who will see it, and how). It is either `planned` or `ad_hoc`.   | Interaction                                         |
-| **Interaction**       | One dated occurrence of doing the work.                                                                                             | Observation                                         |
-| **Client reference**  | An opaque CRM ID. Never a name.                                                                                                     |                                                     |
-| **Evidence**          | The coachee's reflection on an interaction, screened for privacy.                                                                   | Observation                                         |
-| **Try next time**     | The latest signed observation's "What next", shown on the coachee's plan. Not stored separately.                                    | Activity                                            |
-| **Quick capture**     | The one-screen "I saw this": an observer records who, when, mode, skills, level and comment, and signs or saves to finish later.    | Logging an interaction, which is the coachee\'s act |
+| Term                  | Meaning                                                                                                                                                                                   | Not to be confused with                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **Skill**             | A named capability that matters to the business, e.g. _Client discovery_.                                                                                                                 | Badge                                           |
+| **Skill version**     | An immutable published definition: four levels, each with observable indicators.                                                                                                          |                                                 |
+| **Level**             | One step on a skill's ladder: 1 Learning, 2 Doing with support, 3 Doing independently, 4 Teaching others.                                                                                 |                                                 |
+| **Indicator**         | An observable behavior at a level. Optional for the observer to tick. It carries a `lineage_key` that stays stable across versions.                                                       | Trait                                           |
+| **Activity template** | A reusable piece of real work, e.g. _Discovery meeting with a new client_, with suggested skills and a tip for observers.                                                                 | Activity                                        |
+| **Development plan**  | A coachee's active focus skills (one to three skills, each with a **target level**) plus optional practice activities. Starts active immediately by default; coach agreement is optional. |                                                 |
+| **Activity**          | One item of planned real work, with an **observation commitment** (who will see it, and how). It is either `planned` or `ad_hoc`.                                                         | Interaction                                     |
+| **Interaction**       | One dated occurrence of doing the work.                                                                                                                                                   | Observation                                     |
+| **Client reference**  | An opaque CRM ID. Never a name.                                                                                                                                                           |                                                 |
+| **Evidence**          | The coachee's reflection on an interaction, screened for privacy.                                                                                                                         | Observation                                     |
+| **Try next time**     | The latest published observation's "What next", shown on the coachee's My skills screen. Not stored separately.                                                                           | Activity                                        |
+| **Quick capture**     | The one-screen "Give feedback": an observer records who, when, mode, skills, level and comment, and publishes or saves a draft.                                                           | Asking for feedback, which is the coachee's act |
 
 ## Recognition
 
@@ -79,12 +79,12 @@ Code and docs use the terms above. The UI uses plain words:
 
 | Internal term                    | In the UI                                                       |
 | -------------------------------- | --------------------------------------------------------------- |
-| Interaction                      | "work" ("Log work I did")                                       |
-| Observation (quick capture)      | "I saw this"; its narrative is "What I saw"                     |
-| Development plan                 | "My plan"                                                       |
+| Interaction + observation ask    | "Ask for feedback"                                              |
+| Observation (quick capture)      | "Give feedback"; its narrative is "What did they do well?"      |
+| Development plan                 | "My skills" / "Focus skills"                                    |
 | Coaching engagement              | coaching ("People I coach", "Stop coaching")                    |
 | Demonstration                    | "times observed"                                                |
 | Badge receipt                    | "How this was earned"                                           |
 | Designation / designated basis   | "Asked to observe"                                              |
 | Assistant check (privacy screen) | "Automated privacy check"; the admin page is "Assistant checks" |
-| Inbox                            | "To sign"                                                       |
+| Inbox                            | "Feedback requests"                                             |
