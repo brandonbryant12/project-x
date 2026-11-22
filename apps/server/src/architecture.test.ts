@@ -1,4 +1,6 @@
+import * as Domain from '@alchemy.run/domain';
 import { schema } from '@repo/db';
+import { CoachingModel } from '@repo/domain';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -94,5 +96,9 @@ describe('architecture', () => {
       .toSorted();
     // Fails both ways: a new table without a writer, and a reserved table that gained one.
     expect(unwritten).toEqual(Object.keys(RESERVED).toSorted());
+  });
+
+  it('I25: CoachingModel passes @alchemy.run/domain static Domain.verify cleanly', () => {
+    expect(Domain.verify(CoachingModel)).toEqual([]);
   });
 });

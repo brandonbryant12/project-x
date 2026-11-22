@@ -1,10 +1,14 @@
 import { CurrentActor, Unprocessable, type ObservationTransitionInput } from '@repo/api';
 import {
   BadgeAwardLifecycle,
+  BadgeRevoked,
   CreditReversalId,
+  DemonstrationReversed,
   ObservationLifecycle,
+  ObservationVoided,
   SCORING_POLICY_VERSION,
   evaluateBadge,
+  skillLedgerId,
   type BadgeLevel,
   type ObservationId,
   type ObservationStatus,
@@ -15,6 +19,7 @@ import { and, eq } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { now } from '../../../platform/time.ts';
 import { recordAudit } from '../../shared/audit.ts';
+import { appendDomainEvents } from '../../shared/domain-journal.ts';
 import { notify } from '../../shared/notify.ts';
 import { decide, requireUpdated } from '../../shared/mutation.ts';
 import {
@@ -135,6 +140,7 @@ const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
     .from(schema.badgeAward)
     .where(and(eq(schema.badgeAward.personId, subjectId), eq(schema.badgeAward.status, 'awarded')));
   const at = yield* now;
+  const revokedLevels: Array<{ readonly skillId: SkillId; readonly level: BadgeLevel }> = [];
   for (const badge of badges.filter(
     (b) => skills.includes(b.skillId) && (b.level === 2 || b.level === 3),
   )) {
@@ -145,6 +151,7 @@ const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
     );
     if (evaluation.met || BadgeAwardLifecycle.next('awarded', {}, { type: 'REVOKE' }) === null)
       continue;
+    revokedLevels.push({ skillId: badge.skillId, level: badge.level as BadgeLevel });
     yield* db
       .update(schema.badgeAward)
       .set({ status: 'revoked', revokedAt: at, revokedByReversalId: reversals[0]?.id ?? null })
@@ -159,4 +166,39 @@ const reverseCredits = Effect.fn('observations.reverseCredits')(function* (
       policyVersion: SCORING_POLICY_VERSION,
     });
   }
+  yield* appendDomainEvents(actor.tenantId, [
+    {
+      aggregate: 'Observation',
+      aggregateId: observationId,
+      event: new ObservationVoided({
+        tenantId: actor.tenantId,
+        subjectId,
+        observerId: credits[0]?.observerId ?? actor.personId,
+        creditedSkillIds: skills,
+        voidedById: actor.personId,
+      }),
+    },
+    ...skills.map((skillId) => ({
+      aggregate: 'SkillLedger',
+      aggregateId: skillLedgerId(actor.tenantId, subjectId, skillId),
+      event: new DemonstrationReversed({
+        tenantId: actor.tenantId,
+        personId: subjectId,
+        skillId,
+        observationId,
+        reasonCode: 'observation_voided',
+      }),
+    })),
+    ...revokedLevels.map(({ skillId, level }) => ({
+      aggregate: 'SkillLedger',
+      aggregateId: skillLedgerId(actor.tenantId, subjectId, skillId),
+      event: new BadgeRevoked({
+        tenantId: actor.tenantId,
+        personId: subjectId,
+        skillId,
+        level,
+        triggerObservationId: observationId,
+      }),
+    })),
+  ]);
 });

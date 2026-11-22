@@ -1,4 +1,5 @@
 import { Api } from '@repo/api';
+import { Db, schema } from '@repo/db';
 import type { IsoDate } from '@repo/domain';
 import { assert, layer } from '@effect/vitest';
 import { Effect } from 'effect';
@@ -226,6 +227,26 @@ layer(ScenarioLayer, { timeout: 60_000 })('simplified coaching flows', (it) => {
         params: { id: authored.id, resourceId: resId },
       });
       assert.strictEqual(afterRemove.resources.length, 0);
+
+      // Verify the Postgres @alchemy.run/domain event journal captured all core domain facts with zero PII.
+      const db = yield* Db;
+      const journaled = yield* db.select().from(schema.domainEvent);
+      const tags = new Set(journaled.map((row) => row.eventTag));
+      for (const expectedTag of [
+        'ObservationSigned',
+        'DemonstrationRecorded',
+        'BadgeAwarded',
+        'TenantPolicyUpdated',
+        'SkillPublished',
+        'PlaybookResourceAttached',
+        'PlaybookResourceRemoved',
+      ]) {
+        assert.isTrue(tags.has(expectedTag), `expected domain_event tag ${expectedTag}`);
+      }
+      const serialized = JSON.stringify(journaled);
+      assert.isFalse(serialized.includes('Grace paused'));
+      assert.isFalse(serialized.includes('Mrs. Patterson'));
+      assert.isFalse(serialized.includes('4417 2291'));
     }),
   );
 });

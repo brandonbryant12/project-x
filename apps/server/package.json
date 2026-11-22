@@ -13,6 +13,7 @@
     "db:reset": "tsx --env-file-if-exists=.env src/scripts/seed.ts --reset"
   },
   "dependencies": {
+    "@alchemy.run/domain": "catalog:",
     "@effect/platform-node": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@repo/ai": "workspace:*",

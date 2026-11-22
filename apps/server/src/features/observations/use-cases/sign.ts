@@ -8,15 +8,22 @@ import {
   type QuickPublishInput,
 } from '@repo/api';
 import {
+  BadgeAwarded,
   CreditId,
+  DemonstrationRecorded,
   MAX_SKILLS_PER_OBSERVATION,
   MIN_NARRATIVE_LENGTH,
   ObservationLifecycle,
+  ObservationSigned,
   SCORING_POLICY_VERSION,
   isFirstHand,
   screenLocally,
+  skillLedgerId,
+  type BadgeLevel,
+  type Level,
   type ObservationId,
   type ObservationStatus,
+  type ObserverBasis,
   type SkillId,
   type SkillIndicatorId,
   type SkillVersionId,
@@ -26,6 +33,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { now } from '../../../platform/time.ts';
 import { recordAudit } from '../../shared/audit.ts';
+import { appendDomainEvents } from '../../shared/domain-journal.ts';
 import { notify } from '../../shared/notify.ts';
 import { decide, requireUpdated } from '../../shared/mutation.ts';
 import { digestOf } from '../../shared/notes.ts';
@@ -158,6 +166,71 @@ export const saveDraft = Effect.fn('useCase.saveObservationDraft')(function* (
   yield* transactionally(writeDraft(actor, row, input, to));
 });
 
+const journalSignedObservation = (args: {
+  readonly actor: Actor;
+  readonly row: ObservationRow;
+  readonly occurredOn: typeof schema.interaction.$inferSelect.occurredOn;
+  readonly input: ObservationDraftInput;
+  readonly ratings: ReadonlyArray<typeof schema.observationRating.$inferSelect>;
+  readonly contentDigest: string;
+  readonly awarded: ReadonlyArray<{ readonly skillId: SkillId; readonly level: number }>;
+}) => {
+  const { actor, row, occurredOn, input, ratings, contentDigest, awarded } = args;
+  const credited = input.ratings.filter((r) => r.credit && r.level !== null);
+  return appendDomainEvents(actor.tenantId, [
+    {
+      aggregate: 'Observation',
+      aggregateId: row.id,
+      event: new ObservationSigned({
+        tenantId: actor.tenantId,
+        subjectId: row.subjectId,
+        observerId: actor.personId,
+        interactionId: row.interactionId,
+        occurredOn,
+        basis: row.basis as ObserverBasis,
+        mode: input.mode,
+        ratings: input.ratings
+          .filter((r) => r.level !== null)
+          .map((r) => ({
+            skillId: r.skillId,
+            skillVersionId: ratings.find((x) => x.skillId === r.skillId)
+              ?.skillVersionId as SkillVersionId,
+            level: r.level as Level,
+            credit: r.credit,
+            indicatorIds: r.indicatorIds,
+          })),
+        contentDigest,
+      }),
+    },
+    ...credited.map((r) => ({
+      aggregate: 'SkillLedger',
+      aggregateId: skillLedgerId(actor.tenantId, row.subjectId, r.skillId),
+      event: new DemonstrationRecorded({
+        tenantId: actor.tenantId,
+        personId: row.subjectId,
+        skillId: r.skillId,
+        observationId: row.id,
+        interactionId: row.interactionId,
+        observerId: actor.personId,
+        level: r.level as Level,
+        mode: input.mode,
+        demonstratedOn: occurredOn,
+      }),
+    })),
+    ...awarded.map((b) => ({
+      aggregate: 'SkillLedger',
+      aggregateId: skillLedgerId(actor.tenantId, row.subjectId, b.skillId),
+      event: new BadgeAwarded({
+        tenantId: actor.tenantId,
+        personId: row.subjectId,
+        skillId: b.skillId,
+        level: b.level as BadgeLevel,
+        triggerObservationId: row.id,
+      }),
+    })),
+  ]);
+};
+
 /**
  * SIGN — the only code path that writes credit (ADR 0007, invariant I2).
  * Re-checks eligibility as of the interaction date, then in ONE transaction:
@@ -216,12 +289,13 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
         input,
         from === 'requested' ? 'drafting' : from,
       );
+      const contentDigest = digestOf(`${input.narrativeSaw}\u0000${input.narrativeNext}`);
       yield* db
         .update(schema.observation)
         .set({
           status: 'signed',
           signedAt,
-          contentDigest: digestOf(`${input.narrativeSaw}\u0000${input.narrativeNext}`),
+          contentDigest,
           version: drafted.version + 1,
           updatedAt: signedAt,
         })
@@ -276,12 +350,22 @@ export const signObservation = Effect.fn('useCase.signObservation')(function* (
         entityId: row.id,
         actorId: actor.personId,
       });
-      return yield* awardEarnedBadges(
+      const newlyAwarded = yield* awardEarnedBadges(
         actor,
         row.subjectId,
         credited.map((r) => r.skillId),
         row.id,
       );
+      yield* journalSignedObservation({
+        actor,
+        row,
+        occurredOn: interaction.occurredOn,
+        input,
+        ratings,
+        contentDigest,
+        awarded: newlyAwarded,
+      });
+      return newlyAwarded;
     }),
   );
   return { awarded };

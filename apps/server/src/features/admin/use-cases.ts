@@ -1,13 +1,10 @@
-import {
-  CurrentActor,
-  Forbidden,
-  NotFound,
-  Unprocessable,
-  type UpdateTenantPolicyInput,
-} from '@repo/api';
+import { CurrentActor, NotFound, Unprocessable, type UpdateTenantPolicyInput } from '@repo/api';
 import {
   AdvisoryDispositionId,
+  DEFAULT_BADGE_CRITERIA,
   EvidenceLifecycle,
+  TenantPolicy,
+  UpdateTenantPolicy,
   type EvidenceId,
   type EvidenceStatus,
 } from '@repo/domain';
@@ -16,6 +13,12 @@ import { and, desc, eq } from 'drizzle-orm';
 import { Effect } from 'effect';
 import { now } from '../../platform/time.ts';
 import { recordAudit } from '../shared/audit.ts';
+import {
+  appendDomainEvents,
+  domainActorContext,
+  domainNow,
+  mapDomainRejection,
+} from '../shared/domain-journal.ts';
 import { decide } from '../shared/mutation.ts';
 import { buildTenantPolicy } from './views.ts';
 
@@ -100,24 +103,11 @@ export const resolveEvidence = Effect.fn('admin.resolveEvidence')(function* (
   );
 });
 
-/** `PUT /admin/policy`: updates tenant badge rigor criteria and observation window (audited). */
+/** `PUT /admin/policy`: updates tenant badge rigor criteria and observation window (audited + domain-journaled). */
 export const updateTenantPolicy = Effect.fn('admin.updatePolicy')(function* (
   payload: UpdateTenantPolicyInput,
 ) {
   const actor = yield* CurrentActor;
-  if (!actor.grants.includes('tenant_admin')) {
-    return yield* Effect.fail(
-      new Forbidden({ message: 'Only tenant admins can update program policy.' }),
-    );
-  }
-  if (payload.badgeCriteria.minObservers > payload.badgeCriteria.minDemonstrations) {
-    return yield* Effect.fail(
-      new Unprocessable({
-        message: 'Minimum distinct observers cannot exceed minimum observations.',
-        field: 'badgeCriteria.minObservers',
-      }),
-    );
-  }
   const db = yield* Db;
   const [tenantRow] = yield* db
     .select({ settings: schema.tenant.settings })
@@ -125,15 +115,48 @@ export const updateTenantPolicy = Effect.fn('admin.updatePolicy')(function* (
     .where(eq(schema.tenant.id, actor.tenantId));
   if (!tenantRow) return yield* Effect.die('invariant: actor tenant missing');
 
+  const currentCriteria = {
+    ...DEFAULT_BADGE_CRITERIA,
+    ...tenantRow.settings.badgeCriteria,
+  };
+  const prediction = TenantPolicy.predict(
+    {
+      badgeCriteria: currentCriteria,
+      observationWindowDays: tenantRow.settings.observationWindowDays ?? 14,
+      revision: 0,
+    },
+    new UpdateTenantPolicy({
+      badgeCriteria: {
+        minDemonstrations: payload.badgeCriteria.minDemonstrations,
+        minObservers: payload.badgeCriteria.minObservers,
+        minFirstHandShare: payload.badgeCriteria.minFirstHandShare,
+        minSpanDays: payload.badgeCriteria.minSpanDays,
+      },
+      observationWindowDays: payload.observationWindowDays,
+      auditNote: payload.reason?.trim() || null,
+    }),
+    {
+      id: actor.tenantId,
+      now: yield* domainNow,
+      context: domainActorContext(actor),
+    },
+  );
+  if (prediction._tag === 'Rejected') {
+    const mapped = mapDomainRejection(prediction.rejection);
+    return yield* Effect.fail(
+      mapped._tag === 'Forbidden' || mapped._tag === 'Unprocessable'
+        ? mapped
+        : new Unprocessable({ message: mapped.message }),
+    );
+  }
+  if (prediction._tag !== 'Accepted') {
+    return yield* Effect.die('invariant: TenantPolicy.predict returned Unpredictable');
+  }
+
   const nextSettings = {
     ...tenantRow.settings,
-    badgeCriteria: {
-      minDemonstrations: payload.badgeCriteria.minDemonstrations,
-      minObservers: payload.badgeCriteria.minObservers,
-      minFirstHandShare: payload.badgeCriteria.minFirstHandShare,
-      minSpanDays: payload.badgeCriteria.minSpanDays,
-    },
-    observationWindowDays: payload.observationWindowDays,
+    badgeCriteria: prediction.state.badgeCriteria,
+    observationWindowDays: prediction.state.observationWindowDays,
   };
 
   yield* transactionally(
@@ -142,6 +165,14 @@ export const updateTenantPolicy = Effect.fn('admin.updatePolicy')(function* (
         .update(schema.tenant)
         .set({ settings: nextSettings })
         .where(eq(schema.tenant.id, actor.tenantId));
+      yield* appendDomainEvents(
+        actor.tenantId,
+        prediction.events.map((event) => ({
+          aggregate: 'TenantPolicy',
+          aggregateId: actor.tenantId,
+          event,
+        })),
+      );
       yield* recordAudit(actor, {
         entityType: 'tenant_policy',
         entityId: actor.tenantId,

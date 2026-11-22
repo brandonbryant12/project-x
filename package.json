@@ -24,9 +24,10 @@
     "db:reset": "pnpm --filter @repo/server db:reset",
     "screenshots": "pnpm --filter @repo/web screenshots",
     "docs:lifecycles": "pnpm --filter @repo/domain docs:lifecycles",
+    "docs:diagrams": "pnpm --filter @repo/domain docs:diagrams",
     "lint:strict": "oxlint --max-warnings=0",
     "preinstall": "node scripts/check-node.mjs",
-    "docs:check": "node scripts/docs-check.mjs"
+    "docs:check": "node scripts/docs-check.mjs && pnpm --filter @repo/domain docs:diagrams:check"
   },
   "devDependencies": {
     "@effect/language-service": "catalog:",

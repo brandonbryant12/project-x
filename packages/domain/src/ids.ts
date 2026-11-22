@@ -190,6 +190,12 @@ export const NotificationId = withGenerator(
 );
 export type NotificationId = typeof NotificationId.Type;
 
+export const DomainEventId = withGenerator(
+  'dev',
+  Schema.String.pipe(Schema.check(idPattern('dev')), Schema.brand('DomainEventId')),
+);
+export type DomainEventId = typeof DomainEventId.Type;
+
 /** Calendar date as `YYYY-MM-DD`. Lexicographic order equals chronological order. */
 export const IsoDate = Schema.String.pipe(
   Schema.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)),

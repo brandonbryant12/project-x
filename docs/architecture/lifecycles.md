@@ -70,6 +70,7 @@ States: `draft`, `proposed`, `active`, `paused`, `completed`, `canceled`, `expir
 stateDiagram-v2
   direction LR
   [*] --> draft
+  [*] --> active
   draft --> proposed : PROPOSE [proposable]
   draft --> canceled : CANCEL (human)
   proposed --> active : AGREE (human)

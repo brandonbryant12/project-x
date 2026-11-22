@@ -62,6 +62,7 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   badge_award_credit: 'record',
   note: 'narrative',
   audit_event: 'audit',
+  domain_event: 'audit',
   advisory_check: 'audit',
   advisory_disposition: 'audit',
 };
@@ -101,6 +102,7 @@ export const CODED_COLUMNS: Readonly<Record<string, ReadonlyArray<string>>> = {
   advisory_check: ['provider', 'failure'],
   advisory_disposition: ['disposition'],
   audit_event: ['auth_method', 'from_state', 'to_state'],
+  domain_event: ['aggregate', 'event_tag', 'stream'],
 };
 
 /** Column names that are structured by convention (ids, codes, states, digests). */

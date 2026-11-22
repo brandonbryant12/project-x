@@ -2,7 +2,7 @@
  * Generates docs/architecture/lifecycles.md from the XState machines, so the
  * diagrams can never drift from the code (ADR 0005). Run: pnpm docs:lifecycles
  */
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ALL_LIFECYCLES } from '../src/lifecycles/index.ts';
 
@@ -81,5 +81,17 @@ const doc = [
 ].join('\n');
 
 const out = fileURLToPath(new URL('../../../docs/architecture/lifecycles.md', import.meta.url));
-writeFileSync(out, doc);
-console.log(`wrote ${out}`);
+const checkOnly = process.argv.includes('--check');
+if (checkOnly) {
+  const current = existsSync(out) ? readFileSync(out, 'utf8') : '';
+  if (current !== doc) {
+    console.error(
+      'docs/architecture/lifecycles.md is out of date. Run `pnpm docs:diagrams` to regenerate.',
+    );
+    process.exit(1);
+  }
+  console.log('docs/architecture/lifecycles.md is up to date.');
+} else {
+  writeFileSync(out, doc);
+  console.log(`wrote ${out}`);
+}

@@ -10,13 +10,19 @@
   "scripts": {
     "typecheck": "tsc7 -p .",
     "test": "vitest run",
-    "docs:lifecycles": "tsx scripts/lifecycle-diagrams.ts"
+    "docs:lifecycles": "tsx scripts/lifecycle-diagrams.ts",
+    "docs:domain": "tsx scripts/domain-diagrams.ts",
+    "docs:diagrams": "tsx scripts/lifecycle-diagrams.ts && tsx scripts/domain-diagrams.ts",
+    "docs:diagrams:check": "tsx scripts/lifecycle-diagrams.ts --check && tsx scripts/domain-diagrams.ts --check"
   },
   "dependencies": {
+    "@alchemy.run/domain": "catalog:",
+    "alchemy": "catalog:",
     "effect": "catalog:",
     "xstate": "catalog:"
   },
   "devDependencies": {
+    "@effect/vitest": "catalog:",
     "@repo/tsconfig": "workspace:*",
     "@types/node": "catalog:",
     "tsx": "catalog:",

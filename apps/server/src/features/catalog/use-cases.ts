@@ -10,9 +10,13 @@ import {
   type UpdateSkillInput,
 } from '@repo/api';
 import {
+  PlaybookResourceAttached,
+  PlaybookResourceRemoved,
   SkillId,
   SkillIndicatorId,
+  SkillPublished,
   SkillVersionId,
+  SkillVersionPublished,
   type Level,
   type SkillResource,
   type SkillTier,
@@ -23,6 +27,7 @@ import { Effect } from 'effect';
 import { randomBytes } from 'node:crypto';
 import { now } from '../../platform/time.ts';
 import { recordAudit } from '../shared/audit.ts';
+import { appendDomainEvents } from '../shared/domain-journal.ts';
 import { buildSkillDetail } from './views.ts';
 
 const requireCatalogAuthor = (actor: Actor) =>
@@ -170,6 +175,28 @@ export const createSkill = Effect.fn('catalog.createSkill')(function* (input: Au
         .set({ currentVersionId: versionId })
         .where(eq(schema.skill.id, skillId));
 
+      yield* appendDomainEvents(actor.tenantId, [
+        {
+          aggregate: 'SkillCatalog',
+          aggregateId: skillId,
+          event: new SkillPublished({
+            tenantId: actor.tenantId,
+            slug,
+            name: input.name.trim(),
+            domain: input.domain,
+            tier: input.tier,
+            summary: input.summary.trim(),
+            outcome: input.outcome.trim(),
+            tags,
+            version: 1,
+            levels: ordered.map((l) => ({
+              level: l.level,
+              summary: l.summary.trim(),
+              indicators: l.indicators.map((t) => t.trim()),
+            })),
+          }),
+        },
+      ]);
       yield* recordAudit(actor, {
         entityType: 'skill',
         entityId: skillId,
@@ -267,6 +294,31 @@ export const updateSkill = Effect.fn('catalog.updateSkill')(function* (
         })
         .where(eq(schema.skill.id, skill.id));
 
+      if (nextVersionNumber && input.levels) {
+        yield* appendDomainEvents(actor.tenantId, [
+          {
+            aggregate: 'SkillCatalog',
+            aggregateId: skill.id,
+            event: new SkillVersionPublished({
+              tenantId: actor.tenantId,
+              slug: skill.slug,
+              name: input.name.trim(),
+              domain: input.domain,
+              tier: input.tier,
+              summary: input.summary.trim(),
+              outcome: input.outcome.trim(),
+              tags,
+              version: nextVersionNumber,
+              levels: input.levels.map((l) => ({
+                level: l.level,
+                summary: l.summary.trim(),
+                indicators: l.indicators.map((t) => t.trim()),
+              })),
+              changeNote: input.changeNote?.trim() || 'Updated in Skill Catalog Studio',
+            }),
+          },
+        ]);
+      }
       yield* recordAudit(actor, {
         entityType: 'skill',
         entityId: skill.id,
@@ -319,6 +371,13 @@ export const addSkillResource = Effect.fn('catalog.addResource')(function* (
           updatedAt: timestamp,
         })
         .where(eq(schema.skill.id, skill.id));
+      yield* appendDomainEvents(actor.tenantId, [
+        {
+          aggregate: 'SkillCatalog',
+          aggregateId: skill.id,
+          event: new PlaybookResourceAttached({ tenantId: actor.tenantId, resource }),
+        },
+      ]);
       yield* recordAudit(actor, {
         entityType: 'skill',
         entityId: skill.id,
@@ -362,6 +421,13 @@ export const removeSkillResource = Effect.fn('catalog.removeResource')(function*
           updatedAt: timestamp,
         })
         .where(eq(schema.skill.id, skill.id));
+      yield* appendDomainEvents(actor.tenantId, [
+        {
+          aggregate: 'SkillCatalog',
+          aggregateId: skill.id,
+          event: new PlaybookResourceRemoved({ tenantId: actor.tenantId, resourceId }),
+        },
+      ]);
       yield* recordAudit(actor, {
         entityType: 'skill',
         entityId: skill.id,
