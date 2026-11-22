@@ -64,36 +64,35 @@ test(`capture timing · ${OBSERVER} · ${RUNS} runs`, async ({ page, playwright 
 
     // Tap: the centre tab-bar button, always in the same place on a phone.
     const started = Date.now();
-    await page.getByRole('button', { name: /^I saw this/ }).tap();
+    await page.getByRole('button', { name: /^Give feedback/ }).tap();
 
-    // Who: the first chip is the most likely person.
-    const who = page.getByRole('region', { name: 'Who' });
+    // Who: the first card is the most likely person.
+    const who = page.getByRole('region', { name: /Who are you giving feedback to/ });
     await who.getByRole('button').first().waitFor();
     await think(page, 1200);
     await who.getByRole('button').first().tap();
 
-    // Skills default to the plan's focus skill; read the ladder, pick a level.
+    // Skills default to the person's focus skill; read the ladder, pick a level.
     const ladder = page.getByRole('radiogroup').first();
     await ladder.getByRole('radio').nth(2).waitFor();
     await expect(ladder.getByRole('radio').nth(2)).not.toHaveText(/^3Doing independently$/);
     await think(page, 1800);
     await ladder.getByRole('radio').nth(2).tap();
 
-    // What I saw, then the next step, by dictation.
+    // What did they do well, then one thing to try next time, by dictation.
     await think(page, 1500);
-    await page.getByLabel('What I saw').tap();
-    await page.getByLabel('What I saw').pressSequentially(SAW, { delay: MS_PER_CHAR });
+    await page.getByLabel(/What did .* do well\?/).tap();
+    await page.getByLabel(/What did .* do well\?/).pressSequentially(SAW, { delay: MS_PER_CHAR });
     await think(page, 1000);
-    await page.getByLabel('What next').tap();
-    await page.getByLabel('What next').pressSequentially(NEXT, { delay: MS_PER_CHAR });
+    await page.getByLabel(/One thing to try next time/).tap();
+    await page.getByLabel(/One thing to try next time/).pressSequentially(NEXT, {
+      delay: MS_PER_CHAR,
+    });
 
-    // Sign, read the statement, confirm. Signing is never optimistic.
+    // Publish directly — single-click atomic publish to receipt.
     await think(page, 600);
-    await page.getByRole('button', { name: 'Sign', exact: true }).tap();
-    await page.getByRole('dialog').waitFor();
-    await think(page, 1200);
-    await page.getByRole('button', { name: 'Sign observation' }).tap();
-    await page.getByRole('heading', { name: 'Signed.' }).waitFor({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Publish feedback', exact: true }).tap();
+    await page.getByRole('heading', { name: /Feedback shared with/ }).waitFor({ timeout: 30_000 });
     return Date.now() - started;
   };
 

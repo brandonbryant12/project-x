@@ -38,16 +38,31 @@ plainly what you did and did not check.
 
 ## 1. Walk the journey
 
-For each persona, sign in (persona picker at `/sign-in`, or
-`POST /api/auth/dev/sign-in` with `x-requested-with: fetch`) and do the
-journey for real:
+This skill replaces brittle deterministic Playwright E2E scripts: inspect the
+live UI like a real advisor, coach, leader, or compliance reviewer.
 
-- **Happy path**, start to finish. Note every moment of hesitation.
+For each persona, sign in (featured persona picker at `/sign-in`, or
+`POST /api/auth/dev/sign-in` with `x-requested-with: fetch`) and walk the real
+flows:
+
+- **Core redesigned flows:**
+  - **Sign-in & orientation**: `/sign-in` clearly explains the 3-step loop and
+    highlights the 6 core roles; the `?` ("How it works") modal opens from any
+    screen.
+  - **Advisor flow (Maya / Grace)**: pick or edit 1–3 instant-active focus
+    skills on **My skills** (`/development`), trigger **Ask for feedback** from
+    the top bar or a skill card, verify local client-PII blocking and clean
+    request creation, and read coaching notes on Home & My skills.
+  - **Coach / Leader flow (Sam / Leo)**: open **Feedback requests** (`/inbox`),
+    **My team** (`/team`), or **People I coach** (`/coaching`), click **Give
+    feedback** (`/observations/new`), publish in one click, and verify the
+    inline receipt and updated progress/badges (POC default: 2 first-hand
+    observations; configurable per tenant).
 - **Refusals.** Try what the rules forbid, both through the UI and directly
   against the API:
   - observing yourself;
   - an ineligible observer;
-  - signing below the minimums;
+  - publishing below the minimums (10-char note, skill + level required);
   - acting on a closed item;
   - two windows editing the same draft (expect `Conflict`).
 - **Lifecycle edges.**

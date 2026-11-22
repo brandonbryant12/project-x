@@ -27,10 +27,22 @@ const PILLARS = [
   },
 ] as const;
 
+const FEATURED_NAMES = [
+  'Maya Chen',
+  'Sam Rivera',
+  'Leo Okonkwo',
+  'Rhea Castillo',
+  'Nina Patel',
+  'Nadia Brooks',
+] as const;
+
 const roleBadge = (summary: string) => {
   const s = summary.toLowerCase();
   if (s.includes('compliance')) return { label: 'Compliance', tone: 'warning' as const };
   if (s.includes('admin')) return { label: 'Admin', tone: 'info' as const };
+  if (s.includes('program') || s.includes('head of')) {
+    return { label: 'Program', tone: 'info' as const };
+  }
   if (s.includes('coach')) return { label: 'Coach', tone: 'primary' as const };
   if (s.includes('leader')) return { label: 'Leader', tone: 'primary' as const };
   return { label: 'Advisor', tone: 'neutral' as const };
@@ -40,7 +52,14 @@ const SignIn = () => {
   const { next } = Route.useSearch();
   const personas = useQuery({ ...queryOptions('auth', 'devPersonas', undefined), retry: false });
   const [pending, setPending] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const allPersonas = personas.data ?? [];
+  const featured = FEATURED_NAMES.flatMap((name) =>
+    allPersonas.filter((p) => p.person.displayName === name),
+  );
+  const visiblePersonas = showAll || featured.length === 0 ? allPersonas : featured;
+  const hiddenCount = Math.max(0, allPersonas.length - visiblePersonas.length);
   const signInAs = async (persona: Persona) => {
     setPending(persona.person.id);
     setError(null);
@@ -110,7 +129,7 @@ const SignIn = () => {
                 className="grid max-h-[360px] gap-1 overflow-y-auto pr-1"
                 aria-label="Sign in as a demo person"
               >
-                {personas.data.map((p) => {
+                {visiblePersonas.map((p) => {
                   const badge = roleBadge(p.summary);
                   return (
                     <li key={p.person.id}>
@@ -131,6 +150,15 @@ const SignIn = () => {
                   );
                 })}
               </ul>
+              {hiddenCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAll(true)}
+                  className="cursor-pointer text-center text-meta font-medium text-primary-ink hover:underline"
+                >
+                  Show all {allPersonas.length} demo people
+                </button>
+              ) : null}
             </>
           ) : null}
           {personas.isPending ? <Skeleton className="h-44" /> : null}

@@ -295,6 +295,7 @@ export const seedCohort = Effect.gen(function* () {
         periodStart: ago(90),
         periodEnd: addDaysIso(on, 90),
         focusSkills: focus.map((skillId) => ({ skillId, targetLevel: 3 as Level })),
+        startActive: false,
       }),
     );
     yield* as(

@@ -375,12 +375,13 @@ export const HomeScreen = ({ home }: { readonly home: HomeView }) => {
         </header>
 
         {home.programHealth ? <ProgramHealthCard health={home.programHealth} /> : null}
-        {showObserverFirstRun ? <ObserverFirstRun /> : null}
-        {!showObserverFirstRun && showOnboarding ? (
-          <FirstRunStep leader={home.leader} coaches={home.coaches} />
-        ) : null}
 
         <ActionCenter home={home} observer={observer} onRequest={setRequesting} />
+
+        {showObserverFirstRun ? <ObserverFirstRun /> : null}
+        {!showObserverFirstRun && showOnboarding && !observer ? (
+          <FirstRunStep leader={home.leader} coaches={home.coaches} />
+        ) : null}
 
         {home.plan && home.progress.length > 0 ? (
           <section className="grid gap-3" aria-labelledby="focus-skills">

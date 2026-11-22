@@ -1,6 +1,6 @@
 import { Effect, Fiber } from 'effect';
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { createActor, type AnyStateMachine, type SnapshotFrom } from 'xstate';
+import { createActor, type AnyStateMachine, type EventFromLogic, type SnapshotFrom } from 'xstate';
 
 /**
  * Foldkit-inspired Elm Architecture (TEA) runtime powered by Effect:
@@ -36,7 +36,7 @@ export const createTeaRuntime = <Model, Msg>(
 ): TeaRuntime<Model, Msg> => {
   const [initialModel, initialCommands] = init();
   let model = initialModel;
-  let started = false;
+  let initialized = false;
   const listeners = new Set<() => void>();
   const fibers = new Set<Fiber.Fiber<void, never>>();
 
@@ -76,8 +76,8 @@ export const createTeaRuntime = <Model, Msg>(
     },
     dispatch,
     start: () => {
-      if (started) return;
-      started = true;
+      if (initialized) return;
+      initialized = true;
       if (initialCommands.length > 0) runCommands(initialCommands);
     },
     stop: () => {
@@ -85,6 +85,7 @@ export const createTeaRuntime = <Model, Msg>(
         void Effect.runPromise(Fiber.interrupt(fiber));
       }
       fibers.clear();
+      initialized = false;
     },
   };
 };
@@ -105,26 +106,82 @@ export const useFoldkit = <Model, Msg>(
   return [model, runtime.dispatch] as const;
 };
 
-/** React 19 Compiler-safe hook for XState 5 machines via `useSyncExternalStore`. */
+export interface MachineBridge<TMachine extends AnyStateMachine> {
+  readonly getSnapshot: () => SnapshotFrom<TMachine>;
+  readonly subscribe: (listener: () => void) => () => void;
+  readonly send: (event: EventFromLogic<TMachine>) => void;
+  readonly start: () => void;
+  readonly stop: () => void;
+}
+
+/**
+ * React 19 StrictMode-safe XState 5 bridge.
+ * In XState 5 a stopped actor cannot be restarted; `start()` transparently
+ * creates a fresh actor after `stop()` so StrictMode mount/unmount/remount works.
+ */
+export const createMachineBridge = <TMachine extends AnyStateMachine>(
+  machine: TMachine,
+): MachineBridge<TMachine> => {
+  let actor = createActor(machine);
+  let snapshot: SnapshotFrom<TMachine> = actor.getSnapshot();
+  let stopped = false;
+  let innerSub: { unsubscribe: () => void } | null = null;
+  const listeners = new Set<() => void>();
+
+  const notify = () => {
+    for (const l of listeners) l();
+  };
+
+  const attach = () => {
+    innerSub?.unsubscribe();
+    innerSub = actor.subscribe((next) => {
+      snapshot = next;
+      notify();
+    });
+  };
+
+  return {
+    getSnapshot: () => snapshot,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    send: (event) => {
+      actor.send(event);
+    },
+    start: () => {
+      if (stopped) {
+        actor = createActor(machine);
+        snapshot = actor.getSnapshot();
+        stopped = false;
+      }
+      attach();
+      actor.start();
+      snapshot = actor.getSnapshot();
+      notify();
+    },
+    stop: () => {
+      innerSub?.unsubscribe();
+      innerSub = null;
+      actor.stop();
+      stopped = true;
+    },
+  };
+};
+
+/** React 19 Compiler & StrictMode-safe hook for XState 5 machines via `useSyncExternalStore`. */
 export const useMachine = <TMachine extends AnyStateMachine>(
   machine: TMachine,
-): readonly [SnapshotFrom<TMachine>, ReturnType<typeof createActor<TMachine>>['send']] => {
-  const [actor] = useState(() => createActor(machine));
-  const snapshot = useSyncExternalStore(
-    (onStoreChange) => {
-      const sub = actor.subscribe(onStoreChange);
-      return () => sub.unsubscribe();
-    },
-    () => actor.getSnapshot(),
-    () => actor.getSnapshot(),
-  );
+): readonly [SnapshotFrom<TMachine>, (event: EventFromLogic<TMachine>) => void] => {
+  const [bridge] = useState(() => createMachineBridge(machine));
+  const snapshot = useSyncExternalStore(bridge.subscribe, bridge.getSnapshot, bridge.getSnapshot);
 
   useEffect(() => {
-    actor.start();
-    return () => {
-      actor.stop();
-    };
-  }, [actor]);
+    bridge.start();
+    return () => bridge.stop();
+  }, [bridge]);
 
-  return [snapshot, actor.send] as const;
+  return [snapshot, bridge.send] as const;
 };
