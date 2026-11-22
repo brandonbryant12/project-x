@@ -3,7 +3,7 @@ import type * as React from 'react';
 import { cn } from '../lib/cn.ts';
 
 const floating =
-  'z-50 rounded-card border border-line bg-raised text-ink shadow-overlay data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[side=bottom]:slide-in-from-top-1 data-[side=top]:slide-in-from-bottom-1';
+  'z-50 rounded-card border border-line bg-raised text-ink shadow-overlay duration-150 ease-standard data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-1 data-[side=top]:slide-in-from-bottom-1';
 
 export const TooltipProvider = T.Provider;
 export const Tooltip = T.Root;
@@ -17,7 +17,7 @@ export const TooltipContent = ({
     <T.Content
       sideOffset={sideOffset}
       className={cn(
-        'z-50 max-w-72 rounded-control bg-ink px-2.5 py-1.5 text-meta text-canvas data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0',
+        'z-50 max-w-72 rounded-control bg-ink px-2.5 py-1.5 text-meta text-canvas shadow-overlay duration-150 ease-standard data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95',
         className,
       )}
       {...props}

@@ -70,12 +70,13 @@ export const CatalystMark = ({
         strokeWidth="2.2"
         strokeLinecap="round"
       />
-      {/* Brass catalyst closing arc */}
+      {/* Brass catalyst closing arc — glides subtly closer on brand hover */}
       <path
         d="M 19.3 8.5 A 8 8 0 0 1 20 11.4"
         stroke={strokeBrass}
         strokeWidth="2.4"
         strokeLinecap="round"
+        className="origin-center transition-transform duration-300 ease-settle group-hover/brand:rotate-[10deg]"
       />
     </svg>
   );

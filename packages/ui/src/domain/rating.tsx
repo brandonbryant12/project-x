@@ -48,13 +48,15 @@ export const LevelPicker = ({
           key={label}
           value={String(i + 1)}
           className={cn(
-            'group grid cursor-pointer content-start rounded-[5px] px-2.5 text-left transition-colors duration-120 hover:bg-surface/70 data-[state=checked]:bg-surface data-[state=checked]:shadow-sm data-[state=checked]:ring-1 data-[state=checked]:ring-primary/40',
+            'group grid cursor-pointer content-start rounded-[5px] px-2.5 text-left transition-[background-color,box-shadow,transform] duration-150 ease-standard hover:bg-surface/75 active:scale-[0.99] data-[state=checked]:bg-surface data-[state=checked]:shadow-sm data-[state=checked]:ring-1 data-[state=checked]:ring-primary/45',
             layout === 'row'
               ? 'gap-0.5 py-2'
               : 'min-h-11 grid-cols-[1.25rem_minmax(0,1fr)] gap-x-1.5 py-2.5',
           )}
         >
-          <span className="text-meta leading-tight text-ink-3 tabular">{i + 1}</span>
+          <span className="font-mono text-meta leading-tight text-ink-3 tabular transition-colors group-data-[state=checked]:font-semibold group-data-[state=checked]:text-primary-ink">
+            {i + 1}
+          </span>
           <span className="text-ui leading-tight font-medium text-ink">{label}</span>
           {description ? (
             <span

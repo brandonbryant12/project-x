@@ -19,7 +19,15 @@ import {
 } from '@repo/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { CheckIcon, CompassIcon, PencilIcon, PlusIcon, SearchIcon, SendIcon } from 'lucide-react';
+import {
+  CheckIcon,
+  CompassIcon,
+  PencilIcon,
+  PlusIcon,
+  SearchIcon,
+  SendIcon,
+  XIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Page, PageHeader, SkillChip } from '@/components/page.tsx';
 import { useLogDialog } from '@/components/shell/log-dialog-context.tsx';
@@ -58,8 +66,18 @@ const Search = ({
       placeholder={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="pl-9"
+      className={value ? 'pr-8 pl-9' : 'pl-9'}
     />
+    {value ? (
+      <button
+        type="button"
+        aria-label="Clear search"
+        onClick={() => onChange('')}
+        className="absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer rounded-full p-1 text-ink-3 transition-colors hover:bg-sunken hover:text-ink"
+      >
+        <XIcon className="size-3.5" />
+      </button>
+    ) : null}
   </label>
 );
 
@@ -82,13 +100,17 @@ const CatalogSkillCard = ({
   return (
     <Card
       className={cn(
-        'flex flex-col justify-between gap-4 p-4 transition-colors hover:border-line-strong md:p-5',
-        almost && 'border-brass/60 ring-1 ring-brass/20',
+        'flex flex-col justify-between gap-4 p-4 transition-[border-color,box-shadow,transform] duration-200 ease-standard hover:-translate-y-0.5 hover:border-line-strong hover:shadow-card-hover md:p-5',
+        almost && 'border-brass/60 ring-1 ring-brass/20 hover:border-brass',
       )}
     >
       <div className="grid gap-3">
         <div className="flex items-start gap-3.5">
-          <Link to="/catalog/skills/$slug" params={{ slug: skill.slug }} className="shrink-0">
+          <Link
+            to="/catalog/skills/$slug"
+            params={{ slug: skill.slug }}
+            className="shrink-0 transition-transform duration-150 ease-settle hover:scale-105"
+          >
             <MasteryRing
               level={skill.myHighestLevel ?? 0}
               current={skill.myCurrent}
@@ -101,7 +123,7 @@ const CatalogSkillCard = ({
               <Link
                 to="/catalog/skills/$slug"
                 params={{ slug: skill.slug }}
-                className="text-body font-semibold text-ink hover:text-primary-ink hover:underline"
+                className="text-body font-semibold text-ink transition-colors hover:text-primary-ink hover:underline"
               >
                 {skill.name}
               </Link>
@@ -121,7 +143,7 @@ const CatalogSkillCard = ({
               type="button"
               onClick={() => onTagClick(tag)}
               className={cn(
-                'cursor-pointer rounded-full border px-2 py-0.5 text-[11px] transition-colors',
+                'cursor-pointer rounded-full border px-2 py-0.5 text-[11px] transition-[background-color,border-color,color,transform] duration-150 active:scale-95',
                 activeTag === tag
                   ? 'border-brass bg-brass-soft text-brass-ink'
                   : 'border-line bg-sunken/60 text-ink-3 hover:border-line-strong hover:text-ink',
@@ -341,6 +363,7 @@ export const SkillsScreen = ({
   const [tag, setTag] = useState<string | null>(null);
   const [planSeedIds, setPlanSeedIds] = useState<ReadonlyArray<SkillId> | null>(null);
   const [authoring, setAuthoring] = useState(false);
+  const [hoveredSkillId, setHoveredSkillId] = useState<SkillId | null>(null);
 
   const canAuthor =
     session.grants.includes('tenant_admin') || session.grants.includes('program_owner');
@@ -383,6 +406,8 @@ export const SkillsScreen = ({
         >
           <SkillConstellation
             skills={skills}
+            highlightedSkillId={hoveredSkillId}
+            onHoverSkill={setHoveredSkillId}
             onSelect={(s) =>
               void navigate({ to: '/catalog/skills/$slug', params: { slug: s.slug } })
             }
@@ -390,6 +415,8 @@ export const SkillsScreen = ({
           <SkillLandscapeChart
             skills={skills}
             totalPeople={insights.totalPeople}
+            highlightedSkillId={hoveredSkillId}
+            onHoverSkill={setHoveredSkillId}
             onPickSkill={(s) =>
               void navigate({ to: '/catalog/skills/$slug', params: { slug: s.slug } })
             }

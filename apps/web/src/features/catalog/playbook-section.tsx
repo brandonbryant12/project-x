@@ -199,10 +199,11 @@ const ResourceCard = ({
   readonly removing: boolean;
   readonly onRemove: () => void;
 }) => {
+  const [confirming, setConfirming] = useState(false);
   const meta = KIND_META[resource.kind];
   const Icon = meta.icon;
   return (
-    <li className="flex items-start gap-3.5 px-4 py-4 md:px-5">
+    <li className="flex items-start gap-3.5 px-4 py-4 transition-colors duration-150 hover:bg-sunken/45 md:px-5">
       <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-ink">
         <Icon className="size-4" aria-hidden />
       </span>
@@ -213,10 +214,10 @@ const ResourceCard = ({
               href={resource.url}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 text-ui font-semibold text-ink hover:text-primary-ink hover:underline"
+              className="group/link inline-flex items-center gap-1 text-ui font-semibold text-ink transition-colors hover:text-primary-ink hover:underline"
             >
               {resource.title}
-              <ExternalLinkIcon className="size-3.5 text-ink-3" />
+              <ExternalLinkIcon className="size-3.5 text-ink-3 transition-transform duration-150 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 group-hover/link:text-primary-ink" />
             </a>
           ) : (
             <span className="text-ui font-semibold text-ink">{resource.title}</span>
@@ -231,14 +232,30 @@ const ResourceCard = ({
         </div>
         {resource.summary ? <p className="text-ui text-ink-2">{resource.summary}</p> : null}
       </div>
-      {canEdit ? (
+      {canEdit && confirming ? (
+        <div className="flex shrink-0 animate-fade-up items-center gap-1">
+          <Button type="button" variant="danger" size="sm" disabled={removing} onClick={onRemove}>
+            Remove
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={removing}
+            onClick={() => setConfirming(false)}
+          >
+            Keep
+          </Button>
+        </div>
+      ) : null}
+      {canEdit && !confirming ? (
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           aria-label={`Remove ${resource.title}`}
           disabled={removing}
-          onClick={onRemove}
+          onClick={() => setConfirming(true)}
         >
           <Trash2Icon className="size-4 text-ink-3" />
         </Button>

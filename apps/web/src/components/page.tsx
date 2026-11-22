@@ -12,7 +12,7 @@ export const Page = ({
 }) => (
   <div
     className={cn(
-      'mx-auto w-full px-4 py-6 md:px-6 md:py-8 xl:px-8',
+      'mx-auto w-full animate-page-enter px-4 py-6 md:px-6 md:py-8 xl:px-8',
       width === 'wide' ? 'max-w-[1200px]' : 'max-w-[760px]',
       className,
     )}

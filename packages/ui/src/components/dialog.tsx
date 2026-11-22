@@ -34,7 +34,7 @@ export const DialogContent = ({
     >
       {children}
       {hideClose ? null : (
-        <D.Close className="absolute top-4 right-4 rounded-control p-1 text-ink-3 transition-colors hover:bg-sunken hover:text-ink">
+        <D.Close className="absolute top-4 right-4 cursor-pointer rounded-control p-1 text-ink-3 transition-[background-color,color,transform] duration-150 hover:bg-sunken hover:text-ink active:scale-95">
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
         </D.Close>

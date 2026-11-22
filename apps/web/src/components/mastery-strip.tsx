@@ -1,6 +1,6 @@
 import type { ProgressView } from '@repo/api';
 import type { PersonId } from '@repo/domain';
-import { cn, MasteryRing, Pill } from '@repo/ui';
+import { cn, MasteryRing, Pill, Tooltip, TooltipContent, TooltipTrigger } from '@repo/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { ArrowRightIcon } from 'lucide-react';
@@ -80,24 +80,31 @@ export const MasteryStrip = ({
             })();
             return (
               <li key={s.id}>
-                <Link
-                  to="/catalog/skills/$slug"
-                  params={{ slug: s.slug }}
-                  title={`${s.name} — ${statusText}`}
-                  aria-label={`${s.name}: ${statusText}`}
-                  className="grid size-7 place-items-center rounded-full transition-transform hover:scale-110 hover:bg-surface"
-                >
-                  <MasteryRing level={held} current={current} required={required} size="xs" />
-                </Link>
+                <Tooltip delayDuration={180}>
+                  <TooltipTrigger asChild>
+                    <Link
+                      to="/catalog/skills/$slug"
+                      params={{ slug: s.slug }}
+                      aria-label={`${s.name}: ${statusText}`}
+                      className="grid size-7 place-items-center rounded-full transition-[transform,background-color] duration-150 ease-settle hover:scale-115 hover:bg-surface active:scale-95"
+                    >
+                      <MasteryRing level={held} current={current} required={required} size="xs" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <span className="font-medium">{s.name}</span> · {statusText}
+                  </TooltipContent>
+                </Tooltip>
               </li>
             );
           })}
         </ul>
         <Link
           to="/catalog/skills"
-          className="ml-1 inline-flex items-center gap-1 text-meta font-medium text-primary-ink hover:underline"
+          className="group ml-1 inline-flex items-center gap-1 text-meta font-medium text-primary-ink hover:underline"
         >
-          Catalog <ArrowRightIcon className="size-3" />
+          Catalog{' '}
+          <ArrowRightIcon className="size-3 transition-transform duration-150 ease-standard group-hover:translate-x-0.5" />
         </Link>
       </div>
     </div>

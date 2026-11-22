@@ -163,13 +163,13 @@ export const AppShell = ({
       <Sidebar session={session} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2.5 border-b border-line bg-canvas/90 px-4 backdrop-blur md:px-6">
-          <Link to="/" className="shrink-0 lg:hidden">
+          <Link to="/" className="group/brand shrink-0 lg:hidden">
             <BrandLockup size="sm" />
           </Link>
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
-            className="ml-auto flex h-9 w-9 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-control border border-line bg-surface px-0 text-ui text-ink-3 transition-colors hover:border-line-strong sm:w-full sm:max-w-64 sm:justify-start sm:px-3 lg:ml-0"
+            className="ml-auto flex h-9 w-9 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-control border border-line bg-surface px-0 text-ui text-ink-3 transition-[border-color,box-shadow,color,transform] duration-150 ease-standard hover:border-line-strong hover:text-ink-2 hover:shadow-sm active:scale-[0.99] sm:w-full sm:max-w-64 sm:justify-start sm:px-3 lg:ml-0"
           >
             <SearchIcon className="size-4" />
             <span className="hidden flex-1 text-left sm:inline">Search people & skills</span>

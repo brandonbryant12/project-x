@@ -14,13 +14,16 @@ const NavLink = ({ item, count }: { readonly item: NavItem; readonly count: numb
   <Link
     to={item.to}
     activeOptions={{ exact: item.to === '/' }}
-    className="group relative flex h-9 items-center gap-2.5 rounded-control px-2.5 text-ui font-medium text-ink-2 transition-colors duration-120 hover:bg-surface/70 hover:text-ink data-[status=active]:bg-surface data-[status=active]:text-ink data-[status=active]:shadow-sm data-[status=active]:ring-1 data-[status=active]:ring-line"
+    className="group relative flex h-9 items-center gap-2.5 rounded-control px-2.5 text-ui font-medium text-ink-2 transition-[background-color,color,box-shadow] duration-150 ease-standard hover:bg-surface/75 hover:text-ink active:scale-[0.99] data-[status=active]:bg-surface data-[status=active]:text-ink data-[status=active]:shadow-sm data-[status=active]:ring-1 data-[status=active]:ring-line"
   >
     <span
       aria-hidden
-      className="absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-primary opacity-0 transition-opacity group-data-[status=active]:opacity-100"
+      className="absolute top-2 bottom-2 left-0 w-0.5 scale-y-50 rounded-full bg-primary opacity-0 transition-[opacity,transform] duration-200 ease-settle group-data-[status=active]:scale-y-100 group-data-[status=active]:opacity-100"
     />
-    <item.icon aria-hidden className="size-4 text-ink-3 group-data-[status=active]:text-primary" />
+    <item.icon
+      aria-hidden
+      className="size-4 text-ink-3 transition-colors duration-150 group-hover:text-ink-2 group-data-[status=active]:text-primary"
+    />
     <span className="flex-1 truncate">{item.label}</span>
     {item.badge === 'inbox' && count > 0 ? (
       <span
@@ -37,7 +40,7 @@ export const Sidebar = ({ session }: { readonly session: SessionView }) => {
   const count = useInboxCount(session.relations.canObserve);
   return (
     <aside className="sticky top-0 hidden h-dvh w-[252px] shrink-0 flex-col border-r border-line bg-sunken/70 lg:flex">
-      <Link to="/" className="flex h-14 items-center border-b border-line/60 px-4">
+      <Link to="/" className="group/brand flex h-14 items-center border-b border-line/60 px-4">
         <BrandLockup size="sm" />
       </Link>
       <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 py-3">

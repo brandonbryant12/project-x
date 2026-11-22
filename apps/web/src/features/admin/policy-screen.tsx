@@ -16,8 +16,14 @@ import {
   toast,
 } from '@repo/ui';
 import { Link } from '@tanstack/react-router';
-import { ArrowRightIcon, CheckIcon, ShieldCheckIcon, SlidersHorizontalIcon } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import {
+  ArrowRightIcon,
+  CheckIcon,
+  RotateCcwIcon,
+  ShieldCheckIcon,
+  SlidersHorizontalIcon,
+} from 'lucide-react';
+import { useState, type CSSProperties, type FormEvent } from 'react';
 import { Page, PageHeader } from '@/components/page.tsx';
 import { useApiMutation } from '@/lib/api.ts';
 
@@ -68,25 +74,31 @@ const PolicyNumberControl = ({
   readonly max: number;
   readonly disabled: boolean;
   readonly onChange: (n: number) => void;
-}) => (
-  <Field>
-    <div className="flex items-baseline justify-between gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      <span className="font-mono text-ui font-semibold text-primary-ink tabular">{value}</span>
-    </div>
-    <input
-      id={id}
-      type="range"
-      min={min}
-      max={max}
-      value={value}
-      disabled={disabled}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="h-2 w-full cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-50"
-    />
-    <FieldHint>{hint}</FieldHint>
-  </Field>
-);
+}) => {
+  const pct = max > min ? Math.round(((value - min) / (max - min)) * 100) : 100;
+  return (
+    <Field>
+      <div className="flex items-baseline justify-between gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        <span className="rounded-full bg-primary-soft px-2 py-0.5 font-mono text-meta font-semibold text-primary-ink tabular">
+          {value}
+        </span>
+      </div>
+      <input
+        id={id}
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="folio-range my-1 w-full cursor-pointer"
+        style={{ '--range-pct': `${pct}%` } as CSSProperties}
+      />
+      <FieldHint>{hint}</FieldHint>
+    </Field>
+  );
+};
 
 const RigorPresetsSection = ({
   criteria,
@@ -112,10 +124,10 @@ const RigorPresetsSection = ({
             disabled={!canEdit}
             onClick={() => onSelect(p)}
             className={cn(
-              'grid cursor-pointer gap-1.5 rounded-card border p-4 text-left transition-colors disabled:cursor-not-allowed',
+              'grid cursor-pointer gap-1.5 rounded-card border p-4 text-left transition-[border-color,background-color,box-shadow,transform] duration-150 ease-standard active:scale-[0.99] disabled:cursor-not-allowed',
               selected
-                ? 'border-primary bg-primary-soft/45 ring-1 ring-primary/25'
-                : 'border-line bg-surface hover:border-line-strong',
+                ? 'border-primary bg-primary-soft/45 shadow-sm ring-1 ring-primary/25'
+                : 'border-line bg-surface hover:border-line-strong hover:shadow-card-hover',
             )}
           >
             <div className="flex items-center justify-between gap-2">
@@ -282,9 +294,22 @@ export const PolicyScreen = ({ policy }: { readonly policy: TenantPolicyView }) 
       minObservers: Math.min(c.minObservers, n),
     }));
 
+  const isDirty =
+    criteria.minDemonstrations !== policy.badgeCriteria.minDemonstrations ||
+    criteria.minObservers !== policy.badgeCriteria.minObservers ||
+    criteria.minFirstHandShare !== policy.badgeCriteria.minFirstHandShare ||
+    criteria.minSpanDays !== policy.badgeCriteria.minSpanDays ||
+    windowDays !== policy.observationWindowDays;
+
+  const resetDraft = () => {
+    setCriteria(policy.badgeCriteria);
+    setWindowDays(policy.observationWindowDays);
+    setReason('');
+  };
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!policy.canEdit) return;
+    if (!policy.canEdit || !isDirty) return;
     save.mutate({
       payload: {
         badgeCriteria: criteria,
@@ -301,10 +326,13 @@ export const PolicyScreen = ({ policy }: { readonly policy: TenantPolicyView }) 
           title="Program policy & rigor"
           description={`Tune how skill rings close and badges are earned across ${policy.tenantName}. Every change is audited.`}
           actions={
-            <Pill tone="info">
-              <ShieldCheckIcon className="mr-1 size-3.5" />
-              Active: {policy.preset.toUpperCase()}
-            </Pill>
+            <div className="flex items-center gap-2">
+              {isDirty ? <Pill tone="brass">Unsaved changes</Pill> : null}
+              <Pill tone="info">
+                <ShieldCheckIcon className="mr-1 size-3.5" />
+                Active: {policy.preset.toUpperCase()}
+              </Pill>
+            </div>
           }
         />
 
@@ -336,8 +364,13 @@ export const PolicyScreen = ({ policy }: { readonly policy: TenantPolicyView }) 
                     maxLength={240}
                   />
                 </Field>
-                <div className="flex justify-end">
-                  <Button type="submit" variant="primary" disabled={save.isPending}>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {isDirty ? (
+                    <Button type="button" variant="ghost" onClick={resetDraft}>
+                      <RotateCcwIcon /> Reset
+                    </Button>
+                  ) : null}
+                  <Button type="submit" variant="primary" disabled={!isDirty || save.isPending}>
                     <SlidersHorizontalIcon />
                     {save.isPending ? 'Saving policy…' : 'Save program policy'}
                   </Button>
